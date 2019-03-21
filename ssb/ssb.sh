@@ -281,44 +281,13 @@ pathQueries=queries
 
 # Related to MonetDB.
 pathMonetDB=../../monetdb
-if ! [[ -d $pathMonetDB ]]
-then
-    echo "Aborting."
-    echo ""
-    echo "This script expects the directory in which MonetDB was installed to "
-    echo "be reachable at '$pathMonetDB' from the current directory."
-    echo ""
-    echo "Consider making it available as a soft link."
-    exit -1
-fi
 monetdbd=$pathMonetDB/bin/monetdbd
 monetdb=$pathMonetDB/bin/monetdb
 mclient=$pathMonetDB/bin/mclient
 pathMonetDBFarm=../../monetdbfarm
-if ! [[ -d $pathMonetDBFarm ]]
-then
-    echo "Aborting."
-    echo ""
-    echo "This script expects the directory of a MonetDB farm to be reachable "
-    echo "at '$pathMonetDBFarm' from the current directory."
-    echo ""
-    echo "Consider making it available as a soft link."
-    exit -1
-fi
 
 # Related to the benchmark's data generation.
 pathDBGen=../../ssb-dbgen
-if ! [[ -d $pathDBGen ]]
-then
-    echo "Aborting."
-    echo ""
-    echo "This script expects the directory of the source code of the SSB's "
-    echo "dbgen tool to be reachable at '$pathDBGen' from the current "
-    echo "directory."
-    echo ""
-    echo "Consider making it available as a soft link."
-    exit -1
-fi
 
 # Related to MorphStore.
 pathMorphStore=../..
@@ -420,6 +389,45 @@ pathExe=$pathMorphStore/Engine/build/src/"$benchmark"_sf$scaleFactor
 
 # The name of the database in MonetDB.
 dbName="$benchmark"_sf$scaleFactor
+
+
+# *****************************************************************************
+# Checking the existence of some required directories
+# *****************************************************************************
+
+if ! [[ -d $pathMonetDB ]]
+then
+    echo "Aborting."
+    echo ""
+    echo "This script expects the directory in which MonetDB was installed to "
+    echo "be reachable at '$pathMonetDB' from the current directory."
+    echo ""
+    echo "Consider making it available as a soft link."
+    exit -1
+fi
+
+if ! [[ -d $pathMonetDBFarm ]]
+then
+    echo "Aborting."
+    echo ""
+    echo "This script expects the directory of a MonetDB farm to be reachable "
+    echo "at '$pathMonetDBFarm' from the current directory."
+    echo ""
+    echo "Consider making it available as a soft link."
+    exit -1
+fi
+
+if ! [[ -d $pathDBGen ]]
+then
+    echo "Aborting."
+    echo ""
+    echo "This script expects the directory of the source code of the SSB's "
+    echo "dbgen tool to be reachable at '$pathDBGen' from the current "
+    echo "directory."
+    echo ""
+    echo "Consider making it available as a soft link."
+    exit -1
+fi
 
 
 # *****************************************************************************
