@@ -78,6 +78,7 @@ class Op:
 class Project(Op):
     """A call to MorphStore's project operator."""
     
+    opName = "project"
     headers = ["core/operators/scalar/project_uncompr.h"]
     
     def __init__(self, outDataCol, inDataCol, inPosCol):
@@ -86,13 +87,14 @@ class Project(Op):
         self.inPosCol = inPosCol
         
     def __str__(self):
-        return "auto {outDataCol} = project<{scalar}, {format}>({inDataCol}, {inPosCol});".format(
-            **self.__dict__, **_commonIdentifiers
+        return "auto {outDataCol} = {opName}<{scalar}, {format}>({inDataCol}, {inPosCol});".format(
+            opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
 class Select(Op):
     """A call to MorphStore's select operator."""
     
+    opName = "select"
     headers = ["core/operators/scalar/select_uncompr.h"]
     
     def __init__(self, outPosCol, op, inDataCol, val):
@@ -102,13 +104,14 @@ class Select(Op):
         self.val = val
         
     def __str__(self):
-        return "auto {outPosCol} = {ns}::select<{op}, {scalar}, {format}, {format}>::{apply}({inDataCol}, {val});".format(
-            **self.__dict__, **_commonIdentifiers
+        return "auto {outPosCol} = {ns}::{opName}<{op}, {scalar}, {format}, {format}>::{apply}({inDataCol}, {val});".format(
+            opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
 class Intersect(Op):
     """A call to MorphStore's intersect operator."""
     
+    opName = "intersect_sorted"
     headers = ["core/operators/scalar/intersect_uncompr.h"]
     
     def __init__(self, outPosCol, inPosLCol, inPosRCol):
@@ -117,13 +120,14 @@ class Intersect(Op):
         self.inPosRCol = inPosRCol
         
     def __str__(self):
-        return "auto {outPosCol} = intersect_sorted<{scalar}, {format}>({inPosLCol}, {inPosRCol});".format(
-            **self.__dict__, **_commonIdentifiers
+        return "auto {outPosCol} = {opName}<{scalar}, {format}>({inPosLCol}, {inPosRCol});".format(
+            opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
 class Merge(Op):
     """A call to MorphStore's merge operator."""
     
+    opName = "merge_sorted"
     headers = ["core/operators/scalar/merge_uncompr.h"]
     
     def __init__(self, outPosCol, inPosLCol, inPosRCol):
@@ -132,13 +136,14 @@ class Merge(Op):
         self.inPosRCol = inPosRCol
         
     def __str__(self):
-        return "auto {outPosCol} = merge_sorted<{scalar}, {format}>({inPosLCol}, {inPosRCol});".format(
-            **self.__dict__, **_commonIdentifiers
+        return "auto {outPosCol} = {opName}<{scalar}, {format}>({inPosLCol}, {inPosRCol});".format(
+            opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
 class Join(Op):
     """A call to MorphStore's join operator."""
     
+    opName = "nested_loop_join"
     headers = ["core/operators/scalar/join_uncompr.h", "tuple"]
     
     def __init__(self, outPosLCol, outPosRCol, inDataLCol, inDataRCol):
@@ -153,28 +158,29 @@ class Join(Op):
         if False:
             # No cardinality estimate.
             return \
-                 "const {column}<{format}> * {outPosLCol};\n" \
-                 "const {column}<{format}> * {outPosRCol};\n" \
-                 "std::tie({outPosLCol}, {outPosRCol}) = nested_loop_join<{scalar}, {format}, {format}>({inDataLCol}, {inDataRCol});".format(
-                **self.__dict__, **_commonIdentifiers
+                "const {column}<{format}> * {outPosLCol};\n" \
+                "const {column}<{format}> * {outPosRCol};\n" \
+                "std::tie({outPosLCol}, {outPosRCol}) = {opName}<{scalar}, {format}, {format}>({inDataLCol}, {inDataRCol});".format(
+                opName=self.opName, **self.__dict__, **_commonIdentifiers
             )
         else:
             # Cardinality estimate for 1:N-join, assuming that the 1-side is
             # the larger column.
             return \
-                 "const {column}<{format}> * {outPosLCol};\n" \
-                 "const {column}<{format}> * {outPosRCol};\n" \
-                 "std::tie({outPosLCol}, {outPosRCol}) = nested_loop_join<{scalar}, {format}, {format}>(\n" \
-                 "    {inDataLCol},\n" \
-                 "    {inDataRCol},\n" \
-                 "    std::max({inDataLCol}->get_count_values(), {inDataRCol}->get_count_values())\n" \
-                 ");".format(
-                **self.__dict__, **_commonIdentifiers
+                "const {column}<{format}> * {outPosLCol};\n" \
+                "const {column}<{format}> * {outPosRCol};\n" \
+                "std::tie({outPosLCol}, {outPosRCol}) = {opName}<{scalar}, {format}, {format}>(\n" \
+                "    {inDataLCol},\n" \
+                "    {inDataRCol},\n" \
+                "    std::max({inDataLCol}->get_count_values(), {inDataRCol}->get_count_values())\n" \
+                ");".format(
+                opName=self.opName, **self.__dict__, **_commonIdentifiers
             )
     
 class CalcBinary(Op):
     """A call to MorphStore's binary calculation operator."""
     
+    opName = "calc_binary"
     headers = ["core/operators/scalar/calc_uncompr.h"]
     
     def __init__(self, outDataCol, op, inDataLCol, inDataRCol):
@@ -184,13 +190,14 @@ class CalcBinary(Op):
         self.inDataRCol = inDataRCol
         
     def __str__(self):
-        return "auto {outDataCol} = {ns}::calc_binary<{op}, {scalar}, {format}, {format}, {format}>::{apply}({inDataLCol}, {inDataRCol});".format(
-            **self.__dict__, **_commonIdentifiers
+        return "auto {outDataCol} = {ns}::{opName}<{op}, {scalar}, {format}, {format}, {format}>::{apply}({inDataLCol}, {inDataRCol});".format(
+            opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
 class SumWholeCol(Op):
     """A call to MorphStore's whole-column summation operator."""
     
+    opName = "agg_sum"
     headers = ["core/operators/scalar/agg_sum_uncompr.h"]
     
     def __init__(self, outDataCol, inDataCol):
@@ -198,13 +205,14 @@ class SumWholeCol(Op):
         self.inDataCol = inDataCol
         
     def __str__(self):
-        return "auto {outDataCol} = agg_sum<{scalar}>({inDataCol});".format(
-            **self.__dict__, **_commonIdentifiers
+        return "auto {outDataCol} = {opName}<{scalar}>({inDataCol});".format(
+            opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
 class SumGrBased(Op):
     """A call to MorphStore's group-based summation operator."""
     
+    opName = "agg_sum"
     headers = ["core/operators/scalar/agg_sum_uncompr.h"]
     
     def __init__(self, outDataCol, inGrCol, inDataCol, inExtCol):
@@ -214,13 +222,14 @@ class SumGrBased(Op):
         self.inExtCol = inExtCol
         
     def __str__(self):
-        return "auto {outDataCol} = agg_sum<{scalar}, {format}>({inGrCol}, {inDataCol}, {inExtCol}->{get_count_values}());".format(
-            **self.__dict__, **_commonIdentifiers
+        return "auto {outDataCol} = {opName}<{scalar}, {format}>({inGrCol}, {inDataCol}, {inExtCol}->{get_count_values}());".format(
+            opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
 class GroupUnary(Op):
     """A call to MorphStore's unary group operator."""
     
+    opName = "group"
     headers = ["core/operators/scalar/group_uncompr.h", "tuple"]
     
     def __init__(self, outGrCol, outExtCol, inDataCol):
@@ -232,13 +241,14 @@ class GroupUnary(Op):
         return \
             "const {column}<{format}> * {outGrCol};\n" \
             "const {column}<{format}> * {outExtCol};\n" \
-            "std::tie({outGrCol}, {outExtCol}) = group<{scalar}, {format}, {format}>({inDataCol});".format(
-            **self.__dict__, **_commonIdentifiers
+            "std::tie({outGrCol}, {outExtCol}) = {opName}<{scalar}, {format}, {format}>({inDataCol});".format(
+            opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
 class GroupBinary(Op):
     """A call to MorphStore's binary group operator."""
     
+    opName = "group"
     headers = ["core/operators/scalar/group_uncompr.h", "tuple"]
     
     def __init__(self, outGrCol, outExtCol, inGrCol, inDataCol):
@@ -251,6 +261,6 @@ class GroupBinary(Op):
         return \
             "const {column}<{format}> * {outGrCol};\n" \
             "const {column}<{format}> * {outExtCol};\n" \
-            "std::tie({outGrCol}, {outExtCol}) = group<{scalar}, {format}, {format}>({inGrCol}, {inDataCol});".format(
-            **self.__dict__, **_commonIdentifiers
+            "std::tie({outGrCol}, {outExtCol}) = {opName}<{scalar}, {format}, {format}>({inGrCol}, {inDataCol});".format(
+            opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
