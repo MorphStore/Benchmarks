@@ -68,6 +68,18 @@ import sys
 # Main programm
 # *****************************************************************************
 
+def addFlagArg(parser, argName, default, helpTrue, helpFalse):
+    gr = parser.add_mutually_exclusive_group(required=False)
+    gr.add_argument(
+        "--{}".format(argName), dest=argName, action="store_true",
+        help=helpTrue + (" (default)" if default is True else "")
+    )
+    gr.add_argument(
+        "--no-{}".format(argName), dest=argName, action="store_false",
+        help=helpFalse + (" (default)" if default is False else "")
+    )
+    parser.set_defaults(argName=default)
+
 if __name__ == "__main__":
     # -------------------------------------------------------------------------
     # Parsing the command line arguments
@@ -85,6 +97,11 @@ if __name__ == "__main__":
             "benchmarks will be read from stdin.".format(FROM_STDIN)
         # TODO Validate existence.
     )
+    addFlagArg(
+        parser, "mon", False,
+        "Use monitoring (time measurements).",
+        "Do not use monitoring."
+    )
     args = parser.parse_args()
 
     if args.inMalFilePath == FROM_STDIN:
@@ -100,5 +117,6 @@ if __name__ == "__main__":
         os.path.join(
             os.path.dirname(sys.argv[0]),
             "template.cpp"
-        )
+        ),
+        args.mon
     )

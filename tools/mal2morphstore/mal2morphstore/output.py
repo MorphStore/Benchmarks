@@ -38,9 +38,12 @@ of an abstract representation of the translated program.
 # TODO This module is not independent from the C++ template file. For instance,
 #      it relies on the existence of certain header inlcudes and variables in
 #      the template. They should be completely independent.
+# TODO Use constants for common literals ("binary_io", "load", "uncompr_f", the
+#      monitoring macros, etc.) as in module operators.
 
 
 import mal2morphstore.analysis
+from mal2morphstore.operators import Op
 
 import os.path
 import re
@@ -66,10 +69,13 @@ def _printDocu(indent, tr):
     )
     print("{} */".format(indent))
 
-def _printHeaders(indent, tr):
+def _printHeaders(indent, tr, useMonitoring):
     """
     Prints preprocessor directives for the necessary header includes.
     """
+    
+    if useMonitoring:
+        tr.headers.add("core/utils/monitoring.h")
     
     for header in sorted(tr.headers):
         print("{}#include <{}>".format(indent, header))
@@ -81,8 +87,6 @@ def _printSchema(indent, tr):
     that table by the translated program.
     """
     
-    # TODO Use constants for common literals ("column", "uncompr_f") as in
-    #      module operators.
     for tblName in sorted(tr.colNamesByTblName):
         print("{}struct {}_t {{".format(indent, tblName))
         for colName in sorted(tr.colNamesByTblName[tblName]):
@@ -96,8 +100,6 @@ def _printDataLoad(indent, tr):
     translated program from a file on disk.
     """
     
-    # TODO Use constants for common literals ("binary_io", "load", "uncompr_f")
-    #      as in module operators.
     maxLen = max([
         len(tblName) + 1 + len(colName)
         for tblName in tr.colNamesByTblName
@@ -117,19 +119,41 @@ def _printDataLoad(indent, tr):
             )
         print()
 
-def _printProg(indent, tr):
+def _printProg(indent, tr, useMonitoring):
     """
     Prints the core program, i.e., the sequence of operators.
     """
     
-    for el in tr.prog:
-        print("{}{}".format(indent, el).replace("\n", "\n" + indent))
+    if useMonitoring:
+        monKeyQuery = "query"
+        print('{}MONITOR_START_INTERVAL("{}")'.format(indent, monKeyQuery))
+        print()
+        for elIdx, el in enumerate(tr.prog):
+            if isinstance(el, Op):
+                monKeyOp = "{}_{}".format(el.opName, elIdx)
+                print('{}MONITOR_START_INTERVAL("{}")'.format(
+                        indent, monKeyOp)
+                )
+                print("{}{}".format(indent, el).replace("\n", "\n" + indent))
+                print('{}MONITOR_END_INTERVAL  ("{}")'.format(
+                        indent, monKeyOp)
+                )
+            else:
+                print("{}{}".format(indent, el).replace("\n", "\n" + indent))
+        print()
+        print('{}MONITOR_END_INTERVAL  ("{}")'.format(indent, monKeyQuery))
+    else:
+        for el in tr.prog:
+            print("{}{}".format(indent, el).replace("\n", "\n" + indent))
 
-def _printResultOutput(indent, tr):
+def _printResultOutput(indent, tr, useMonitoring):
     """
     Prints C++ statements for the output of the query's result columns.
     """
 
+    if useMonitoring:
+        print("{}MONITOR_PRINT_ALL(monitorShellLog, true)".format(indent))
+    
     if True:
         # Output in the same CSV dialect MonetDB uses.
         print("{}print_columns_csv({{{}}});".format(
@@ -175,7 +199,7 @@ def _printAnalysis(indent, ar):
 # replace by parts of the translated program.
 _pPlaceholder = re.compile(r"(\s*)\/\/ ##### mal2morphstore (.+?) #####\s*")
 
-def generate(translationResult, templateFilePath):
+def generate(translationResult, templateFilePath, useMonitoring):
     """
     Generates the C++ source code for the given abstract representation of a
     translated program and prints it to stdout.
@@ -212,15 +236,17 @@ def generate(translationResult, templateFilePath):
                 if ph == "docu":
                     _printDocu(indent, translationResult)
                 elif ph == "headers":
-                    _printHeaders(indent, translationResult)
+                    _printHeaders(indent, translationResult, useMonitoring)
                 elif ph == "schema":
                     _printSchema(indent, translationResult)
                 elif ph == "dataload":
                     _printDataLoad(indent, translationResult)
                 elif ph == "prog":
-                    _printProg(indent, translationResult)
+                    _printProg(indent, translationResult, useMonitoring)
                 elif ph == "result":
-                    _printResultOutput(indent, translationResult)
+                    _printResultOutput(
+                            indent, translationResult, useMonitoring
+                    )
                 elif ph == "analysis":
                     _printAnalysis(
                         indent,
