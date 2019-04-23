@@ -173,7 +173,7 @@ function translate () {
 
     set -e
 
-    mkdir $pathSrc
+    mkdir --parents $pathSrc
     local cmakeListsFile=$pathSrc/CMakeLists.txt
 
     rm -f $cmakeListsFile
