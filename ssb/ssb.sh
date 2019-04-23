@@ -220,7 +220,7 @@ function build () {
     local oldPwd=$(pwd)
     cd $pathMorphStore/Engine
     # TODO Do not hard-code the arguments for build.sh.
-    ./build.sh -rel -j8
+    ./build.sh -hi -j8
     cd $oldPwd
 
     set +e
