@@ -191,17 +191,19 @@ function translate () {
                 | $mal2morphstore \
                 > $pathSrc/q$major.$minor.cpp
 
+            local targetName=q$major.$minor"_sf"$scaleFactor
+
             # TODO Maybe we should outsource this snippet to a file.
-            printf "add_executable( q$major.$minor q$major.$minor.cpp )\n"      >> $cmakeListsFile
-            printf "target_compile_options( q$major.$minor PRIVATE\n"           >> $cmakeListsFile
-            printf "                        -Werror\n"                          >> $cmakeListsFile
-            printf "                        -Wall\n"                            >> $cmakeListsFile
-            printf "                        -Wextra\n"                          >> $cmakeListsFile
-            printf "                        -pedantic\n"                        >> $cmakeListsFile
-            printf "                        -fstack-protector-all\n"            >> $cmakeListsFile
-            printf "                        $<$<CONFIG:DEBUG>:-DDEBUG> )\n"     >> $cmakeListsFile
-            printf "target_link_libraries( q$major.$minor PRIVATE \"-ldl\" )\n" >> $cmakeListsFile
-            printf "\n"                                                         >> $cmakeListsFile
+            printf "add_executable( $targetName q$major.$minor.cpp )\n"      >> $cmakeListsFile
+            printf "target_compile_options( $targetName PRIVATE\n"           >> $cmakeListsFile
+            printf "                        -Werror\n"                       >> $cmakeListsFile
+            printf "                        -Wall\n"                         >> $cmakeListsFile
+            printf "                        -Wextra\n"                       >> $cmakeListsFile
+            printf "                        -pedantic\n"                     >> $cmakeListsFile
+            printf "                        -fstack-protector-all\n"         >> $cmakeListsFile
+            printf "                        $<$<CONFIG:DEBUG>:-DDEBUG> )\n"  >> $cmakeListsFile
+            printf "target_link_libraries( $targetName PRIVATE \"-ldl\" )\n" >> $cmakeListsFile
+            printf "\n"                                                      >> $cmakeListsFile
 
             printf "done.\n"
         done
@@ -237,6 +239,8 @@ function run () {
         do
             printf "$benchmark q$major.$minor: "
 
+            local targetName=q$major.$minor"_sf"$scaleFactor
+
             # TODO Remove the sort in the pipe once MorphStore supports
             #      sorting.
             cmp --silent \
@@ -248,7 +252,7 @@ function run () {
                         | sort \
                 ) \
                 <( \
-                    $pathExe/q$major.$minor $pathDataColsDict 2> /dev/null \
+                    $pathExe/$targetName $pathDataColsDict 2> /dev/null \
                     | sort \
                 )
             if [[ $? -eq 0 ]]
