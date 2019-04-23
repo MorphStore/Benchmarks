@@ -78,8 +78,9 @@ class Op:
 class Project(Op):
     """A call to MorphStore's project operator."""
     
+    headers = ["core/operators/scalar/project_uncompr.h"]
+    
     def __init__(self, outDataCol, inDataCol, inPosCol):
-        self.headers = ["core/operators/scalar/project_uncompr.h"]
         self.outDataCol = outDataCol
         self.inDataCol = inDataCol
         self.inPosCol = inPosCol
@@ -92,8 +93,9 @@ class Project(Op):
 class Select(Op):
     """A call to MorphStore's select operator."""
     
+    headers = ["core/operators/scalar/select_uncompr.h"]
+    
     def __init__(self, outPosCol, op, inDataCol, val):
-        self.headers = ["core/operators/scalar/select_uncompr.h"]
         self.outPosCol = outPosCol
         self.op = op
         self.inDataCol = inDataCol
@@ -107,8 +109,9 @@ class Select(Op):
 class Intersect(Op):
     """A call to MorphStore's intersect operator."""
     
+    headers = ["core/operators/scalar/intersect_uncompr.h"]
+    
     def __init__(self, outPosCol, inPosLCol, inPosRCol):
-        self.headers = ["core/operators/scalar/intersect_uncompr.h"]
         self.outPosCol = outPosCol
         self.inPosLCol = inPosLCol
         self.inPosRCol = inPosRCol
@@ -121,8 +124,9 @@ class Intersect(Op):
 class Merge(Op):
     """A call to MorphStore's merge operator."""
     
+    headers = ["core/operators/scalar/merge_uncompr.h"]
+    
     def __init__(self, outPosCol, inPosLCol, inPosRCol):
-        self.headers = ["core/operators/scalar/merge_uncompr.h"]
         self.outPosCol = outPosCol
         self.inPosLCol = inPosLCol
         self.inPosRCol = inPosRCol
@@ -135,8 +139,9 @@ class Merge(Op):
 class Join(Op):
     """A call to MorphStore's join operator."""
     
+    headers = ["core/operators/scalar/join_uncompr.h", "tuple"]
+    
     def __init__(self, outPosLCol, outPosRCol, inDataLCol, inDataRCol):
-        self.headers = ["core/operators/scalar/join_uncompr.h", "tuple"]
         self.outPosLCol = outPosLCol
         self.outPosRCol = outPosRCol
         self.inDataLCol = inDataLCol
@@ -170,8 +175,9 @@ class Join(Op):
 class CalcBinary(Op):
     """A call to MorphStore's binary calculation operator."""
     
+    headers = ["core/operators/scalar/calc_uncompr.h"]
+    
     def __init__(self, outDataCol, op, inDataLCol, inDataRCol):
-        self.headers = ["core/operators/scalar/calc_uncompr.h"]
         self.outDataCol = outDataCol
         self.op = op
         self.inDataLCol = inDataLCol
@@ -185,8 +191,9 @@ class CalcBinary(Op):
 class SumWholeCol(Op):
     """A call to MorphStore's whole-column summation operator."""
     
+    headers = ["core/operators/scalar/agg_sum_uncompr.h"]
+    
     def __init__(self, outDataCol, inDataCol):
-        self.headers = ["core/operators/scalar/agg_sum_uncompr.h"]
         self.outDataCol = outDataCol
         self.inDataCol = inDataCol
         
@@ -198,8 +205,9 @@ class SumWholeCol(Op):
 class SumGrBased(Op):
     """A call to MorphStore's group-based summation operator."""
     
+    headers = ["core/operators/scalar/agg_sum_uncompr.h"]
+    
     def __init__(self, outDataCol, inGrCol, inDataCol, inExtCol):
-        self.headers = ["core/operators/scalar/agg_sum_uncompr.h"]
         self.outDataCol = outDataCol
         self.inGrCol = inGrCol
         self.inDataCol = inDataCol
@@ -213,8 +221,9 @@ class SumGrBased(Op):
 class GroupUnary(Op):
     """A call to MorphStore's unary group operator."""
     
+    headers = ["core/operators/scalar/group_uncompr.h", "tuple"]
+    
     def __init__(self, outGrCol, outExtCol, inDataCol):
-        self.headers = ["core/operators/scalar/group_uncompr.h", "tuple"]
         self.outGrCol = outGrCol
         self.outExtCol = outExtCol
         self.inDataCol = inDataCol
@@ -230,8 +239,9 @@ class GroupUnary(Op):
 class GroupBinary(Op):
     """A call to MorphStore's binary group operator."""
     
+    headers = ["core/operators/scalar/group_uncompr.h", "tuple"]
+    
     def __init__(self, outGrCol, outExtCol, inGrCol, inDataCol):
-        self.headers = ["core/operators/scalar/group_uncompr.h", "tuple"]
         self.outGrCol = outGrCol
         self.outExtCol = outExtCol
         self.inGrCol = inGrCol
