@@ -66,8 +66,6 @@ int main(int argc, const char ** argv) {
     // Query execution
     // ------------------------------------------------------------------------
     
-    const processing_style_t scalar = processing_style_t::scalar;
-    
     std::cerr << "Query execution started... ";
     std::cerr.flush();
     

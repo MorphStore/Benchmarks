@@ -36,14 +36,17 @@ of an abstract representation of the translated program.
 #      parameter -- either here or in the generated C++ program.
 # TODO Automaticall break generated C++ source code lines in a nice way.
 # TODO This module is not independent from the C++ template file. For instance,
-#      it relies on the existence of certain header inlcudes and variables in
+#      it relies on the existence of certain header includes and variables in
 #      the template. They should be completely independent.
 # TODO Use constants for common literals ("binary_io", "load", "uncompr_f", the
 #      monitoring macros, etc.) as in module operators.
+# TODO Output the command line arguments passed to mal2morphstore.py in the
+#      generated C++ files.
 
 
 import mal2morphstore.analysis
 from mal2morphstore.operators import Op
+import mal2morphstore.processingstyles as ps
 
 import os.path
 import re
@@ -69,14 +72,28 @@ def _printDocu(indent, tr):
     )
     print("{} */".format(indent))
 
-def _printHeaders(indent, tr, useMonitoring):
+def _printHeaders(indent, tr, useMonitoring, processingStyle):
     """
     Prints preprocessor directives for the necessary header includes.
     """
+
+    # Add the headers required for the query operators, tailored to the
+    # selected processing style.
+    for el in tr.prog:
+        if isinstance(el, Op):
+            for header in el.headers:
+                tr.headers.add(header.format(
+                        **{
+                            ps.INCLUDE_DIR_KEY:
+                            ps.INCLUDE_DIR_BY_PS[processingStyle]
+                        }
+                ))
     
+    # Add monitoring header if required.
     if useMonitoring:
         tr.headers.add("core/utils/monitoring.h")
     
+    # Print headers in lexicographical order.
     for header in sorted(tr.headers):
         print("{}#include <{}>".format(indent, header))
         
@@ -119,11 +136,18 @@ def _printDataLoad(indent, tr):
             )
         print()
 
-def _printProg(indent, tr, useMonitoring):
+def _printProg(indent, tr, useMonitoring, processingStyle):
     """
     Prints the core program, i.e., the sequence of operators.
     """
     
+    # The constant representing the processing style to use for all operators.
+    print("{}const processing_style_t {} = processing_style_t::{};".format(
+            indent, ps.PS_VAR, processingStyle
+    ))
+    print()
+    
+    # The query program.
     if useMonitoring:
         monKeyQuery = "query"
         print('{}MONITOR_START_INTERVAL("{}")'.format(indent, monKeyQuery))
@@ -199,7 +223,9 @@ def _printAnalysis(indent, ar):
 # replace by parts of the translated program.
 _pPlaceholder = re.compile(r"(\s*)\/\/ ##### mal2morphstore (.+?) #####\s*")
 
-def generate(translationResult, templateFilePath, useMonitoring):
+def generate(
+        translationResult, templateFilePath, useMonitoring, processingStyle
+):
     """
     Generates the C++ source code for the given abstract representation of a
     translated program and prints it to stdout.
@@ -236,13 +262,23 @@ def generate(translationResult, templateFilePath, useMonitoring):
                 if ph == "docu":
                     _printDocu(indent, translationResult)
                 elif ph == "headers":
-                    _printHeaders(indent, translationResult, useMonitoring)
+                    _printHeaders(
+                            indent,
+                            translationResult,
+                            useMonitoring,
+                            processingStyle
+                    )
                 elif ph == "schema":
                     _printSchema(indent, translationResult)
                 elif ph == "dataload":
                     _printDataLoad(indent, translationResult)
                 elif ph == "prog":
-                    _printProg(indent, translationResult, useMonitoring)
+                    _printProg(
+                            indent,
+                            translationResult,
+                            useMonitoring,
+                            processingStyle
+                    )
                 elif ph == "result":
                     _printResultOutput(
                             indent, translationResult, useMonitoring

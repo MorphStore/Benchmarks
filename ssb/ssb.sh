@@ -87,6 +87,10 @@ function print_help () {
     echo "  -p PURPOSE, --purpose PURPOSE"
     echo "                          The purpose of the query execution. "
     echo "                          Defaults to check."
+    echo "  -ps PROCESSING_STYLE, --processingStyle PROCESSING_STYLE"
+    echo "                          The processing style to use in MorphStore."
+    echo "                          Supported values are scalar, vec128, and "
+    echo "                          vec256. Defaults to scalar."
     echo ""
     echo "Examples:"
     echo "  ssb.sh"
@@ -228,7 +232,7 @@ function translate () {
                 | cat - $pathQueries/q$major.$minor.sql \
                 | $qdict $pathDataDicts \
                 | $mclient -d $dbName -f raw \
-                | $mal2morphstore $monitoringFlag \
+                | $mal2morphstore $monitoringFlag $processingStyle \
                 > $pathSrc/q$major.$minor.cpp
 
             local targetName=q$major.$minor"_sf"$scaleFactor
@@ -273,7 +277,7 @@ function build () {
     local oldPwd=$(pwd)
     cd $pathMorphStore/Engine
     # TODO Do not hard-code the arguments for build.sh.
-    ./build.sh -hi -j8 $monitoringFlag
+    ./build.sh -hi -j8 $monitoringFlag -avxtwo
     cd $oldPwd
 
     set +e
@@ -418,6 +422,7 @@ startStep=$stepClean
 endStep=$stepRun
 scaleFactor=1
 purpose=$purposeCheck
+processingStyle=scalar
 
 while [[ $# -gt 0 ]]
 do
@@ -460,6 +465,10 @@ do
                 printf "unknown purpose: $2\n"
                 exit -1
             fi
+            ;;
+        -ps|--processingStyle)
+            processingStyle=$2
+            shift
             ;;
         *)
             printf "unknown option: $key\n"

@@ -189,12 +189,11 @@ class TranslationResult():
     """
     
     def __init__(self, ts):
-        # The C++ headers required in the translated program as a set.
+        # The C++ headers required in the translated program as a set. Note
+        # that this set does not account for the very operators themselves.
+        # (These are handled in output.py, since they need to take the
+        # processing style into account.)
         self.headers = ts.headers
-        for el in ts.prog:
-            if isinstance(el, ops.Op):
-                for header in el.headers:
-                    self.headers.add(header)
                     
         # The translated program. This list can contain instances of ops.Op as
         # well as ordinary strings.

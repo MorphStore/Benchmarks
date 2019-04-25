@@ -48,8 +48,9 @@ Known limitations:
   was not tested.
 - The translation does not cover all cases that could be encountered in a MAL
   program, but for the moment it should suffice for our purposes.
-- So far, the generated C++ code will employ only MorphStore's scalar query
-  operator implementations for uncompressed data.
+- So far, the generated C++ code will employ only one of MorphStore's
+  processing styles (which must be specified as an argument to this script).
+- So far, only operators on uncompressed data are considered.
 
 See the documentations of the modules in package mal2morphstore for further
 details.
@@ -57,6 +58,7 @@ details.
 
 
 import mal2morphstore.output
+import mal2morphstore.processingstyles as ps
 import mal2morphstore.translation
 
 import argparse
@@ -89,6 +91,16 @@ if __name__ == "__main__":
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
+    # Required (positional) arguments.
+    parser.add_argument(
+        "processingStyle", metavar="PROCESSING_STYLE",
+        choices=list(sorted(ps.INCLUDE_DIR_BY_PS.keys())),
+        help="The MorphStore processing style to use for all query operators. "
+            "The following processing styles are supported: {}.".format(
+                ", ".join(sorted(ps.INCLUDE_DIR_BY_PS.keys()))
+            )
+    )
+    # Optional arguments
     FROM_STDIN = "-"
     parser.add_argument(
         "--malfile", dest="inMalFilePath", default=FROM_STDIN, metavar="FILE",
@@ -118,5 +130,6 @@ if __name__ == "__main__":
             os.path.dirname(sys.argv[0]),
             "template.cpp"
         ),
-        args.mon
+        args.mon,
+        args.processingStyle
     )
