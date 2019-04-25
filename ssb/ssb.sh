@@ -54,33 +54,62 @@ function print_help () {
     echo "  b, build"
     echo "      Builds MorphStore using MorphStore's build.sh script."
     echo "  r, run"
-    echo "      Runs all SSB queries with both MorphStore and MonetDB and "
-    echo "      compares the query results."
+    echo "      Runs all SSB queries. What exactly is done in this step "
+    echo "      depends on the selected purpose (see below)."
+    echo ""
+    echo "This script can be run for different purposes. By default, the "
+    echo "purpose is to check the correctness of the query results. The "
+    echo "argument -p can be used to select a purpose. Note that the steps "
+    echo "clean and generate are not affected by the purpose. The following "
+    echo "purposes are supported:"
+    echo ""
+    echo "Purposes:"
+    echo "  c, check"
+    echo "      Verify that MorphStore's query results are correct by "
+    echo "      comparing them to those of MonetDB. No further files are "
+    echo "      created."
+    echo "  m, measure"
+    echo "      Measure the runtimes achieved by MorphStore. A directory "
+    echo "      'mea_sfN' is created in the current directory, whereby N is "
+    echo "      the specified scale factor. In this directory, one file per "
+    echo "      query will be generated, containing the measurements for the "
+    echo "      respective query. Note that this directory is NOT deleted in "
+    echo "      the cleaning step."
     echo ""
     echo "Optional arguments:"
     echo "  -h, --help              Show this help message and exit."
     echo "  -s STEP, --start STEP   The step to start with. Defaults to clean "
     echo "                          (the first step)."
-    echo "  -e STEP, --end STEP     The step to stop after. Defaults to check "
+    echo "  -e STEP, --end STEP     The step to stop after. Defaults to run "
     echo "                          (the final step)."
     echo "  -sf N, --scaleFactor N  The scale factor to use for the SSB data "
     echo "                          generation. Defaults to 1."
+    echo "  -p PURPOSE, --purpose PURPOSE"
+    echo "                          The purpose of the query execution. "
+    echo "                          Defaults to check."
     echo ""
     echo "Examples:"
     echo "  ssb.sh"
-    echo "      Executes all steps for scale factor 1."
+    echo "      Executes all steps for scale factor 1, verifying the "
+    echo "      correctness of the query results."
     echo "  ssb.sh -e g"
     echo "      Cleans already existing data and re-generates the data for "
     echo "      scale factor 1."
     echo "  ssb.sh -s t"
     echo "      Translates MAL to MorphStore C++, builds MorphStore, and "
-    echo "      runs all queries for scale factor 1"
-    echo "  ssb.sh -s t -e t"
-    echo "      Only translates MAL to MorphStore."
+    echo "      runs all queries for scale factor 1, verifying the "
+    echo "      correctness of the query results."
+    echo "  ssb.sh -s t -e t -p m"
+    echo "      Only translates MAL to MorphStore, including the code "
+    echo "      required for measurements."
     echo "  ssb.sh -e c"
     echo "      Cleans already existing data."
     echo "  ssb.sh -sf 10"
-    echo "      Executes all steps for scale factor 10."
+    echo "      Executes all steps for scale factor 10, verifying the "
+    echo "      correctness of the query results."
+    echo "  ssb.sh -p m"
+    echo "      Executes all steps for scale factor 1, measuring the runtimes "
+    echo "      of the queries in MorphStore."
     echo ""
     echo "Requirements:"
     echo "- This script assumes that the following directories (or links to "
@@ -178,6 +207,17 @@ function translate () {
 
     rm -f $cmakeListsFile
 
+    if [[ $purpose -eq $purposeCheck ]]
+    then
+        local monitoringFlag="--no-mon"
+    elif [[ $purpose -eq $purposeMeasure ]]
+    then
+        local monitoringFlag="--mon"
+    else
+        printf "unsupported purpose (in translate): $purpose\n"
+        exit -1
+    fi
+
     for major in 1 2 3 4
     do
         for minor in 1 2 3
@@ -188,7 +228,7 @@ function translate () {
                 | cat - $pathQueries/q$major.$minor.sql \
                 | $qdict $pathDataDicts \
                 | $mclient -d $dbName -f raw \
-                | $mal2morphstore \
+                | $mal2morphstore $monitoringFlag \
                 > $pathSrc/q$major.$minor.cpp
 
             local targetName=q$major.$minor"_sf"$scaleFactor
@@ -219,10 +259,21 @@ function build () {
 
     set -e
 
+    if [[ $purpose -eq $purposeCheck ]]
+    then
+        local monitoringFlag=""
+    elif [[ $purpose -eq $purposeMeasure ]]
+    then
+        local monitoringFlag="-mon"
+    else
+        printf "unsupported purpose (in build): $purpose\n"
+        exit -1
+    fi
+
     local oldPwd=$(pwd)
     cd $pathMorphStore/Engine
     # TODO Do not hard-code the arguments for build.sh.
-    ./build.sh -hi -j8
+    ./build.sh -hi -j8 $monitoringFlag
     cd $oldPwd
 
     set +e
@@ -231,7 +282,18 @@ function build () {
 }
 
 function run () {
-    print_headline1 "Comparing query results of MorphStore and MonetDB"
+    print_headline1 "Running queries"
+
+    if [[ $purpose -eq $purposeCheck ]]
+    then
+        print_headline2 "Comparing query results of MorphStore and MonetDB"
+    elif [[ $purpose -eq $purposeMeasure ]]
+    then
+        print_headline2 "Measuring runtimes in MorphStore"
+    else
+        printf "unsupported purpose (in run): $purpose\n"
+        exit -1
+    fi
 
     for major in 1 2 3 4
     do
@@ -241,25 +303,32 @@ function run () {
 
             local targetName=q$major.$minor"_sf"$scaleFactor
 
-            # TODO Remove the sort in the pipe once MorphStore supports
-            #      sorting.
-            cmp --silent \
-                <( \
-                    printf "SET SCHEMA $benchmark;\n" \
-                        | cat - $pathQueries/q$major.$minor.sql \
-                        | $qdict $pathDataDicts \
-                        | $mclient -d $dbName -f csv \
-                        | sort \
-                ) \
-                <( \
-                    $pathExe/$targetName $pathDataColsDict 2> /dev/null \
-                    | sort \
-                )
-            if [[ $? -eq 0 ]]
+            if [[ $purpose -eq $purposeCheck ]]
             then
-                printf "good\n"
-            else
-                printf "BAD\n"
+                # TODO Remove the sort in the pipe once MorphStore supports
+                #      sorting.
+                cmp --silent \
+                    <( \
+                        printf "SET SCHEMA $benchmark;\n" \
+                            | cat - $pathQueries/q$major.$minor.sql \
+                            | $qdict $pathDataDicts \
+                            | $mclient -d $dbName -f csv \
+                            | sort \
+                    ) \
+                    <( \
+                        $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                        | sort \
+                    )
+                if [[ $? -eq 0 ]]
+                then
+                    printf "good\n"
+                else
+                    printf "BAD\n"
+                fi
+            elif [[ $purpose -eq $purposeMeasure ]]
+            then
+                mkdir --parents $pathMea
+                eval $pathExe/$targetName $pathDataColsDict > $pathMea/q$major.$minor.txt
             fi
         done
     done
@@ -325,6 +394,21 @@ declare -A stepMap=(
 )
 
 
+# -----------------------------------------------------------------------------
+# Purposes of this script's execution.
+# -----------------------------------------------------------------------------
+
+purposeCheck=1
+purposeMeasure=2
+
+declare -A purposeMap=(
+    [c]=$purposeCheck
+    [check]=$purposeCheck
+    [m]=$purposeMeasure
+    [measure]=$purposeMeasure
+)
+
+
 # *****************************************************************************
 # Argument parsing
 # *****************************************************************************
@@ -333,6 +417,7 @@ declare -A stepMap=(
 startStep=$stepClean
 endStep=$stepRun
 scaleFactor=1
+purpose=$purposeCheck
 
 while [[ $# -gt 0 ]]
 do
@@ -366,6 +451,16 @@ do
             scaleFactor=$2
             shift
             ;;
+        -p|--purpose)
+            if [[ ${purposeMap[$2]+_} ]]
+            then
+                purpose=${purposeMap[$2]}
+                shift
+            else
+                printf "unknown purpose: $2\n"
+                exit -1
+            fi
+            ;;
         *)
             printf "unknown option: $key\n"
             exit -1
@@ -390,6 +485,9 @@ pathDataColsDict=$pathData/cols_dict
 # Directories for the generated source and executable files.
 pathSrc=$pathMorphStore/Engine/src/"$benchmark"_sf$scaleFactor
 pathExe=$pathMorphStore/Engine/build/src/"$benchmark"_sf$scaleFactor
+
+# Directory for the measured results.
+pathMea=mea_sf$scaleFactor
 
 # The name of the database in MonetDB.
 dbName="$benchmark"_sf$scaleFactor
