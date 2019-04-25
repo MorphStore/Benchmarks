@@ -73,18 +73,18 @@ int main(int argc, const char ** argv) {
     
     // ##### mal2morphstore prog #####
     
-    std::cerr << "done." << std::endl << std::endl;
+    std::cerr << "done." << std::endl;
     
     // ------------------------------------------------------------------------
     // Result output
     // ------------------------------------------------------------------------
     
-    std::cerr << "Result output started... ";
+    std::cerr << "Result output started... " << std::endl;
     std::cerr.flush();
     
     // ##### mal2morphstore result #####
     
-    std::cerr << "done." << std::endl << std::endl;
+    std::cerr << "done." << std::endl;
     
     return 0;
     
