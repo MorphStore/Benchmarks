@@ -23,7 +23,8 @@
 #******************************************************************************
 
 function print_help () {
-    echo "Usage: ssb.sh [-h] [-s STEP] [-e STEP] [-sf N]"
+    echo "Usage: ssb.sh [-h] [-s STEP] [-e STEP] [-sf N] [-p PURPOSE]"
+    echo "              [-ps PROCESSING_STYLE]"
     echo ""
     echo "Star Schema Benchmark (SSB) in MorphStore."
     echo ""
@@ -68,6 +69,13 @@ function print_help () {
     echo "      Verify that MorphStore's query results are correct by "
     echo "      comparing them to those of MonetDB. No further files are "
     echo "      created."
+    echo "  r, results"
+    echo "      Like check, but also writes the query results of both MonetDB "
+    echo "      and MorphStore to files. A directory 'res_sfN' is created in "
+    echo "      the current directory, whereby N is the specified scale "
+    echo "      factor. This directory contains the query results as CSV "
+    echo "      files. Note that this directory is NOT deleted in the "
+    echo "      cleaning step."
     echo "  m, measure"
     echo "      Measure the runtimes achieved by MorphStore. A directory "
     echo "      'mea_sfN' is created in the current directory, whereby N is "
@@ -211,14 +219,14 @@ function translate () {
 
     rm -f $cmakeListsFile
 
-    if [[ $purpose -eq $purposeCheck ]]
+    if [[ $purpose -eq $purposeCheck || $purpose -eq $purposeResults ]]
     then
         local monitoringFlag="--no-mon"
     elif [[ $purpose -eq $purposeMeasure ]]
     then
         local monitoringFlag="--mon"
     else
-        printf "unsupported purpose (in translate): $purpose\n"
+        printf "unsupported purpose (in step translate): $purpose\n"
         exit -1
     fi
 
@@ -263,14 +271,14 @@ function build () {
 
     set -e
 
-    if [[ $purpose -eq $purposeCheck ]]
+    if [[ $purpose -eq $purposeCheck || $purpose -eq $purposeResults ]]
     then
         local monitoringFlag=""
     elif [[ $purpose -eq $purposeMeasure ]]
     then
         local monitoringFlag="-mon"
     else
-        printf "unsupported purpose (in build): $purpose\n"
+        printf "unsupported purpose (in step build): $purpose\n"
         exit -1
     fi
 
@@ -288,15 +296,20 @@ function build () {
 function run () {
     print_headline1 "Running queries"
 
-    if [[ $purpose -eq $purposeCheck ]]
+    if [[ $purpose -eq $purposeCheck || $purpose -eq $purposeResults ]]
     then
         print_headline2 "Comparing query results of MorphStore and MonetDB"
     elif [[ $purpose -eq $purposeMeasure ]]
     then
         print_headline2 "Measuring runtimes in MorphStore"
     else
-        printf "unsupported purpose (in run): $purpose\n"
+        printf "unsupported purpose (in step run): $purpose\n"
         exit -1
+    fi
+
+    if [[ $purpose -eq $purposeResults ]]
+    then
+        mkdir --parents $pathRes
     fi
 
     for major in 1 2 3 4
@@ -307,6 +320,8 @@ function run () {
 
             local targetName=q$major.$minor"_sf"$scaleFactor
 
+            # TODO Reduce the code duplication between the check and results
+            #      purposes.
             if [[ $purpose -eq $purposeCheck ]]
             then
                 # TODO Remove the sort in the pipe once MorphStore supports
@@ -321,8 +336,30 @@ function run () {
                     ) \
                     <( \
                         $pathExe/$targetName $pathDataColsDict 2> /dev/null \
-                        | sort \
+                            | sort \
                     )
+                if [[ $? -eq 0 ]]
+                then
+                    printf "good\n"
+                else
+                    printf "BAD\n"
+                fi
+            elif [[ $purpose -eq $purposeResults ]]
+            then
+                # TODO Remove the sort in the pipe once MorphStore supports
+                #      sorting.
+                local resFileMonetDB=$pathRes/q$major."$minor"_MonetDB.csv
+                local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
+                printf "SET SCHEMA $benchmark;\n" \
+                    | cat - $pathQueries/q$major.$minor.sql \
+                    | $qdict $pathDataDicts \
+                    | $mclient -d $dbName -f csv \
+                    | sort \
+                    > $resFileMonetDB
+                eval $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                    | sort \
+                    > $resFileMorphSt
+                cmp --silent $resFileMonetDB $resFileMorphSt
                 if [[ $? -eq 0 ]]
                 then
                     printf "good\n"
@@ -402,12 +439,17 @@ declare -A stepMap=(
 # Purposes of this script's execution.
 # -----------------------------------------------------------------------------
 
+# TODO There is no reason to make the purposes integers, since no -ge/-le
+#      comparisons are required for them.
 purposeCheck=1
-purposeMeasure=2
+purposeResults=2
+purposeMeasure=3
 
 declare -A purposeMap=(
     [c]=$purposeCheck
     [check]=$purposeCheck
+    [r]=$purposeResults
+    [results]=$purposeResults
     [m]=$purposeMeasure
     [measure]=$purposeMeasure
 )
@@ -497,6 +539,9 @@ pathExe=$pathMorphStore/Engine/build/src/"$benchmark"_sf$scaleFactor
 
 # Directory for the measured results.
 pathMea=mea_sf$scaleFactor
+
+# Directory for the query results.
+pathRes=res_sf$scaleFactor
 
 # The name of the database in MonetDB.
 dbName="$benchmark"_sf$scaleFactor
