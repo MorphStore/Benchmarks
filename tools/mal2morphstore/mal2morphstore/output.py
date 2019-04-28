@@ -142,6 +142,7 @@ def _printProg(indent, tr, useMonitoring, processingStyle):
     """
     
     # The constant representing the processing style to use for all operators.
+    print("{}// The processing style used by all operators.".format(indent))
     print("{}const processing_style_t {} = processing_style_t::{};".format(
             indent, ps.PS_VAR, processingStyle
     ))
@@ -149,23 +150,93 @@ def _printProg(indent, tr, useMonitoring, processingStyle):
     
     # The query program.
     if useMonitoring:
-        monKeyQuery = "query"
-        print('{}MONITOR_START_INTERVAL("{}")'.format(indent, monKeyQuery))
+        # Constants for the monitoring column names.
+        varColOpName = "colOpName"
+        varColRuntime = "colRuntime"
+        print("{}// Constants for the monitoring column names.".format(indent))
+        print('{}const std::string {} = "opName";'.format(
+                indent, varColOpName
+        ))
+        print('{}const std::string {} = "runtime";'.format(
+                indent, varColRuntime
+        ))
         print()
-        for elIdx, el in enumerate(tr.prog):
+        
+        # Helpers.
+        def isOp(el):
+            return isinstance(el, Op)
+        def getOpKey(opIdx, op):
+            return "{}_{}".format(op.opName, opIdx)
+        firstOpIdx = 1
+        
+        # Constants for the monitoring keys.
+        varKeyFs = "monKey_{}"
+        keyQuery = "query"
+        varKeyQuery = varKeyFs.format(keyQuery)
+        maxVarKeyLen = len(varKeyFs) - len("{}") + max(
+                map(
+                        lambda opIdxAndOp: len(getOpKey(*opIdxAndOp)),
+                        enumerate(filter(isOp, tr.prog), firstOpIdx)
+                )
+        )
+        print("{}// Constants for the monitoring keys.".format(indent))
+        print(
+                '{{}}const std::string {{: <{}}} = "{{}}";'
+                .format(maxVarKeyLen)
+                .format(indent, varKeyQuery, keyQuery)
+        )
+        for opIdx, op in enumerate(filter(isOp, tr.prog), firstOpIdx):
+            monKeyOp = getOpKey(opIdx, op)
+            print(
+                    '{{}}const std::string {{: <{}}} = "{{}}";'
+                    .format(maxVarKeyLen)
+                    .format(indent, varKeyFs.format(monKeyOp), monKeyOp)
+            )
+        print()
+        
+        # Creation of the monitors.
+        print("{}// Creation of the monitors.".format(indent))
+        print(
+                '{{}}MONITORING_CREATE_MONITOR(MONITORING_MAKE_MONITOR({{: <{}}}), MONITORING_KEY_IDENTS({{}}));'
+                .format(maxVarKeyLen)
+                .format(indent, varKeyQuery, varColOpName)
+        )
+        for opIdx, op in enumerate(filter(isOp, tr.prog), firstOpIdx):
+            monKeyOp = getOpKey(opIdx, op)
+            print(
+                    '{{}}MONITORING_CREATE_MONITOR(MONITORING_MAKE_MONITOR({{: <{}}}), MONITORING_KEY_IDENTS({{}}));'
+                    .format(maxVarKeyLen)
+                    .format(indent, varKeyFs.format(monKeyOp), varColOpName)
+            )
+        print()
+        
+        # Query program.
+        print("{}// Query program.".format(indent))
+        print(
+                '{}MONITORING_START_INTERVAL_FOR({}, {});'
+                .format(indent, varColRuntime, varKeyQuery)
+        )
+        print()
+        opIdx = firstOpIdx
+        for el in tr.prog:
             if isinstance(el, Op):
-                monKeyOp = "{}_{}".format(el.opName, elIdx)
-                print('{}MONITOR_START_INTERVAL("{}")'.format(
-                        indent, monKeyOp)
+                monKeyOp = getOpKey(opIdx, el)
+                monVarKeyOp = varKeyFs.format(monKeyOp)
+                print('{}MONITORING_START_INTERVAL_FOR({}, {});'.format(
+                        indent, varColRuntime, monVarKeyOp)
                 )
                 print("{}{}".format(indent, el).replace("\n", "\n" + indent))
-                print('{}MONITOR_END_INTERVAL  ("{}")'.format(
-                        indent, monKeyOp)
+                print('{}MONITORING_END_INTERVAL_FOR  ({}, {});'.format(
+                        indent, varColRuntime, monVarKeyOp)
                 )
+                opIdx += 1
             else:
                 print("{}{}".format(indent, el).replace("\n", "\n" + indent))
         print()
-        print('{}MONITOR_END_INTERVAL  ("{}")'.format(indent, monKeyQuery))
+        print(
+                '{}MONITORING_END_INTERVAL_FOR  ({}, {});'
+                .format(indent, varColRuntime, varKeyQuery)
+        )
     else:
         for el in tr.prog:
             print("{}{}".format(indent, el).replace("\n", "\n" + indent))
@@ -176,8 +247,10 @@ def _printResultOutput(indent, tr, useMonitoring):
     """
 
     if useMonitoring:
-        print("{}MONITOR_PRINT_ALL(monitorShellLog, true)".format(indent))
+        print('{}std::cout << "[MEA]" << std::endl;')
+        print("{}MONITORING_PRINT_MONITORS(monitorCsvLog);".format(indent))
     
+    print('{}std::cout << "[RES]" << std::endl;')
     if True:
         # Output in the same CSV dialect MonetDB uses.
         print("{}print_columns_csv({{{}}});".format(
