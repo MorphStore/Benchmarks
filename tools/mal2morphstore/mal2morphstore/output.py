@@ -152,90 +152,89 @@ def _printProg(indent, tr, useMonitoring, processingStyle):
     if useMonitoring:
         # Constants for the monitoring column names.
         varColOpName = "colOpName"
+        varColOpIdx = "colOpIdx"
         varColRuntime = "colRuntime"
         print("{}// Constants for the monitoring column names.".format(indent))
-        print('{}const std::string {} = "opName";'.format(
-                indent, varColOpName
-        ))
-        print('{}const std::string {} = "runtime";'.format(
-                indent, varColRuntime
-        ))
+        for varName, varVal in [
+            (varColOpName , "opName"),
+            (varColOpIdx  , "opIdx"),
+            (varColRuntime, "runtime"),
+        ]:
+            print('{}const std::string {} = "{}";'.format(
+                    indent, varName, varVal
+            ))
         print()
         
         # Helpers.
         def isOp(el):
             return isinstance(el, Op)
-        def getOpKey(opIdx, op):
-            return "{}_{}".format(op.opName, opIdx)
-        firstOpIdx = 1
         
         # Constants for the monitoring keys.
-        varKeyFs = "monKey_{}"
-        keyQuery = "query"
-        varKeyQuery = varKeyFs.format(keyQuery)
-        maxVarKeyLen = len(varKeyFs) - len("{}") + max(
+        varOpNameFs = "opName_{}"
+        opNameQuery = "query"
+        varOpNameQuery = varOpNameFs.format(opNameQuery)
+        maxVarOpNameLen = len(varOpNameFs) - len("{}") + max(
                 map(
-                        lambda opIdxAndOp: len(getOpKey(*opIdxAndOp)),
-                        enumerate(filter(isOp, tr.prog), firstOpIdx)
+                        lambda op: len(op.opName),
+                        filter(isOp, tr.prog)
                 )
         )
-        print("{}// Constants for the monitoring keys.".format(indent))
-        print(
-                '{{}}const std::string {{: <{}}} = "{{}}";'
-                .format(maxVarKeyLen)
-                .format(indent, varKeyQuery, keyQuery)
-        )
-        for opIdx, op in enumerate(filter(isOp, tr.prog), firstOpIdx):
-            monKeyOp = getOpKey(opIdx, op)
+        print("{}// Constants for the distinct operator names.".format(indent))
+        for opIdx, opName in enumerate(
+                [opNameQuery] + \
+                list(sorted(set([op.opName for op in filter(isOp, tr.prog)])))
+        ):
             print(
                     '{{}}const std::string {{: <{}}} = "{{}}";'
-                    .format(maxVarKeyLen)
-                    .format(indent, varKeyFs.format(monKeyOp), monKeyOp)
+                    .format(maxVarOpNameLen)
+                    .format(indent, varOpNameFs.format(opName), opName)
             )
         print()
         
         # Creation of the monitors.
         print("{}// Creation of the monitors.".format(indent))
-        print(
-                '{{}}MONITORING_CREATE_MONITOR(MONITORING_MAKE_MONITOR({{: <{}}}), MONITORING_KEY_IDENTS({{}}));'
-                .format(maxVarKeyLen)
-                .format(indent, varKeyQuery, varColOpName)
-        )
-        for opIdx, op in enumerate(filter(isOp, tr.prog), firstOpIdx):
-            monKeyOp = getOpKey(opIdx, op)
+        for opIdx, opName in enumerate(
+                [opNameQuery] + \
+                [op.opName for op in filter(isOp, tr.prog)]
+        ):
             print(
-                    '{{}}MONITORING_CREATE_MONITOR(MONITORING_MAKE_MONITOR({{: <{}}}), MONITORING_KEY_IDENTS({{}}));'
-                    .format(maxVarKeyLen)
-                    .format(indent, varKeyFs.format(monKeyOp), varColOpName)
+                    '{{}}MONITORING_CREATE_MONITOR(MONITORING_MAKE_MONITOR({{: <{}}}, {{: >{}}}), MONITORING_KEY_IDENTS({{}}, {{}}));'
+                    .format(maxVarOpNameLen, 2)
+                    .format(
+                            indent,
+                            varOpNameFs.format(opName),
+                            opIdx,
+                            varColOpName,
+                            varColOpIdx
+                    )
             )
         print()
         
         # Query program.
         print("{}// Query program.".format(indent))
         print(
-                '{}MONITORING_START_INTERVAL_FOR({}, {});'
-                .format(indent, varColRuntime, varKeyQuery)
+                '{}MONITORING_START_INTERVAL_FOR({}, {}, {});'
+                .format(indent, varColRuntime, varOpNameQuery, 0)
         )
         print()
-        opIdx = firstOpIdx
+        opIdx = 1
         for el in tr.prog:
             if isinstance(el, Op):
-                monKeyOp = getOpKey(opIdx, el)
-                monVarKeyOp = varKeyFs.format(monKeyOp)
-                print('{}MONITORING_START_INTERVAL_FOR({}, {});'.format(
-                        indent, varColRuntime, monVarKeyOp)
+                monVarOpNameOp = varOpNameFs.format(el.opName)
+                print('{}MONITORING_START_INTERVAL_FOR({}, {}, {});'.format(
+                        indent, varColRuntime, monVarOpNameOp, opIdx)
                 )
                 print("{}{}".format(indent, el).replace("\n", "\n" + indent))
-                print('{}MONITORING_END_INTERVAL_FOR  ({}, {});'.format(
-                        indent, varColRuntime, monVarKeyOp)
+                print('{}MONITORING_END_INTERVAL_FOR  ({}, {}, {});'.format(
+                        indent, varColRuntime, monVarOpNameOp, opIdx)
                 )
                 opIdx += 1
             else:
                 print("{}{}".format(indent, el).replace("\n", "\n" + indent))
         print()
         print(
-                '{}MONITORING_END_INTERVAL_FOR  ({}, {});'
-                .format(indent, varColRuntime, varKeyQuery)
+                '{}MONITORING_END_INTERVAL_FOR  ({}, {}, {});'
+                .format(indent, varColRuntime, varOpNameQuery, 0)
         )
     else:
         for el in tr.prog:
