@@ -77,7 +77,7 @@ int main(int argc, const char ** argv) {
     // Result output
     // ------------------------------------------------------------------------
     
-    std::cerr << "Result output started... " << std::endl;
+    std::cerr << "Result output started... ";
     std::cerr.flush();
     
     // ##### mal2morphstore result #####

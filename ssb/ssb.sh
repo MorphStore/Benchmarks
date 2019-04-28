@@ -302,6 +302,7 @@ function run () {
     elif [[ $purpose -eq $purposeMeasure ]]
     then
         print_headline2 "Measuring runtimes in MorphStore"
+        mkdir --parents $pathMea
     else
         printf "unsupported purpose (in step run): $purpose\n"
         exit -1
@@ -368,8 +369,9 @@ function run () {
                 fi
             elif [[ $purpose -eq $purposeMeasure ]]
             then
-                mkdir --parents $pathMea
+                printf "\n"
                 eval $pathExe/$targetName $pathDataColsDict > $pathMea/q$major.$minor.txt
+                printf "\n"
             fi
         done
     done
