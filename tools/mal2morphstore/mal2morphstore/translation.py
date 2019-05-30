@@ -308,7 +308,7 @@ def _translateAlgebraProjectionpath(ts, resStr, parStr):
     while mInner is not None:
         inPosCol = mInner.group(1)
         if inPosCol not in ts.fullOidBats and inPosCol not in ts.sortResults:
-            inPosCols.append(inPosCol)
+            inPosCols.append(ts.mapNameIf(inPosCol))
         inPosColsStr = inPosColsStr[mInner.end():]
         mInner = _pParAlgebraProjectionpathInner.match(inPosColsStr)
         
