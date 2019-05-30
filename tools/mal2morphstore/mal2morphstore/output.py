@@ -248,8 +248,8 @@ def _printResultOutput(indent, tr, useMonitoring):
     if useMonitoring:
         print('{}std::cout << "[MEA]" << std::endl;'.format(indent))
         print("{}MONITORING_PRINT_MONITORS(monitorCsvLog);".format(indent))
+        print('{}std::cout << "[RES]" << std::endl;'.format(indent))
     
-    print('{}std::cout << "[RES]" << std::endl;'.format(indent))
     if True:
         # Output in the same CSV dialect MonetDB uses.
         print("{}print_columns_csv({{{}}});".format(
