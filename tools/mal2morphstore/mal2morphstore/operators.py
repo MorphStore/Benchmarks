@@ -191,6 +191,25 @@ class Join(Op):
                 opName=self.opName, **self.__dict__, **_commonIdentifiers
             )
     
+class LeftSemiNto1Join(Op):
+    """A call to MorphStore's left-semi-N:1-join operator."""
+    
+    opName = "left_semi_nto1_nested_loop_join"
+    headers = [
+        "core/operators/{{{}}}/join_uncompr.h".format(ps.INCLUDE_DIR_KEY),
+    ]
+    
+    def __init__(self, outPosLCol, inDataLCol, inDataRCol):
+        self.outPosLCol = outPosLCol
+        self.inDataLCol = inDataLCol
+        self.inDataRCol = inDataRCol
+        
+    def __str__(self):
+        return \
+            "auto {outPosLCol} = {opName}<{ps}, {format}>({inDataLCol}, {inDataRCol});".format(
+            opName=self.opName, **self.__dict__, **_commonIdentifiers
+        )
+    
 class CalcBinary(Op):
     """A call to MorphStore's binary calculation operator."""
     

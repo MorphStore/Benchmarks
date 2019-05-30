@@ -64,6 +64,7 @@ have to be done:
 # TODO Error messages should mention the line number in the MAL program.
 
 
+import mal2morphstore.analysis as analysis
 import mal2morphstore.operators as ops
 
 import re
@@ -737,5 +738,18 @@ def translate(inMalFilePath):
             if ts.step == _TranslationState.STEP_SKIP_EPILOGUE_COMMENTS:
                 if line[0] != "#":
                     _error(ts)
-                    
+    
+    # Replace inner joins by semi-joins where it is possible.
+    ar = analysis.analyze(TranslationResult(ts))
+    for idx, el in enumerate(ts.prog):
+        if isinstance(el, ops.Join):
+            # TODO From the structure of the program, we know that we can use
+            #      a semi-join in the following two cases. However, using an
+            #      N:1-join is not correct in all possible cases. While it is
+            #      correct for SSB, we should find a generally sound solution.
+            if el.outPosLCol in ar.varsNeverUsed:
+                ts.prog[idx] = ops.LeftSemiNto1Join(el.outPosRCol, el.inDataRCol, el.inDataLCol)
+            elif el.outPosRCol in ar.varsNeverUsed:
+                ts.prog[idx] = ops.LeftSemiNto1Join(el.outPosLCol, el.inDataLCol, el.inDataRCol)
+
     return TranslationResult(ts)
