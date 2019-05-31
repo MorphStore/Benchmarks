@@ -251,6 +251,9 @@ function translate () {
             printf "                        -Werror\n"                       >> $cmakeListsFile
             printf "                        -Wall\n"                         >> $cmakeListsFile
             printf "                        -Wextra\n"                       >> $cmakeListsFile
+            # TODO Remove -Wno-ignored-attributes as soon as we have it at a
+            #      higher-level in the build script.
+            printf "                        -Wno-ignored-attributes\n"       >> $cmakeListsFile
             printf "                        -pedantic\n"                     >> $cmakeListsFile
             printf "                        -fstack-protector-all\n"         >> $cmakeListsFile
             printf "                        $<$<CONFIG:DEBUG>:-DDEBUG> )\n"  >> $cmakeListsFile
