@@ -191,12 +191,56 @@ class Join(Op):
                 opName=self.opName, **self.__dict__, **_commonIdentifiers
             )
     
+#class LeftSemiNto1Join(Op):
+#    """A call to MorphStore's left-semi-N:1-join operator."""
+#    
+#    opName = "left_semi_nto1_nested_loop_join"
+#    headers = [
+#        "core/operators/{{{}}}/join_uncompr.h".format(ps.INCLUDE_DIR_KEY),
+#    ]
+#    
+#    def __init__(self, outPosLCol, inDataLCol, inDataRCol):
+#        self.outPosLCol = outPosLCol
+#        self.inDataLCol = inDataLCol
+#        self.inDataRCol = inDataRCol
+#        
+#    def __str__(self):
+#        return \
+#            "auto {outPosLCol} = {opName}<{ps}, {format}>({inDataLCol}, {inDataRCol});".format(
+#            opName=self.opName, **self.__dict__, **_commonIdentifiers
+#        )
+
 class LeftSemiNto1Join(Op):
     """A call to MorphStore's left-semi-N:1-join operator."""
     
-    opName = "left_semi_nto1_nested_loop_join"
+    opName = "semi_join"
     headers = [
-        "core/operators/{{{}}}/join_uncompr.h".format(ps.INCLUDE_DIR_KEY),
+        # TODO Which of these headers do we really need?
+        "vector/primitives/logic.h",
+        "vector/primitives/io.h",
+        "vector/scalar/extension_scalar.h",
+        "vector/scalar/primitives/logic_scalar.h",
+        "vector/scalar/primitives/io_scalar.h",
+        "vector/scalar/primitives/calc_scalar.h",
+        "vector/scalar/primitives/compare_scalar.h",
+        "vector/scalar/primitives/create_scalar.h",
+        "vector/simd/avx2/extension_avx2.h",
+        "vector/simd/avx2/primitives/logic_avx2.h",
+        "vector/simd/avx2/primitives/io_avx2.h",
+        "vector/simd/avx2/primitives/calc_avx2.h",
+        "vector/simd/avx2/primitives/compare_avx2.h",
+        "vector/simd/avx2/primitives/create_avx2.h",
+        "vector/simd/sse/extension_sse.h",
+        "vector/simd/sse/primitives/logic_sse.h",
+        "vector/simd/sse/primitives/io_sse.h",
+        "vector/simd/sse/primitives/calc_sse.h",
+        "vector/simd/sse/primitives/create_sse.h",
+        "vector/simd/sse/primitives/compare_sse.h",
+        "vector/datastructures/hash_based/strategies/linear_probing.h",
+        "vector/datastructures/hash_based/hash_utils.h",
+        "vector/datastructures/hash_based/hash_set.h",
+        "core/operators/general_vectorized/join.h",
+        "vector/complex/hash.h",
     ]
     
     def __init__(self, outPosLCol, inDataLCol, inDataRCol):
@@ -206,9 +250,19 @@ class LeftSemiNto1Join(Op):
         
     def __str__(self):
         return \
-            "auto {outPosLCol} = {opName}<{ps}, {format}>({inDataLCol}, {inDataRCol});".format(
-            opName=self.opName, **self.__dict__, **_commonIdentifiers
-        )
+            "auto {outPosLCol} = {opName}<\n" \
+            "    uncompr_f,\n" \
+            "    vector::avx2<vector::v256<uint64_t>>,\n" \
+            "    vector::hash_set<\n" \
+            "        vector::avx2<vector::v256<uint64_t>>,\n" \
+            "        vector::multiply_mod_hash,\n" \
+            "        vector::size_policy_hash::EXPONENTIAL,\n" \
+            "        vector::scalar_key_vectorized_linear_search,\n" \
+            "        60\n" \
+            "    >\n" \
+            ">::apply({inDataRCol}, {inDataLCol});".format(
+                    opName=self.opName, **self.__dict__, **_commonIdentifiers
+            )
     
 class CalcBinary(Op):
     """A call to MorphStore's binary calculation operator."""
