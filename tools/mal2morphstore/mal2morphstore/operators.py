@@ -190,6 +190,67 @@ class Join(Op):
                 ");".format(
                 opName=self.opName, **self.__dict__, **_commonIdentifiers
             )
+
+class Nto1Join(Op):
+    """A call to MorphStore's N:1-join operator."""
+    
+    opName = "equi_join"
+    headers = [
+       # TODO Which of these headers do we really need?
+        "vector/primitives/logic.h",
+        "vector/primitives/io.h",
+        "vector/scalar/extension_scalar.h",
+        "vector/scalar/primitives/logic_scalar.h",
+        "vector/scalar/primitives/io_scalar.h",
+        "vector/scalar/primitives/calc_scalar.h",
+        "vector/scalar/primitives/compare_scalar.h",
+        "vector/scalar/primitives/create_scalar.h",
+        "vector/simd/avx2/extension_avx2.h",
+        "vector/simd/avx2/primitives/logic_avx2.h",
+        "vector/simd/avx2/primitives/io_avx2.h",
+        "vector/simd/avx2/primitives/calc_avx2.h",
+        "vector/simd/avx2/primitives/compare_avx2.h",
+        "vector/simd/avx2/primitives/create_avx2.h",
+        "vector/simd/sse/extension_sse.h",
+        "vector/simd/sse/primitives/logic_sse.h",
+        "vector/simd/sse/primitives/io_sse.h",
+        "vector/simd/sse/primitives/calc_sse.h",
+        "vector/simd/sse/primitives/create_sse.h",
+        "vector/simd/sse/primitives/compare_sse.h",
+        "vector/datastructures/hash_based/strategies/linear_probing.h",
+        "vector/datastructures/hash_based/hash_utils.h",
+        "vector/datastructures/hash_based/hash_map.h",
+        "core/operators/general_vectorized/join.h",
+        "vector/complex/hash.h",
+    ]
+    
+    def __init__(self, outPosLCol, outPosRCol, inDataLCol, inDataRCol):
+        self.outPosLCol = outPosLCol
+        self.outPosRCol = outPosRCol
+        self.inDataLCol = inDataLCol
+        self.inDataRCol = inDataRCol
+        
+    def __str__(self):
+        return \
+            "const {column}<{format}> * {outPosLCol};\n" \
+            "const {column}<{format}> * {outPosRCol};\n" \
+            "std::tie({outPosLCol}, {outPosRCol}) = {opName}<\n" \
+            "    uncompr_f,\n" \
+            "    vector::avx2<vector::v256<uint64_t>>,\n" \
+            "    vector::hash_map<\n" \
+            "        vector::avx2<vector::v256<uint64_t>>,\n" \
+            "        vector::multiply_mod_hash,\n" \
+            "        vector::size_policy_hash::EXPONENTIAL,\n" \
+            "        vector::scalar_key_vectorized_linear_search,\n" \
+            "        60\n" \
+            "    >\n" \
+            ">::apply(\n" \
+            "    {inDataLCol},\n" \
+            "    {inDataRCol},\n" \
+            "    {inDataRCol}->get_count_values()\n" \
+            ");\n".format(
+            opName=self.opName, **self.__dict__, **_commonIdentifiers
+        )
     
 #class LeftSemiNto1Join(Op):
 #    """A call to MorphStore's left-semi-N:1-join operator."""
@@ -243,14 +304,14 @@ class LeftSemiNto1Join(Op):
         "vector/complex/hash.h",
     ]
     
-    def __init__(self, outPosLCol, inDataLCol, inDataRCol):
-        self.outPosLCol = outPosLCol
+    def __init__(self, outPosRCol, inDataLCol, inDataRCol):
+        self.outPosRCol = outPosRCol
         self.inDataLCol = inDataLCol
         self.inDataRCol = inDataRCol
         
     def __str__(self):
         return \
-            "auto {outPosLCol} = {opName}<\n" \
+            "auto {outPosRCol} = {opName}<\n" \
             "    uncompr_f,\n" \
             "    vector::avx2<vector::v256<uint64_t>>,\n" \
             "    vector::hash_set<\n" \
@@ -260,7 +321,7 @@ class LeftSemiNto1Join(Op):
             "        vector::scalar_key_vectorized_linear_search,\n" \
             "        60\n" \
             "    >\n" \
-            ">::apply({inDataRCol}, {inDataLCol});".format(
+            ">::apply({inDataLCol}, {inDataRCol});".format(
                     opName=self.opName, **self.__dict__, **_commonIdentifiers
             )
     

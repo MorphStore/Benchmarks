@@ -747,9 +747,29 @@ def translate(inMalFilePath):
             #      a semi-join in the following two cases. However, using an
             #      N:1-join is not correct in all possible cases. While it is
             #      correct for SSB, we should find a generally sound solution.
-            if el.outPosLCol in ar.varsNeverUsed:
-                ts.prog[idx] = ops.LeftSemiNto1Join(el.outPosRCol, el.inDataRCol, el.inDataLCol)
-            elif el.outPosRCol in ar.varsNeverUsed:
-                ts.prog[idx] = ops.LeftSemiNto1Join(el.outPosLCol, el.inDataLCol, el.inDataRCol)
+            
+            # TODO We do not consider 1:1-joins here (when both inputs are
+            #      unique), but this case is not relevant for us at the moment.
+            if el.inDataLCol in ar.varsUnique:
+                # It is an 1:N-join (1 data element in the left input matches
+                # N data elements in the right input).
+                # The left input can be used as the build-side of a hash-join.
+                if el.outPosLCol in ar.varsNeverUsed:
+                    ts.prog[idx] = ops.LeftSemiNto1Join(el.outPosRCol, el.inDataLCol, el.inDataRCol)
+                else:
+                    ts.prog[idx] = ops.Nto1Join(el.outPosLCol, el.outPosRCol, el.inDataLCol, el.inDataRCol)
+            elif el.inDataRCol in ar.varsUnique:
+                # It is an 1:N-join (1 data element in the right input matches
+                # N data elements in the left input).
+                # The right input can be used as the build-side of a hash-join.
+                if el.outPosRCol in ar.varsNeverUsed:
+                    ts.prog[idx] = ops.LeftSemiNto1Join(el.outPosLCol, el.inDataRCol, el.inDataLCol)
+                else:
+                    ts.prog[idx] = ops.Nto1Join(el.outPosRCol, el.outPosLCol, el.inDataRCol, el.inDataLCol)
+            else:
+                # It is an M:N-join.
+                # We do not want this at the moment.
+                # TODO Support it in a nice way.
+                raise RuntimeError("the query contains an M:N-join")
 
     return TranslationResult(ts)
