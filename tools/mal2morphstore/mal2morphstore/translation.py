@@ -66,6 +66,7 @@ have to be done:
 
 import mal2morphstore.analysis as analysis
 import mal2morphstore.operators as ops
+import mal2morphstore.processingstyles as ps
 
 import re
 
@@ -345,7 +346,7 @@ def _translateAlgebraProjectionpath(ts, resStr, parStr):
 _pParAlgebraSelect = re.compile(
     r"([XC]_\d+):bat\[:(?:.+?)\], (?:(C_\d+):bat\[:oid\], )?(\d+):(?:.+?), (\d+):(?:.+?), true:bit, true:bit, false:bit"
 )
-def _translateAlgebraSelect(ts, resStr, parStr):
+def _translateAlgebraSelect(ts, resStr, parStr,vectorSelect, style):
     """
     Translation function for MAL's "algebra.select".
     
@@ -378,20 +379,36 @@ def _translateAlgebraSelect(ts, resStr, parStr):
     ts.headers.add("functional")
     # Select for the lower bound.
     outPosColLo = "{}_lo".format(outPosCol)
-    ts.prog.append(ops.Select(
-        outPosCol = outPosColLo,
-        inDataCol = inDataCol,
-        op        = "std::greater_equal",
-        val       = valLo
-    ))
+    if (vectorSelect == 1):
+        ts.prog.append(ops.Select(
+            outPosCol = outPosColLo,
+            inDataCol = inDataCol,
+            op        = "std::greater_equal",
+            val       = valLo
+        ))
+    else:
+        ts.prog.append(ops.Select(
+            outPosCol = outPosColLo,
+            inDataCol = inDataCol,
+            op        = "greaterequal",
+            val       = valLo
+        ))
     # Select for the upper bound.
     outPosColHi = "{}_hi".format(outPosCol)
-    ts.prog.append(ops.Select(
-        outPosCol = outPosColHi,
-        inDataCol = inDataCol,
-        op        = "std::less_equal",
-        val       = valHi
-    ))
+    if (vectorSelect == 1):
+        ts.prog.append(ops.Select(
+            outPosCol = outPosColHi,
+            inDataCol = inDataCol,
+            op        = "std::less_equal",
+            val       = valHi
+        ))
+    else:
+        ts.prog.append(ops.Select(
+            outPosCol = outPosColHi,
+            inDataCol = inDataCol,
+            op        = "lessequal",
+            val       = valHi
+        ))
     # Intersection of lower and upper bound.
     outPosColInterm = "{}_0".format(outPosCol)
     ts.prog.append(ops.Intersect(
@@ -432,12 +449,24 @@ _cmpOpMap = {
     ">=": "std::greater_equal",
     ">" : "std::equal",
 }
+_cmpOpMapVec = {
+    "<" : "less",
+    "<=": "lessequal",
+    "==": "equal",
+    ">=": "greaterequal",
+    ">" : "equal",
+}  
 _pParThetaselect = re.compile(
     r'(X_\d+):bat\[:(?:.+?)\], (?:(C_\d+):bat\[:oid\], )?(\d+):(?:.+?), "({})":str'.format(
         "|".join(_cmpOpMap)
     )
 )
-def _translateAlgebraThetaselect(ts, resStr, parStr):
+_pParThetaselectVec = re.compile(
+    r'(X_\d+):bat\[:(?:.+?)\], (?:(C_\d+):bat\[:oid\], )?(\d+):(?:.+?), "({})":str'.format(
+        "|".join(_cmpOpMapVec)
+    )
+)
+def _translateAlgebraThetaselect(ts, resStr, parStr, vectorSelect, style):
     """
     Translation function for MAL's "algebra.thetaselect".
     
@@ -446,7 +475,10 @@ def _translateAlgebraThetaselect(ts, resStr, parStr):
     """
     
     mRes = ts.fullmatchRes(resStr, _pRes1)
-    mPar = ts.fullmatchPar(parStr, _pParThetaselect)
+    if (vectorSelect==1):
+        mPar = ts.fullmatchPar(parStr, _pParThetaselect)
+    else:
+        mPar = ts.fullmatchPar(parStr, _pParThetaselectVec)
     outPosCol = mRes.group(1)
     inCandCol = ts.mapNameIf(mPar.group(2))
     
@@ -455,13 +487,22 @@ def _translateAlgebraThetaselect(ts, resStr, parStr):
         
     ts.headers.add("functional")
     # The actual selection.
-    outPosColInterm = "{}_0".format(outPosCol)
-    ts.prog.append(ops.Select(
-        outPosCol = outPosColInterm if hasUsefulCands else outPosCol,
-        inDataCol = ts.mapNameIf(mPar.group(1)),
-        op        = _cmpOpMap[mPar.group(4)],
-        val       = mPar.group(3)
-    ))
+    if (vectorSelect==1):
+        outPosColInterm = "{}_0".format(outPosCol)
+        ts.prog.append(ops.Select(
+            outPosCol = outPosColInterm if hasUsefulCands else outPosCol,
+            inDataCol = ts.mapNameIf(mPar.group(1)),
+            op        = _cmpOpMap[mPar.group(4)],
+            val       = mPar.group(3)
+        ))
+    else:
+        outPosColInterm = "{}_0".format(outPosCol)
+        ts.prog.append(ops.Select(
+            outPosCol = outPosColInterm if hasUsefulCands else outPosCol,
+            inDataCol = ts.mapNameIf(mPar.group(1)),
+            op        = _cmpOpMapVec[mPar.group(4)],
+            val       = mPar.group(3)
+        ))
     # Intersection with candidate list, if required.
     if hasUsefulCands:
         ts.prog.append(ops.Intersect(
@@ -494,7 +535,15 @@ _arithmOpMap = {
     "-": "std::minus",
     "*": "std::multiplies",
 }
-def _translateBatcalc(ts, resStr, funStr, parStr):
+_arithmOpMapVec = {
+    # TODO Support more arithmetic operators.
+    # TODO Support comparison operators here as well. (Required if two columns
+    #      are compared to each other.)
+    "+": "add",
+    "-": "sub",
+    "*": "mul",
+}
+def _translateBatcalc(ts, resStr, funStr, parStr,vectorSelect, style):
     """Translation function for all MAL functions in MAL's "batcalc" module."""
     
     mRes = ts.fullmatchRes(resStr, _pRes1)
@@ -505,12 +554,21 @@ def _translateBatcalc(ts, resStr, funStr, parStr):
     else:
         mPar = ts.fullmatchPar(parStr, _pParBatCalcBinary)
         ts.headers.add("functional")
-        ts.prog.append(ops.CalcBinary(
+        if (vectorSelect == 1):
+            ts.prog.append(ops.CalcBinary(
             outDataCol = mRes.group(1),
             op         = _arithmOpMap[funStr],
             inDataLCol = ts.mapNameIf(mPar.group(1)),
             inDataRCol = ts.mapNameIf(mPar.group(2))
-        ))
+            ))
+        else:
+            ts.prog.append(ops.CalcBinary(
+            outDataCol = mRes.group(1),
+            op         = _arithmOpMapVec[funStr],
+            inDataLCol = ts.mapNameIf(mPar.group(1)),
+            inDataRCol = ts.mapNameIf(mPar.group(2))
+            ))
+        
     
 _pParGroupGroup = re.compile(r"(X_\d+):bat\[:(?:.+?)\]")
 def _translateGroupGroup(ts, resStr, parStr):
@@ -582,7 +640,7 @@ _pResultSetInner = re.compile(r", (X_\d+):(?:{}|bat\[.+?\])".format(
     "|".join(_MAL_INT_TYPES))
 )
 
-def translate(inMalFilePath):
+def translate(inMalFilePath,versionSelect,style):
     """
     Translates the MAL program in the specified file and returns an abstract
     representation of the translated C++ program as an instance of
@@ -659,11 +717,11 @@ def translate(inMalFilePath):
                     ]:
                         _translateAlgebraProjectionpath(ts, resStr, parStr)
                     elif (modStr, funStr) == ("algebra", "select"):
-                        _translateAlgebraSelect(ts, resStr, parStr)
+                        _translateAlgebraSelect(ts, resStr, parStr, versionSelect, style)
                     elif (modStr, funStr) == ("algebra", "sort"):
                         _translateAlgebraSort(ts, resStr)
                     elif (modStr, funStr) == ("algebra", "thetaselect"):
-                        _translateAlgebraThetaselect(ts, resStr, parStr)
+                        _translateAlgebraThetaselect(ts, resStr, parStr, versionSelect, style)
                     elif (modStr, funStr) == ("bat", "append"):
                         pass
                     elif (modStr, funStr) == ("bat", "mergecand"):
@@ -671,7 +729,7 @@ def translate(inMalFilePath):
                     elif (modStr, funStr) == ("bat", "new"):
                         pass
                     elif modStr == "batcalc":
-                        _translateBatcalc(ts, resStr, funStr, parStr)
+                        _translateBatcalc(ts, resStr, funStr, parStr, versionSelect, style)
                     elif (modStr, funStr) == ("group", "group"):
                         _translateGroupGroup(ts, resStr, parStr)
                     elif modStr == "group" and funStr in [
@@ -754,17 +812,17 @@ def translate(inMalFilePath):
                 # It is an 1:N-join (1 data element in the left input matches
                 # N data elements in the right input).
                 # The left input can be used as the build-side of a hash-join.
-                if el.outPosLCol in ar.varsNeverUsed:
-                    ts.prog[idx] = ops.LeftSemiNto1Join(el.outPosRCol, el.inDataLCol, el.inDataRCol)
-                else:
+                #if el.outPosLCol in ar.varsNeverUsed:
+                #    ts.prog[idx] = ops.LeftSemiNto1Join(el.outPosRCol, el.inDataLCol, el.inDataRCol)
+                #else:
                     ts.prog[idx] = ops.Nto1Join(el.outPosLCol, el.outPosRCol, el.inDataLCol, el.inDataRCol)
             elif el.inDataRCol in ar.varsUnique:
                 # It is an 1:N-join (1 data element in the right input matches
                 # N data elements in the left input).
                 # The right input can be used as the build-side of a hash-join.
-                if el.outPosRCol in ar.varsNeverUsed:
-                    ts.prog[idx] = ops.LeftSemiNto1Join(el.outPosLCol, el.inDataRCol, el.inDataLCol)
-                else:
+                #if el.outPosRCol in ar.varsNeverUsed:
+                #    ts.prog[idx] = ops.LeftSemiNto1Join(el.outPosLCol, el.inDataRCol, el.inDataLCol)
+                #else:
                     ts.prog[idx] = ops.Nto1Join(el.outPosRCol, el.outPosLCol, el.inDataRCol, el.inDataLCol)
             else:
                 # It is an M:N-join.

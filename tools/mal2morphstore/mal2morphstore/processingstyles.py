@@ -28,22 +28,29 @@ the program translation.
 """
 
 
-# Names of the processing styles in MorphStore.
-# These must be the exact names of the elements of MorphStore's enum
-# processing_style_t!
-PS_SCALAR = "scalar"
-PS_VEC128 = "vec128"
-PS_VEC256 = "vec256"
-PS_VEC512 = "vec512"
+# Names of the Vector extensions in MorphStore.
+# These must follow Morphstore's VectorExtension template:
+# VectorExtension<VectorSize<BaseType>
+PS_SCALAR = "scalar<v64<uint64_t>>"
+PS_VEC128 = "sse<v128<uint64_t>>"
+PS_VEC256 = "avx2<v256<uint64_t>>"
+PS_VEC512 = "avx512<v512<uint64_t>>"
 
 # Maps the name of a processing style to the name of the subdirectory of 
 # MorphStore's include directory in which the operator implementations for the
 # processing style can be found.
-INCLUDE_DIR_BY_PS = {
+INCLUDE_DIR_HANDCODED = {
     PS_SCALAR: "scalar",
     PS_VEC128: "vectorized",
     PS_VEC256: "vectorized",
     PS_VEC512: "vectorized",
+}
+
+INCLUDE_DIR_LIB = {
+    PS_SCALAR: "general_vectorized",
+    PS_VEC128: "general_vectorized",
+    PS_VEC256: "general_vectorized",
+    PS_VEC512: "general_vectorized",
 }
 
 # The name of the variable (in the generated query program) which stands for

@@ -92,7 +92,7 @@ class Project(Op):
         self.inPosCol = inPosCol
         
     def __str__(self):
-        return "auto {outDataCol} = {opName}<{ps}, {format}>({inDataCol}, {inPosCol});".format(
+        return "auto {outDataCol} = {opName}<{ps}, {format}, {format}, {format}>({inDataCol}, {inPosCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
@@ -111,7 +111,7 @@ class Select(Op):
         self.val = val
         
     def __str__(self):
-        return "auto {outPosCol} = {ns}::{opName}<{op}, {ps}, {format}, {format}>::{apply}({inDataCol}, {val});".format(
+        return "auto {outPosCol} = {ns}::{opName}<{op}, {ps}, {format}, {format}>({inDataCol}, {val});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
@@ -129,7 +129,7 @@ class Intersect(Op):
         self.inPosRCol = inPosRCol
         
     def __str__(self):
-        return "auto {outPosCol} = {opName}<{ps}, {format}>({inPosLCol}, {inPosRCol});".format(
+        return "auto {outPosCol} = {opName}<{ps}, {format}, {format}, {format}>({inPosLCol}, {inPosRCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
@@ -147,7 +147,7 @@ class Merge(Op):
         self.inPosRCol = inPosRCol
         
     def __str__(self):
-        return "auto {outPosCol} = {opName}<{ps}, {format}>({inPosLCol}, {inPosRCol});".format(
+        return "auto {outPosCol} = {opName}<{ps}, {format}, {format}, {format}>({inPosLCol}, {inPosRCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
@@ -205,18 +205,21 @@ class Nto1Join(Op):
         "vector/scalar/primitives/calc_scalar.h",
         "vector/scalar/primitives/compare_scalar.h",
         "vector/scalar/primitives/create_scalar.h",
+        "vector/scalar/primitives/extract_scalar.h",
         "vector/simd/avx2/extension_avx2.h",
         "vector/simd/avx2/primitives/logic_avx2.h",
         "vector/simd/avx2/primitives/io_avx2.h",
         "vector/simd/avx2/primitives/calc_avx2.h",
         "vector/simd/avx2/primitives/compare_avx2.h",
         "vector/simd/avx2/primitives/create_avx2.h",
+        "vector/simd/avx2/primitives/extract_avx2.h",
         "vector/simd/sse/extension_sse.h",
         "vector/simd/sse/primitives/logic_sse.h",
         "vector/simd/sse/primitives/io_sse.h",
         "vector/simd/sse/primitives/calc_sse.h",
         "vector/simd/sse/primitives/create_sse.h",
         "vector/simd/sse/primitives/compare_sse.h",
+        "vector/simd/sse/primitives/extract_sse.h",
         "vector/datastructures/hash_based/strategies/linear_probing.h",
         "vector/datastructures/hash_based/hash_utils.h",
         "vector/datastructures/hash_based/hash_map.h",
@@ -236,15 +239,8 @@ class Nto1Join(Op):
             "const {column}<{format}> * {outPosRCol};\n" \
             "std::tie({outPosLCol}, {outPosRCol}) = {opName}<\n" \
             "    uncompr_f,\n" \
-            "    vector::avx2<vector::v256<uint64_t>>,\n" \
-            "    vector::hash_map<\n" \
-            "        vector::avx2<vector::v256<uint64_t>>,\n" \
-            "        vector::multiply_mod_hash,\n" \
-            "        vector::size_policy_hash::EXPONENTIAL,\n" \
-            "        vector::scalar_key_vectorized_linear_search,\n" \
-            "        60\n" \
-            "    >\n" \
-            ">::apply(\n" \
+            "    {ps}\n" \
+            "    >(\n" \
             "    {inDataLCol},\n" \
             "    {inDataRCol},\n" \
             "    {inDataRCol}->get_count_values()\n" \
@@ -313,15 +309,9 @@ class LeftSemiNto1Join(Op):
         return \
             "auto {outPosRCol} = {opName}<\n" \
             "    uncompr_f,\n" \
-            "    vector::avx2<vector::v256<uint64_t>>,\n" \
-            "    vector::hash_set<\n" \
-            "        vector::avx2<vector::v256<uint64_t>>,\n" \
-            "        vector::multiply_mod_hash,\n" \
-            "        vector::size_policy_hash::EXPONENTIAL,\n" \
-            "        vector::scalar_key_vectorized_linear_search,\n" \
-            "        60\n" \
+            "    {ps}\n" \
             "    >\n" \
-            ">::apply({inDataLCol}, {inDataRCol});".format(
+            "({inDataLCol}, {inDataRCol});".format(
                     opName=self.opName, **self.__dict__, **_commonIdentifiers
             )
     
@@ -340,7 +330,7 @@ class CalcBinary(Op):
         self.inDataRCol = inDataRCol
         
     def __str__(self):
-        return "auto {outDataCol} = {ns}::{opName}<{op}, {ps}, {format}, {format}, {format}>::{apply}({inDataLCol}, {inDataRCol});".format(
+        return "auto {outDataCol} = {ns}::{opName}<{op}, {ps}, {format}, {format}, {format}>({inDataLCol}, {inDataRCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
@@ -357,7 +347,7 @@ class SumWholeCol(Op):
         self.inDataCol = inDataCol
         
     def __str__(self):
-        return "auto {outDataCol} = {opName}<{ps}>({inDataCol});".format(
+        return "auto {outDataCol} = {opName}<{ps}, {format}>({inDataCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
@@ -383,7 +373,7 @@ class SumGrBased(Op):
             "// in the query translation, because MorphStore still lacks a\n" \
             "// vectorized implementation. As soon as such an\n" \
             "// implementation exists, we should use it here.\n" \
-            "auto {outDataCol} = {opName}<processing_style_t::scalar, {format}>({inGrCol}, {inDataCol}, {inExtCol}->{get_count_values}());".format(
+            "auto {outDataCol} = {opName}<scalar<v64<uint64_t>>, {format}>({inGrCol}, {inDataCol}, {inExtCol}->{get_count_values}());".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
@@ -405,7 +395,7 @@ class GroupUnary(Op):
         return \
             "const {column}<{format}> * {outGrCol};\n" \
             "const {column}<{format}> * {outExtCol};\n" \
-            "std::tie({outGrCol}, {outExtCol}) = {opName}<{ps}, {format}, {format}>({inDataCol});".format(
+            "std::tie({outGrCol}, {outExtCol}) = {opName}<{ps}, {format}, {format}, {format}>({inDataCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
@@ -428,6 +418,6 @@ class GroupBinary(Op):
         return \
             "const {column}<{format}> * {outGrCol};\n" \
             "const {column}<{format}> * {outExtCol};\n" \
-            "std::tie({outGrCol}, {outExtCol}) = {opName}<{ps}, {format}, {format}>({inGrCol}, {inDataCol});".format(
+            "std::tie({outGrCol}, {outExtCol}) = {opName}<{ps}, {format}, {format}, {format}, {format}>({inGrCol}, {inDataCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )

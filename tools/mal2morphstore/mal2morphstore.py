@@ -94,10 +94,10 @@ if __name__ == "__main__":
     # Required (positional) arguments.
     parser.add_argument(
         "processingStyle", metavar="PROCESSING_STYLE",
-        choices=list(sorted(ps.INCLUDE_DIR_BY_PS.keys())),
+        choices=list(sorted(ps.INCLUDE_DIR_HANDCODED.keys())),
         help="The MorphStore processing style to use for all query operators. "
             "The following processing styles are supported: {}.".format(
-                ", ".join(sorted(ps.INCLUDE_DIR_BY_PS.keys()))
+                ", ".join(sorted(ps.INCLUDE_DIR_HANDCODED.keys()))
             )
     )
     # Optional arguments
@@ -114,6 +114,14 @@ if __name__ == "__main__":
         "Use monitoring (time measurements).",
         "Do not use monitoring."
     )
+    
+    FROM_STDIN = "-"
+    parser.add_argument(
+        "versionSelect", type=int, nargs='?', default = '1',
+        help="Are the hand implemented operators used (1), "
+            "or the operators using the vector library (2)?".format(FROM_STDIN)
+        )
+
     args = parser.parse_args()
 
     if args.inMalFilePath == FROM_STDIN:
@@ -125,11 +133,12 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
 
     mal2morphstore.output.generate(
-        mal2morphstore.translation.translate(args.inMalFilePath),
+        mal2morphstore.translation.translate(args.inMalFilePath, args.versionSelect, args.processingStyle),
         os.path.join(
             os.path.dirname(sys.argv[0]),
             "template.cpp"
         ),
         args.mon,
-        args.processingStyle
+        args.processingStyle,
+        args.versionSelect
     )

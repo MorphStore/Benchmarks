@@ -72,22 +72,36 @@ def _printDocu(indent, tr):
     )
     print("{} */".format(indent))
 
-def _printHeaders(indent, tr, useMonitoring, processingStyle):
+def _printHeaders(indent, tr, useMonitoring, processingStyle, versionSelect):
     """
     Prints preprocessor directives for the necessary header includes.
     """
 
     # Add the headers required for the query operators, tailored to the
     # selected processing style.
-    for el in tr.prog:
-        if isinstance(el, Op):
-            for header in el.headers:
-                tr.headers.add(header.format(
-                        **{
-                            ps.INCLUDE_DIR_KEY:
-                            ps.INCLUDE_DIR_BY_PS[processingStyle]
-                        }
-                ))
+    # TODO switch include directories depending on vector version
+    if (versionSelect == 1):
+      for el in tr.prog:
+          if isinstance(el, Op):
+              for header in el.headers:
+                  tr.headers.add(header.format(
+                          **{
+                              ps.INCLUDE_DIR_KEY:
+                              ps.INCLUDE_DIR_HANDCODED[processingStyle]
+                          }
+                  ))
+    else:             
+      for el in tr.prog:
+          if isinstance(el, Op):
+              for header in el.headers:
+                  tr.headers.add(header.format(
+                          **{
+                              ps.INCLUDE_DIR_KEY:
+                              ps.INCLUDE_DIR_LIB[processingStyle]
+                          }
+                  ))
+
+    
     
     # Add monitoring header if required.
     if useMonitoring:
@@ -97,6 +111,10 @@ def _printHeaders(indent, tr, useMonitoring, processingStyle):
     for header in sorted(tr.headers):
         print("{}#include <{}>".format(indent, header))
         
+    
+    if (versionSelect == 2):
+        print("{}using namespace vector;".format(indent))
+    
 def _printSchema(indent, tr):
     """
     Prints the definition of a struct for each table used by the translated
@@ -142,10 +160,11 @@ def _printProg(indent, tr, useMonitoring, processingStyle):
     """
     
     # The constant representing the processing style to use for all operators.
-    print("{}// The processing style used by all operators.".format(indent))
-    print("{}const processing_style_t {} = processing_style_t::{};".format(
-            indent, ps.PS_VAR, processingStyle
-    ))
+    #print("{}// The processing style used by all operators.".format(indent))
+    #print("{}const processing_style_t {} = processing_style_t::{};".format(
+    #indent, ps.PS_VAR, processingStyle
+    #))
+    print("{}using {} = {};".format(indent, ps.PS_VAR, processingStyle))
     print()
     
     # The query program.
@@ -296,7 +315,7 @@ def _printAnalysis(indent, ar):
 _pPlaceholder = re.compile(r"(\s*)\/\/ ##### mal2morphstore (.+?) #####\s*")
 
 def generate(
-        translationResult, templateFilePath, useMonitoring, processingStyle
+        translationResult, templateFilePath, useMonitoring, processingStyle, versionSelect
 ):
     """
     Generates the C++ source code for the given abstract representation of a
@@ -338,7 +357,8 @@ def generate(
                             indent,
                             translationResult,
                             useMonitoring,
-                            processingStyle
+                            processingStyle,
+                            versionSelect
                     )
                 elif ph == "schema":
                     _printSchema(indent, translationResult)
