@@ -23,8 +23,7 @@
 #******************************************************************************
 
 function print_help () {
-    echo "Usage: ssb.sh [-h] [-s STEP] [-e STEP] [-sf N] [-p PURPOSE]"
-    echo "              [-ps PROCESSING_STYLE]"
+ echo "Usage: ssb.sh [-h] [-s STEP] [-e STEP] [-sf N] [-v vectorVersion]"
     echo ""
     echo "Star Schema Benchmark (SSB) in MorphStore."
     echo ""
@@ -69,13 +68,6 @@ function print_help () {
     echo "      Verify that MorphStore's query results are correct by "
     echo "      comparing them to those of MonetDB. No further files are "
     echo "      created."
-    echo "  r, results"
-    echo "      Like check, but also writes the query results of both MonetDB "
-    echo "      and MorphStore to files. A directory 'res_sfN' is created in "
-    echo "      the current directory, whereby N is the specified scale "
-    echo "      factor. This directory contains the query results as CSV "
-    echo "      files. Note that this directory is NOT deleted in the "
-    echo "      cleaning step."
     echo "  m, measure"
     echo "      Measure the runtimes achieved by MorphStore. A directory "
     echo "      'mea_sfN' is created in the current directory, whereby N is "
@@ -83,6 +75,17 @@ function print_help () {
     echo "      query will be generated, containing the measurements for the "
     echo "      respective query. Note that this directory is NOT deleted in "
     echo "      the cleaning step."
+    echo ""
+    echo "Vector Versions:"
+    echo "  h, byhand"
+    echo "      Hand implemented scalar and vectorized operators"
+    echo "  l, lib"
+    echo "      Uses the vector lib to build all operators. "
+    echo "      This requires a processing style (-ps) in the form "
+    echo "      vectorExtension < vectorSize < basetype > >. The brackets have " 
+    echo "      to be escaped."
+    echo "      Examples: avx2\<v256\<uint64_t\>\>"
+    echo "                scalar\<v64\<uint64_t\>\>"
     echo ""
     echo "Optional arguments:"
     echo "  -h, --help              Show this help message and exit."
@@ -240,7 +243,7 @@ function translate () {
                 | cat - $pathQueries/q$major.$minor.sql \
                 | $qdict $pathDataDicts \
                 | $mclient -d $dbName -f raw \
-                | $mal2morphstore $monitoringFlag $processingStyle \
+                | $mal2morphstore $monitoringFlag $processingStyle $versionSelect\
                 > $pathSrc/q$major.$minor.cpp
 
             local targetName=q$major.$minor"_sf"$scaleFactor
@@ -254,6 +257,7 @@ function translate () {
             # TODO Remove -Wno-ignored-attributes as soon as we have it at a
             #      higher-level in the build script.
             printf "                        -Wno-ignored-attributes\n"       >> $cmakeListsFile
+            printf "                        -Wno-unused-parameter\n"       >> $cmakeListsFile
             printf "                        -pedantic\n"                     >> $cmakeListsFile
             printf "                        -fstack-protector-all\n"         >> $cmakeListsFile
             printf "                        $<$<CONFIG:DEBUG>:-DDEBUG> )\n"  >> $cmakeListsFile
@@ -459,6 +463,19 @@ declare -A purposeMap=(
     [measure]=$purposeMeasure
 )
 
+# -----------------------------------------------------------------------------
+# vectorized version selection
+# -----------------------------------------------------------------------------
+
+handImplemented=1
+usingLib=2
+
+declare -A versionMap=(
+    [h]=$handImplemented
+    [byhand]=$handImpemented
+    [l]=$usingLib
+    [lib]=$usingLib
+)
 
 # *****************************************************************************
 # Argument parsing
@@ -510,6 +527,16 @@ do
                 shift
             else
                 printf "unknown purpose: $2\n"
+                exit -1
+            fi
+            ;;
+        -v|--versionSelect)
+            if [[ ${versionMap[$2]+_} ]]
+            then
+                versionSelect=${versionMap[$2]}
+                shift
+            else
+                printf "unknown version: $2\n"
                 exit -1
             fi
             ;;
