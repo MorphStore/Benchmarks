@@ -114,12 +114,10 @@ if __name__ == "__main__":
         "Use monitoring (time measurements).",
         "Do not use monitoring."
     )
-    
-    FROM_STDIN = "-"
     parser.add_argument(
         "versionSelect", type=int, nargs='?', default = '1',
         help="Are the hand implemented operators used (1), "
-            "or the operators using the vector library (2)?".format(FROM_STDIN)
+            "or the operators using the vector library (2)?"
         )
 
     args = parser.parse_args()
