@@ -23,7 +23,6 @@
 #include <core/storage/column.h>
 #include <core/utils/basic_types.h>
 #include <core/utils/printing.h>
-#include <core/utils/processing_style.h>
 
 // ##### mal2morphstore headers #####
 

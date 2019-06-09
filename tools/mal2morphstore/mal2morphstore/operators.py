@@ -223,7 +223,7 @@ class Nto1Join(Op):
         "vector/datastructures/hash_based/strategies/linear_probing.h",
         "vector/datastructures/hash_based/hash_utils.h",
         "vector/datastructures/hash_based/hash_map.h",
-        "core/operators/general_vectorized/join.h",
+        "core/operators/general_vectorized/join_uncompr.h",
         "vector/complex/hash.h",
     ]
     
@@ -296,7 +296,7 @@ class LeftSemiNto1Join(Op):
         "vector/datastructures/hash_based/strategies/linear_probing.h",
         "vector/datastructures/hash_based/hash_utils.h",
         "vector/datastructures/hash_based/hash_set.h",
-        "core/operators/general_vectorized/join.h",
+        "core/operators/general_vectorized/join_uncompr.h",
         "vector/complex/hash.h",
     ]
     
