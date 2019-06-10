@@ -23,7 +23,8 @@
 #******************************************************************************
 
 function print_help () {
- echo "Usage: ssb.sh [-h] [-s STEP] [-e STEP] [-sf N] [-v vectorVersion]"
+    echo "Usage: ssb.sh [-h] [-s STEP] [-e STEP] [-sf N] [-p PURPOSE]"
+    echo "              [-ps PROCESSING_STYLE] [-v vectorVersion]"
     echo ""
     echo "Star Schema Benchmark (SSB) in MorphStore."
     echo ""
@@ -68,6 +69,13 @@ function print_help () {
     echo "      Verify that MorphStore's query results are correct by "
     echo "      comparing them to those of MonetDB. No further files are "
     echo "      created."
+    echo "  r, results"
+    echo "      Like check, but also writes the query results of both MonetDB "
+    echo "      and MorphStore to files. A directory 'res_sfN' is created in "
+    echo "      the current directory, whereby N is the specified scale "
+    echo "      factor. This directory contains the query results as CSV "
+    echo "      files. Note that this directory is NOT deleted in the "
+    echo "      cleaning step."
     echo "  m, measure"
     echo "      Measure the runtimes achieved by MorphStore. A directory "
     echo "      'mea_sfN' is created in the current directory, whereby N is "
