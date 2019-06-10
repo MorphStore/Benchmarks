@@ -36,8 +36,22 @@ PP_RESULTS_LONG = "results"
 # Measure the runtimes of the entire query and each individual operator.
 PP_TIME = "t"
 PP_TIME_LONG = "time"
+# Analyze all base and intermediate columns and output their data
+# characteristics.
+PP_DATACH = "d"
+PP_DATACH_LONG = "datacharacteristics"
 
 
 # A list of all purposes.
-PURPOSES = [PP_CHECK, PP_RESULTS, PP_TIME]
-PURPOSES_LONG = [PP_CHECK_LONG, PP_RESULTS_LONG, PP_TIME_LONG]
+PURPOSES = [
+    PP_CHECK,
+    PP_RESULTS,
+    PP_TIME,
+    PP_DATACH
+]
+PURPOSES_LONG = [
+    PP_CHECK_LONG,
+    PP_RESULTS_LONG,
+    PP_TIME_LONG,
+    PP_DATACH_LONG
+]

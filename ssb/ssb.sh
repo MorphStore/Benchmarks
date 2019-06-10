@@ -83,6 +83,14 @@ function print_help () {
     echo "      query will be generated, containing the measurements for the "
     echo "      respective query. Note that this directory is NOT deleted in "
     echo "      the cleaning step."
+    echo "  d, datacharacteristics"
+    echo "      Analyze the data characteristics of all base and intermediate "
+    echo "      columns involved in the query in MorphStore. A directory "
+    echo "      'dc_sfN' is created in the current directory, whereby N is "
+    echo "      the specified scale factor. In this directory, one file per "
+    echo "      query will be generated, containing the data characteristics "
+    echo "      for the respective query. Note that this directory is NOT "
+    echo "      deleted in the cleaning step."
     echo ""
     echo "Vector Versions:"
     echo "  h, byhand"
@@ -278,7 +286,7 @@ function build () {
     if [[ $purpose = $purposeCheck || $purpose = $purposeResults ]]
     then
         local monitoringFlag=""
-    elif [[ $purpose = $purposeTime ]]
+    elif [[ $purpose = $purposeTime || $purpose = $purposeDataCh ]]
     then
         local monitoringFlag="-mon"
     else
@@ -307,6 +315,10 @@ function run () {
     then
         print_headline2 "Measuring runtimes in MorphStore"
         mkdir --parents $pathTime
+    elif [[ $purpose = $purposeDataCh ]]
+    then
+        print_headline2 "Analyzing the data characteristics in MorphStore"
+        mkdir --parents $pathDataCh
     else
         printf "unsupported purpose (in step run): $purpose\n"
         exit -1
@@ -375,6 +387,11 @@ function run () {
             then
                 printf "\n"
                 eval $pathExe/$targetName $pathDataColsDict > $pathTime/q$major.$minor.csv
+                printf "\n"
+            elif [[ $purpose = $purposeDataCh ]]
+            then
+                printf "\n"
+                eval $pathExe/$targetName $pathDataColsDict > $pathDataCh/q$major.$minor.csv
                 printf "\n"
             fi
         done
@@ -450,6 +467,7 @@ declare -A stepMap=(
 purposeCheck="c"
 purposeResults="r"
 purposeTime="t"
+purposeDataCh="d"
 
 declare -A purposeMap=(
     [c]=$purposeCheck
@@ -458,6 +476,8 @@ declare -A purposeMap=(
     [results]=$purposeResults
     [t]=$purposeTime
     [time]=$purposeTime
+    [d]=$purposeDataCh
+    [datacharacteristics]=$purposeDataCh
 )
 
 # -----------------------------------------------------------------------------
@@ -568,6 +588,9 @@ pathExe=$pathMorphStore/Engine/build/src/"$benchmark"_sf$scaleFactor
 
 # Directory for the measured runtimes.
 pathTime=time_sf$scaleFactor
+
+# Directory for the data characteristics.
+pathDataCh=dc_sf$scaleFactor
 
 # Directory for the query results.
 pathRes=res_sf$scaleFactor

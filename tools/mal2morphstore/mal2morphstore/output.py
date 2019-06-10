@@ -105,7 +105,7 @@ def _printHeaders(indent, tr, purpose, processingStyle, versionSelect):
     
     
     # Add monitoring header if required.
-    if purpose == pp.PP_TIME:
+    if purpose in [pp.PP_TIME, pp.PP_DATACH]:
         tr.headers.add("core/utils/monitoring.h")
     
     # Print headers in lexicographical order.
@@ -257,6 +257,100 @@ def _printProg(indent, tr, purpose, processingStyle):
                 '{}MONITORING_END_INTERVAL_FOR  ({}, {}, {});'
                 .format(indent, varColRuntime, varOpNameQuery, 0)
         )
+    elif purpose == pp.PP_DATACH:
+        # Constants for the monitoring column names.
+        varColOpName = "colOpName"
+        varColOpIdx = "colOpIdx"
+        varColColRole = "colColRole"
+        varColColName = "colColName"
+        varColValueCount = "colValueCount"
+        varColIsResult = "colIsResult"
+        print("{}// Constants for the monitoring column names.".format(indent))
+        for varName, varVal in [
+            # (C++ constant name, CSV column name)
+            (varColOpName, "opName"),
+            (varColOpIdx, "opIdx"),
+            (varColColRole, "colRole"),
+            (varColColName, "colName"),
+            (varColValueCount, "valueCount"),
+            (varColIsResult, "isResult"),
+        ]:
+            print('{}const std::string {} = "{}";'.format(
+                    indent, varName, varVal
+            ))
+        print()
+
+        # Helpers.
+        def isOp(el):
+            return isinstance(el, Op)
+
+        # Constants for the monitoring keys.
+        varOpNameFs = "opName_{}"
+        maxVarOpNameLen = len(varOpNameFs) - len("{}") + max(
+                map(
+                        lambda op: len(op.opName),
+                        filter(isOp, tr.prog)
+                )
+        )
+        print("{}// Constants for the distinct operator names.".format(indent))
+        for opIdx, opName in enumerate(
+                list(sorted(set([op.opName for op in filter(isOp, tr.prog)]))),
+                start=1
+        ):
+            print(
+                    '{{}}const std::string {{: <{}}} = "{{}}";'
+                    .format(maxVarOpNameLen)
+                    .format(indent, varOpNameFs.format(opName), opName)
+            )
+        print()
+
+        # Creation of the monitors.
+        print("{}// Creation of the monitors.".format(indent))
+        for opIdx, op in enumerate(
+                [op for op in filter(isOp, tr.prog)],
+                start=1
+        ):
+            for foo in sorted(op.__dict__):
+                if foo.startswith("in") or foo.startswith("out"):
+                    print(
+                            '{{}}MONITORING_CREATE_MONITOR(MONITORING_MAKE_MONITOR({{: <{}}}, {{: >{}}}, "{{: <{}}}", "{{: <{}}}"), MONITORING_KEY_IDENTS({{}}, {{}}, {{}}, {{}}));'
+                            .format(maxVarOpNameLen, 2, 0, 0)
+                            .format(
+                                    indent,
+                                    varOpNameFs.format(op.opName),
+                                    opIdx,
+                                    foo,
+                                    op.__dict__[foo],
+                                    varColOpName,
+                                    varColOpIdx,
+                                    varColColRole,
+                                    varColColName,
+                            )
+                    )
+        print()
+
+        # Query program.
+        print("{}// Query program.".format(indent))
+        print()
+        opIdx = 1
+        for el in tr.prog:
+            if isinstance(el, Op):
+                monVarOpNameOp = varOpNameFs.format(el.opName)
+                print("{}{}".format(indent, el).replace("\n", "\n" + indent))
+                for foo in sorted(el.__dict__):
+                    if foo.startswith("in") or foo.startswith("out"):
+                        print('{}MONITORING_ADD_INT_FOR({}, {}->get_count_values(), {}, {}, "{}", "{}");'.format(
+                                indent, varColValueCount, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        )
+                        print('{}MONITORING_ADD_BOOL_FOR({}, {}, {}, {}, "{}", "{}");'.format(
+                                indent, varColIsResult,
+                                "true" if (el.__dict__[foo] in tr.resultCols) else "false",
+                                monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        )
+                opIdx += 1
+            else:
+                print("{}{}".format(indent, el).replace("\n", "\n" + indent))
+        print()
     elif purpose in [pp.PP_CHECK, pp.PP_RESULTS]:
         for el in tr.prog:
             print("{}{}".format(indent, el).replace("\n", "\n" + indent))
@@ -268,7 +362,7 @@ def _printResultOutput(indent, tr, purpose):
     Prints C++ statements for the output of the query's result columns.
     """
 
-    if purpose == pp.PP_TIME:
+    if purpose in [pp.PP_TIME, pp.PP_DATACH]:
         print('{}std::cout << "[MEA]" << std::endl;'.format(indent))
         print("{}MONITORING_PRINT_MONITORS(monitorCsvLog);".format(indent))
         print('{}std::cout << "[RES]" << std::endl;'.format(indent))
@@ -389,4 +483,4 @@ def generate(
                         "unknown placeholder in C++ template file: {}".format(
                             ph
                         )
-                    )
+                    )	
