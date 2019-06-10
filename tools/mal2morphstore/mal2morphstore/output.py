@@ -47,6 +47,7 @@ of an abstract representation of the translated program.
 import mal2morphstore.analysis
 from mal2morphstore.operators import Op
 import mal2morphstore.processingstyles as ps
+import mal2morphstore.purposes as pp
 
 import os.path
 import re
@@ -72,7 +73,7 @@ def _printDocu(indent, tr):
     )
     print("{} */".format(indent))
 
-def _printHeaders(indent, tr, useMonitoring, processingStyle, versionSelect):
+def _printHeaders(indent, tr, purpose, processingStyle, versionSelect):
     """
     Prints preprocessor directives for the necessary header includes.
     """
@@ -104,7 +105,7 @@ def _printHeaders(indent, tr, useMonitoring, processingStyle, versionSelect):
     
     
     # Add monitoring header if required.
-    if useMonitoring:
+    if purpose == pp.PP_TIME:
         tr.headers.add("core/utils/monitoring.h")
     
     # Print headers in lexicographical order.
@@ -154,7 +155,7 @@ def _printDataLoad(indent, tr):
             )
         print()
 
-def _printProg(indent, tr, useMonitoring, processingStyle):
+def _printProg(indent, tr, purpose, processingStyle):
     """
     Prints the core program, i.e., the sequence of operators.
     """
@@ -168,13 +169,14 @@ def _printProg(indent, tr, useMonitoring, processingStyle):
     print()
     
     # The query program.
-    if useMonitoring:
+    if purpose == pp.PP_TIME:
         # Constants for the monitoring column names.
         varColOpName = "colOpName"
         varColOpIdx = "colOpIdx"
         varColRuntime = "colRuntime"
         print("{}// Constants for the monitoring column names.".format(indent))
         for varName, varVal in [
+            # (C++ constant name, CSV column name)
             (varColOpName , "opName"),
             (varColOpIdx  , "opIdx"),
             (varColRuntime, "runtime"),
@@ -255,16 +257,18 @@ def _printProg(indent, tr, useMonitoring, processingStyle):
                 '{}MONITORING_END_INTERVAL_FOR  ({}, {}, {});'
                 .format(indent, varColRuntime, varOpNameQuery, 0)
         )
-    else:
+    elif purpose in [pp.PP_CHECK, pp.PP_RESULTS]:
         for el in tr.prog:
             print("{}{}".format(indent, el).replace("\n", "\n" + indent))
+    else:
+        raise RuntimeError("unsupported purpose: '{}'".format(purpose))
 
-def _printResultOutput(indent, tr, useMonitoring):
+def _printResultOutput(indent, tr, purpose):
     """
     Prints C++ statements for the output of the query's result columns.
     """
 
-    if useMonitoring:
+    if purpose == pp.PP_TIME:
         print('{}std::cout << "[MEA]" << std::endl;'.format(indent))
         print("{}MONITORING_PRINT_MONITORS(monitorCsvLog);".format(indent))
         print('{}std::cout << "[RES]" << std::endl;'.format(indent))
@@ -315,7 +319,7 @@ def _printAnalysis(indent, ar):
 _pPlaceholder = re.compile(r"(\s*)\/\/ ##### mal2morphstore (.+?) #####\s*")
 
 def generate(
-        translationResult, templateFilePath, useMonitoring, processingStyle, versionSelect
+        translationResult, templateFilePath, purpose, processingStyle, versionSelect
 ):
     """
     Generates the C++ source code for the given abstract representation of a
@@ -356,7 +360,7 @@ def generate(
                     _printHeaders(
                             indent,
                             translationResult,
-                            useMonitoring,
+                            purpose,
                             processingStyle,
                             versionSelect
                     )
@@ -368,12 +372,12 @@ def generate(
                     _printProg(
                             indent,
                             translationResult,
-                            useMonitoring,
+                            purpose,
                             processingStyle
                     )
                 elif ph == "result":
                     _printResultOutput(
-                            indent, translationResult, useMonitoring
+                            indent, translationResult, purpose
                     )
                 elif ph == "analysis":
                     _printAnalysis(

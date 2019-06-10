@@ -76,9 +76,9 @@ function print_help () {
     echo "      factor. This directory contains the query results as CSV "
     echo "      files. Note that this directory is NOT deleted in the "
     echo "      cleaning step."
-    echo "  m, measure"
+    echo "  t, time"
     echo "      Measure the runtimes achieved by MorphStore. A directory "
-    echo "      'mea_sfN' is created in the current directory, whereby N is "
+    echo "      'time_sfN' is created in the current directory, whereby N is "
     echo "      the specified scale factor. In this directory, one file per "
     echo "      query will be generated, containing the measurements for the "
     echo "      respective query. Note that this directory is NOT deleted in "
@@ -230,17 +230,6 @@ function translate () {
 
     rm -f $cmakeListsFile
 
-    if [[ $purpose -eq $purposeCheck || $purpose -eq $purposeResults ]]
-    then
-        local monitoringFlag="--no-mon"
-    elif [[ $purpose -eq $purposeMeasure ]]
-    then
-        local monitoringFlag="--mon"
-    else
-        printf "unsupported purpose (in step translate): $purpose\n"
-        exit -1
-    fi
-
     for major in 1 2 3 4
     do
         for minor in 1 2 3
@@ -251,7 +240,7 @@ function translate () {
                 | cat - $pathQueries/q$major.$minor.sql \
                 | $qdict $pathDataDicts \
                 | $mclient -d $dbName -f raw \
-                | $mal2morphstore $monitoringFlag $processingStyle $versionSelect\
+                | $mal2morphstore $processingStyle $purpose $versionSelect\
                 > $pathSrc/q$major.$minor.cpp
 
             local targetName=q$major.$minor"_sf"$scaleFactor
@@ -286,10 +275,10 @@ function build () {
 
     set -e
 
-    if [[ $purpose -eq $purposeCheck || $purpose -eq $purposeResults ]]
+    if [[ $purpose = $purposeCheck || $purpose = $purposeResults ]]
     then
         local monitoringFlag=""
-    elif [[ $purpose -eq $purposeMeasure ]]
+    elif [[ $purpose = $purposeTime ]]
     then
         local monitoringFlag="-mon"
     else
@@ -311,19 +300,19 @@ function build () {
 function run () {
     print_headline1 "Running queries"
 
-    if [[ $purpose -eq $purposeCheck || $purpose -eq $purposeResults ]]
+    if [[ $purpose = $purposeCheck || $purpose = $purposeResults ]]
     then
         print_headline2 "Comparing query results of MorphStore and MonetDB"
-    elif [[ $purpose -eq $purposeMeasure ]]
+    elif [[ $purpose = $purposeTime ]]
     then
         print_headline2 "Measuring runtimes in MorphStore"
-        mkdir --parents $pathMea
+        mkdir --parents $pathTime
     else
         printf "unsupported purpose (in step run): $purpose\n"
         exit -1
     fi
 
-    if [[ $purpose -eq $purposeResults ]]
+    if [[ $purpose = $purposeResults ]]
     then
         mkdir --parents $pathRes
     fi
@@ -338,7 +327,7 @@ function run () {
 
             # TODO Reduce the code duplication between the check and results
             #      purposes.
-            if [[ $purpose -eq $purposeCheck ]]
+            if [[ $purpose = $purposeCheck ]]
             then
                 # TODO Remove the sort in the pipe once MorphStore supports
                 #      sorting.
@@ -360,7 +349,7 @@ function run () {
                 else
                     printf "BAD\n"
                 fi
-            elif [[ $purpose -eq $purposeResults ]]
+            elif [[ $purpose = $purposeResults ]]
             then
                 # TODO Remove the sort in the pipe once MorphStore supports
                 #      sorting.
@@ -382,10 +371,10 @@ function run () {
                 else
                     printf "BAD\n"
                 fi
-            elif [[ $purpose -eq $purposeMeasure ]]
+            elif [[ $purpose = $purposeTime ]]
             then
                 printf "\n"
-                eval $pathExe/$targetName $pathDataColsDict > $pathMea/q$major.$minor.txt
+                eval $pathExe/$targetName $pathDataColsDict > $pathTime/q$major.$minor.csv
                 printf "\n"
             fi
         done
@@ -458,17 +447,17 @@ declare -A stepMap=(
 
 # TODO There is no reason to make the purposes integers, since no -ge/-le
 #      comparisons are required for them.
-purposeCheck=1
-purposeResults=2
-purposeMeasure=3
+purposeCheck="c"
+purposeResults="r"
+purposeTime="t"
 
 declare -A purposeMap=(
     [c]=$purposeCheck
     [check]=$purposeCheck
     [r]=$purposeResults
     [results]=$purposeResults
-    [m]=$purposeMeasure
-    [measure]=$purposeMeasure
+    [t]=$purposeTime
+    [time]=$purposeTime
 )
 
 # -----------------------------------------------------------------------------
@@ -577,8 +566,8 @@ pathDataColsDict=$pathData/cols_dict
 pathSrc=$pathMorphStore/Engine/src/"$benchmark"_sf$scaleFactor
 pathExe=$pathMorphStore/Engine/build/src/"$benchmark"_sf$scaleFactor
 
-# Directory for the measured results.
-pathMea=mea_sf$scaleFactor
+# Directory for the measured runtimes.
+pathTime=time_sf$scaleFactor
 
 # Directory for the query results.
 pathRes=res_sf$scaleFactor

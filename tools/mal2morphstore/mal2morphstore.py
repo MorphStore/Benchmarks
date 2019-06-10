@@ -59,6 +59,7 @@ details.
 
 import mal2morphstore.output
 import mal2morphstore.processingstyles as ps
+import mal2morphstore.purposes as pp
 import mal2morphstore.translation
 
 import argparse
@@ -100,6 +101,18 @@ if __name__ == "__main__":
                 ", ".join(sorted(ps.INCLUDE_DIR_HANDCODED.keys()))
             )
     )
+    def quote(s):
+        return "'{}'".format(s)
+    parser.add_argument(
+        "purpose", metavar="PURPOSE",
+        choices=pp.PURPOSES,
+        help="The purpose of the translated query program. The following "
+            "purposes are supported: {}, standing for {}, "
+            "respectively.".format(
+                ", ".join(map(quote, pp.PURPOSES)),
+                ", ".join(map(quote, pp.PURPOSES_LONG))
+            )
+    )
     # Optional arguments
     FROM_STDIN = "-"
     parser.add_argument(
@@ -109,16 +122,11 @@ if __name__ == "__main__":
             "benchmarks will be read from stdin.".format(FROM_STDIN)
         # TODO Validate existence.
     )
-    addFlagArg(
-        parser, "mon", False,
-        "Use monitoring (time measurements).",
-        "Do not use monitoring."
-    )
     parser.add_argument(
         "versionSelect", type=int, nargs='?', default = '1',
         help="Are the hand implemented operators used (1), "
             "or the operators using the vector library (2)?"
-        )
+    )
 
     args = parser.parse_args()
 
@@ -136,7 +144,7 @@ if __name__ == "__main__":
             os.path.dirname(sys.argv[0]),
             "template.cpp"
         ),
-        args.mon,
+        args.purpose,
         args.processingStyle,
         args.versionSelect
     )
