@@ -812,17 +812,17 @@ def translate(inMalFilePath,versionSelect,style):
                 # It is an 1:N-join (1 data element in the left input matches
                 # N data elements in the right input).
                 # The left input can be used as the build-side of a hash-join.
-                #if el.outPosLCol in ar.varsNeverUsed:
-                #    ts.prog[idx] = ops.LeftSemiNto1Join(el.outPosRCol, el.inDataLCol, el.inDataRCol)
-                #else:
+                if el.outPosLCol in ar.varsNeverUsed:
+                    ts.prog[idx] = ops.LeftSemiNto1Join(el.outPosRCol, el.inDataLCol, el.inDataRCol)
+                else:
                     ts.prog[idx] = ops.Nto1Join(el.outPosLCol, el.outPosRCol, el.inDataLCol, el.inDataRCol)
             elif el.inDataRCol in ar.varsUnique:
                 # It is an 1:N-join (1 data element in the right input matches
                 # N data elements in the left input).
                 # The right input can be used as the build-side of a hash-join.
-                #if el.outPosRCol in ar.varsNeverUsed:
-                #    ts.prog[idx] = ops.LeftSemiNto1Join(el.outPosLCol, el.inDataRCol, el.inDataLCol)
-                #else:
+                if el.outPosRCol in ar.varsNeverUsed:
+                    ts.prog[idx] = ops.LeftSemiNto1Join(el.outPosLCol, el.inDataRCol, el.inDataLCol)
+                else:
                     ts.prog[idx] = ops.Nto1Join(el.outPosRCol, el.outPosLCol, el.inDataRCol, el.inDataLCol)
             else:
                 # It is an M:N-join.
