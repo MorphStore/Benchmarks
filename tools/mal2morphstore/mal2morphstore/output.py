@@ -102,7 +102,14 @@ def _printHeaders(indent, tr, purpose, processingStyle, versionSelect):
                           }
                   ))
 
-    
+    if processingStyle == ps.PS_VEC512:
+        tr.headers.add("vector/simd/avx512/extension_avx512.h")
+        tr.headers.add("vector/simd/avx512/primitives/logic_avx512.h")
+        tr.headers.add("vector/simd/avx512/primitives/io_avx512.h")
+        tr.headers.add("vector/simd/avx512/primitives/calc_avx512.h")
+        tr.headers.add("vector/simd/avx512/primitives/compare_avx512.h")
+        tr.headers.add("vector/simd/avx512/primitives/create_avx512.h")
+        tr.headers.add("vector/simd/avx512/primitives/extract_avx512.h")
     
     # Add monitoring header if required.
     if purpose in [pp.PP_TIME, pp.PP_DATACH]:
@@ -112,11 +119,6 @@ def _printHeaders(indent, tr, purpose, processingStyle, versionSelect):
     for header in sorted(tr.headers):
         print("{}#include <{}>".format(indent, header))
         
-    print("#ifdef AVX512")
-    for header512 in sorted(tr.headers512):
-        print("{}#include <{}>".format(indent, header512))
-        
-    print("#endif")
     
     if (versionSelect == 2):
         print("{}using namespace vector;".format(indent))

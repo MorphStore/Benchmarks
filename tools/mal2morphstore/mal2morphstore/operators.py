@@ -226,15 +226,7 @@ class Nto1Join(Op):
         "core/operators/general_vectorized/join_uncompr.h",
         "vector/complex/hash.h",
     ]
-    headers512 = [
-        "vector/simd/avx512/extension_avx512.h",
-        "vector/simd/avx512/primitives/logic_avx512.h",
-        "vector/simd/avx512/primitives/io_avx512.h",
-        "vector/simd/avx512/primitives/calc_avx512.h",
-        "vector/simd/avx512/primitives/compare_avx512.h",
-        "vector/simd/avx512/primitives/create_avx512.h",
-        "vector/simd/avx512/primitives/extract_avx512.h",
-    ]
+
     
     def __init__(self, outPosLCol, outPosRCol, inDataLCol, inDataRCol):
         self.outPosLCol = outPosLCol
@@ -302,13 +294,6 @@ class LeftSemiNto1Join(Op):
         "vector/simd/sse/primitives/calc_sse.h",
         "vector/simd/sse/primitives/create_sse.h",
         "vector/simd/sse/primitives/compare_sse.h",
-        "vector/simd/avx512/extension_avx512.h",
-        "vector/simd/avx512/primitives/logic_avx512.h",
-        "vector/simd/avx512/primitives/io_avx512.h",
-        "vector/simd/avx512/primitives/calc_avx512.h",
-        "vector/simd/avx512/primitives/compare_avx512.h",
-        "vector/simd/avx512/primitives/create_avx512.h",
-        "vector/simd/avx512/primitives/extract_avx512.h",
         "vector/datastructures/hash_based/strategies/linear_probing.h",
         "vector/datastructures/hash_based/hash_utils.h",
         "vector/datastructures/hash_based/hash_set.h",
