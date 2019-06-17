@@ -112,6 +112,11 @@ def _printHeaders(indent, tr, purpose, processingStyle, versionSelect):
     for header in sorted(tr.headers):
         print("{}#include <{}>".format(indent, header))
         
+    print("#ifdef AVX512")
+    for header512 in sorted(tr.headers512):
+        print("{}#include <{}>".format(indent, header512))
+        
+    print("#endif")
     
     if (versionSelect == 2):
         print("{}using namespace vector;".format(indent))

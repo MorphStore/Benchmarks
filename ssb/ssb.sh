@@ -259,6 +259,7 @@ function translate () {
             printf "                        -Werror\n"                       >> $cmakeListsFile
             printf "                        -Wall\n"                         >> $cmakeListsFile
             printf "                        -Wextra\n"                       >> $cmakeListsFile
+            printf "                        -O0\n"                       >> $cmakeListsFile
             # TODO Remove -Wno-ignored-attributes as soon as we have it at a
             #      higher-level in the build script.
             printf "                        -Wno-ignored-attributes\n"       >> $cmakeListsFile
@@ -297,7 +298,7 @@ function build () {
     local oldPwd=$(pwd)
     cd $pathMorphStore/Engine
     # TODO Do not hard-code the arguments for build.sh.
-    ./build.sh -hi -j8 $monitoringFlag -avxtwo
+    ./build.sh -deb -j8 $monitoringFlag -avx512
     cd $oldPwd
 
     set +e

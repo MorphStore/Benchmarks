@@ -206,7 +206,6 @@ class Nto1Join(Op):
         "vector/scalar/primitives/compare_scalar.h",
         "vector/scalar/primitives/create_scalar.h",
         "vector/scalar/primitives/extract_scalar.h",
-        "#ifdef AVXTWO",
         "vector/simd/avx2/extension_avx2.h",
         "vector/simd/avx2/primitives/logic_avx2.h",
         "vector/simd/avx2/primitives/io_avx2.h",
@@ -214,16 +213,6 @@ class Nto1Join(Op):
         "vector/simd/avx2/primitives/compare_avx2.h",
         "vector/simd/avx2/primitives/create_avx2.h",
         "vector/simd/avx2/primitives/extract_avx2.h",
-        "#endif",
-        "#ifdef AVX512",
-        "vector/simd/avx512/extension_avx512.h",
-        "vector/simd/avx512/primitives/logic_avx512.h",
-        "vector/simd/avx512/primitives/io_avx512.h",
-        "vector/simd/avx512/primitives/calc_avx512.h",
-        "vector/simd/avx512/primitives/compare_avx512.h",
-        "vector/simd/avx512/primitives/create_avx512.h",
-        "vector/simd/avx512/primitives/extract_avx512.h",
-        "#endif",
         "vector/simd/sse/extension_sse.h",
         "vector/simd/sse/primitives/logic_sse.h",
         "vector/simd/sse/primitives/io_sse.h",
@@ -236,6 +225,15 @@ class Nto1Join(Op):
         "vector/datastructures/hash_based/hash_map.h",
         "core/operators/general_vectorized/join_uncompr.h",
         "vector/complex/hash.h",
+    ]
+    headers512 = [
+        "vector/simd/avx512/extension_avx512.h",
+        "vector/simd/avx512/primitives/logic_avx512.h",
+        "vector/simd/avx512/primitives/io_avx512.h",
+        "vector/simd/avx512/primitives/calc_avx512.h",
+        "vector/simd/avx512/primitives/compare_avx512.h",
+        "vector/simd/avx512/primitives/create_avx512.h",
+        "vector/simd/avx512/primitives/extract_avx512.h",
     ]
     
     def __init__(self, outPosLCol, outPosRCol, inDataLCol, inDataRCol):
