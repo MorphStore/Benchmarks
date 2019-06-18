@@ -1,5 +1,9 @@
 data_sf*
 dc_sf*
+mal_sf*
+!mal_sf1
+refres_sf*
+!refres_sf1
 res_sf*
 time_sf*
 .ipynb_checkpoints
