@@ -766,37 +766,48 @@ dbName="$benchmark"_sf$scaleFactor
 
 if [[ $useMonetDB != $umSaved ]]
 then
-    if ! [[ -d $pathMonetDB ]]
-    then
+    function print_error () {
         echo "Aborting."
         echo ""
-        echo "This script expects the directory in which MonetDB was installed to "
-        echo "be reachable at '$pathMonetDB' from the current directory."
+        echo "This script expects $1 "
+        echo "to be reachable at '$pathMonetDB' from the current directory."
         echo ""
-        echo "Consider making it available as a soft link."
+        echo "Consider"
+        echo "- making it available as a soft link OR"
+        echo "- using this script without running MonetDB via the argument "
+        echo "  '-um s'"
+        echo ""
+        echo "Run this script with '--help' for more information."
+    }
+
+    if ! [[ -d $pathMonetDB ]]
+    then
+#        echo "Aborting."
+#        echo ""
+#        echo "This script expects the directory in which MonetDB was installed to "
+#        echo "be reachable at '$pathMonetDB' from the current directory."
+        print_error "the directory in which MonetDB was installed"
         exit -1
     fi
 
     if ! [[ -d $pathMonetDBFarm ]]
     then
-        echo "Aborting."
-        echo ""
-        echo "This script expects the directory of a MonetDB farm to be reachable "
-        echo "at '$pathMonetDBFarm' from the current directory."
-        echo ""
-        echo "Consider making it available as a soft link."
+#        echo "Aborting."
+#        echo ""
+#        echo "This script expects the directory of a MonetDB farm to be reachable "
+#        echo "at '$pathMonetDBFarm' from the current directory."
+        print_error "the directory of a MonetDB farm"
         exit -1
     fi
 
     if ! [[ -d $pathDBGen ]]
     then
-        echo "Aborting."
-        echo ""
-        echo "This script expects the directory of the source code of the SSB's "
-        echo "dbgen tool to be reachable at '$pathDBGen' from the current "
-        echo "directory."
-        echo ""
-        echo "Consider making it available as a soft link."
+#        echo "Aborting."
+#        echo ""
+#        echo "This script expects the directory of the source code of the SSB's "
+#        echo "dbgen tool to be reachable at '$pathDBGen' from the current "
+#        echo "directory."
+        print_error "the directory of the source code of the SSB's dbgen tool"
         exit -1
     fi
 fi
