@@ -504,6 +504,7 @@ startStep=$stepClean
 endStep=$stepRun
 scaleFactor=1
 purpose=$purposeCheck
+versionSelect=$usingLib
 processingStyle="scalar<v64<uint64_t>>"
 
 while [[ $# -gt 0 ]]
