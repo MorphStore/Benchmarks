@@ -167,7 +167,7 @@ def dotAnalyze(translationResult, str_name, str_direction="BT"):
     for el in translationResult.prog:
         if isinstance(el, ops.Op):
             graph.addOperator()
-
+    return graph
 
 
 
