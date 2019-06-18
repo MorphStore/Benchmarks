@@ -384,11 +384,17 @@ function run () {
         mkdir --parents $pathRes
     fi
 
-    if [[ $useMonetDB != $umPipeline ]]
-    then
-        printf "currently, the run step only supports using MonetDB in a pipelined way, use '-um p'\n"
-        exit -1
-    fi
+    case $useMonetDB in
+        $umMaterialize)
+            mkdir --parents $pathRefRes
+            ;;
+        $umSaved)
+            if [[ ! ( -d $pathRefRes ) ]]
+            then
+                printf "you specified to use saved reference query results, but the directory '$pathRefRes' does not exist\n"
+                exit -1
+            fi
+    esac
 
     for major in 1 2 3 4
     do
@@ -404,18 +410,44 @@ function run () {
                 $purposeCheck)
                     # TODO Remove the sort in the pipe once MorphStore supports
                     #      sorting.
-                    cmp --silent \
-                        <( \
+                    case $useMonetDB in
+                        $umPipeline)
+                            cmp --silent \
+                                <( \
+                                    printf "SET SCHEMA $benchmark;\n" \
+                                        | cat - $pathQueries/q$major.$minor.sql \
+                                        | $qdict $pathDataDicts \
+                                        | $mclient -d $dbName -f csv \
+                                        | sort \
+                                ) \
+                                <( \
+                                    $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                                        | sort \
+                                )
+                            ;;
+                        $umMaterialize)
                             printf "SET SCHEMA $benchmark;\n" \
                                 | cat - $pathQueries/q$major.$minor.sql \
                                 | $qdict $pathDataDicts \
                                 | $mclient -d $dbName -f csv \
                                 | sort \
-                        ) \
-                        <( \
-                            $pathExe/$targetName $pathDataColsDict 2> /dev/null \
-                                | sort \
-                        )
+                                > $pathRefRes/q$major.$minor.csv
+                            cmp --silent \
+                                $pathRefRes/q$major.$minor.csv \
+                                <( \
+                                    $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                                        | sort \
+                                )
+                            ;;
+                        $umSaved)
+                            cmp --silent \
+                                $pathRefRes/q$major.$minor.csv \
+                                <( \
+                                    $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                                        | sort \
+                                )
+                            ;;
+                    esac
                     if [[ $? -eq 0 ]]
                     then
                         printf "good\n"
@@ -426,18 +458,44 @@ function run () {
                 $purposeResults)
                     # TODO Remove the sort in the pipe once MorphStore supports
                     #      sorting.
-                    local resFileMonetDB=$pathRes/q$major."$minor"_MonetDB.csv
-                    local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
-                    printf "SET SCHEMA $benchmark;\n" \
-                        | cat - $pathQueries/q$major.$minor.sql \
-                        | $qdict $pathDataDicts \
-                        | $mclient -d $dbName -f csv \
-                        | sort \
-                        > $resFileMonetDB
-                    eval $pathExe/$targetName $pathDataColsDict 2> /dev/null \
-                        | sort \
-                        > $resFileMorphSt
-                    cmp --silent $resFileMonetDB $resFileMorphSt
+                    case $useMonetDB in
+                        $umPipeline)
+                            local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
+                            local resFileMonetDB=$pathRes/q$major."$minor"_MonetDB.csv
+                            printf "SET SCHEMA $benchmark;\n" \
+                                | cat - $pathQueries/q$major.$minor.sql \
+                                | $qdict $pathDataDicts \
+                                | $mclient -d $dbName -f csv \
+                                | sort \
+                                > $resFileMonetDB
+                            eval $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                                | sort \
+                                > $resFileMorphSt
+                            cmp --silent $resFileMonetDB $resFileMorphSt
+                            ;;
+                        $umMaterialize)
+                            local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
+                            local resFileMonetDB=$pathRes/q$major."$minor"_MonetDB.csv
+                            printf "SET SCHEMA $benchmark;\n" \
+                                | cat - $pathQueries/q$major.$minor.sql \
+                                | $qdict $pathDataDicts \
+                                | $mclient -d $dbName -f csv \
+                                | sort \
+                                > $resFileMonetDB
+                            cp $resFileMonetDB $pathRefRes/q$major.$minor.csv
+                            eval $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                                | sort \
+                                > $resFileMorphSt
+                            cmp --silent $resFileMonetDB $resFileMorphSt
+                            ;;
+                        $umSaved)
+                            local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
+                            eval $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                                | sort \
+                                > $resFileMorphSt
+                            cmp --silent $pathRefRes/q$major.$minor $resFileMorphSt
+                            ;;
+                    esac
                     if [[ $? -eq 0 ]]
                     then
                         printf "good\n"
