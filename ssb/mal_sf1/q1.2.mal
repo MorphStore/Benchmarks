@@ -1,0 +1,51 @@
+% .explain # table_name
+% mal # name
+% clob # type
+% 284 # length
+function user.s4_1():void;
+    X_6:void := querylog.define("explain select sum(lo_extendedprice * lo_discount) as revenue\nfrom lineorder, date\nwhere lo_orderdate = d_datekey\n and d_yearmonthnum = 199401\n and lo_discount between 4 and 6\n and lo_quantity between 26 and 35;":str, "default_pipe":str, 64:int);
+    X_9:int := sql.mvc();
+    X_23:bat[:int] := sql.bind(X_9:int, "ssb":str, "lineorder":str, "lo_quantity":str, 0:int);
+    X_37:bat[:int] := sql.bind(X_9:int, "ssb":str, "lineorder":str, "lo_discount":str, 0:int);
+    C_10:bat[:oid] := sql.tid(X_9:int, "ssb":str, "lineorder":str);
+    C_48:bat[:oid] := algebra.select(X_37:bat[:int], C_10:bat[:oid], 4:int, 6:int, true:bit, true:bit, false:bit);
+    C_56:bat[:oid] := algebra.select(X_23:bat[:int], C_48:bat[:oid], 26:int, 35:int, true:bit, true:bit, false:bit);
+    X_13:bat[:int] := sql.bind(X_9:int, "ssb":str, "lineorder":str, "lo_orderdate":str, 0:int);
+    X_57:bat[:int] := algebra.projection(C_56:bat[:oid], X_13:bat[:int]);
+    X_70:bat[:int] := sql.bind(X_9:int, "ssb":str, "date":str, "d_yearmonthnum":str, 0:int);
+    C_61:bat[:oid] := sql.tid(X_9:int, "ssb":str, "date":str);
+    C_78:bat[:oid] := algebra.thetaselect(X_70:bat[:int], C_61:bat[:oid], 199401:int, "==":str);
+    X_63:bat[:int] := sql.bind(X_9:int, "ssb":str, "date":str, "d_datekey":str, 0:int);
+    X_80:bat[:int] := algebra.projection(C_78:bat[:oid], X_63:bat[:int]);
+    (X_82:bat[:oid], X_83:bat[:oid]) := algebra.join(X_57:bat[:int], X_80:bat[:int], nil:BAT, nil:BAT, false:bit, nil:lng);
+    X_30:bat[:int] := sql.bind(X_9:int, "ssb":str, "lineorder":str, "lo_extendedprice":str, 0:int);
+    X_90:bat[:int] := algebra.projectionpath(X_82:bat[:oid], C_56:bat[:oid], X_30:bat[:int]);
+    X_91:bat[:int] := algebra.projectionpath(X_82:bat[:oid], C_56:bat[:oid], X_37:bat[:int]);
+    X_94:bat[:hge] := batcalc.*(X_90:bat[:int], X_91:bat[:int]);
+    X_97:hge := aggr.sum(X_94:bat[:hge]);
+    sql.resultSet("ssb.L4":str, "revenue":str, "hugeint":str, 128:int, 0:int, 7:int, X_97:hge);
+end user.s4_1;
+#inline               actions= 0 time=2 usec 
+#remap                actions= 1 time=154 usec 
+#costmodel            actions= 1 time=2 usec 
+#coercion             actions= 0 time=1 usec 
+#evaluate             actions= 9 time=22 usec 
+#emptybind            actions= 6 time=8 usec 
+#pushselect           actions= 8 time=11 usec 
+#aliases              actions=21 time=6 usec 
+#mergetable           actions= 0 time=132 usec 
+#deadcode             actions=18 time=7 usec 
+#aliases              actions= 0 time=0 usec 
+#constants            actions= 9 time=7 usec 
+#commonTerms          actions= 0 time=3 usec 
+#projectionpath       actions= 2 time=4 usec 
+#deadcode             actions= 2 time=3 usec 
+#reorder              actions= 1 time=11 usec 
+#matpack              actions= 0 time=0 usec 
+#multiplex            actions= 0 time=1 usec 
+#profiler             actions=1 time=1 usec 
+#candidates           actions=1 time=0 usec 
+#deadcode             actions= 0 time=3 usec 
+#wlc                  actions= 0 time=1 usec 
+#garbagecollector     actions= 1 time=75 usec 
+#total                actions=28 time=562 usec 
