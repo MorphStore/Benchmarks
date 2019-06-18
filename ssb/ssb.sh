@@ -297,8 +297,17 @@ function build () {
 
     local oldPwd=$(pwd)
     cd $pathMorphStore/Engine
+    if [[ $processingStyle = $psAVX2 ]]
+    then
+        local extensionFlags="-avxtwo"
+    elif [[ $processingStyle = $psAVX512 ]]
+    then
+        local extensionFlags="-avxtwo -avx512"
+    else
+        local extensionFlags=""
+    fi
     # TODO Do not hard-code the arguments for build.sh.
-    ./build.sh -deb -j8 $monitoringFlag -avx512
+    ./build.sh -deb -j8 $monitoringFlag $extensionFlags
     cd $oldPwd
 
     set +e
@@ -495,6 +504,15 @@ declare -A versionMap=(
     [lib]=$usingLib
 )
 
+# -----------------------------------------------------------------------------
+# processing styles / vector extensions
+# -----------------------------------------------------------------------------
+
+psScalar="scalar<v64<uint64_t>>"
+psSSE="sse<v128<uint64_t>>"
+psAVX2="avx2<v256<uint64_t>>"
+psAVX512="avx512<v512<uint64_t>>"
+
 # *****************************************************************************
 # Argument parsing
 # *****************************************************************************
@@ -505,7 +523,7 @@ endStep=$stepRun
 scaleFactor=1
 purpose=$purposeCheck
 versionSelect=$usingLib
-processingStyle="scalar<v64<uint64_t>>"
+processingStyle=$psScalar
 
 while [[ $# -gt 0 ]]
 do
