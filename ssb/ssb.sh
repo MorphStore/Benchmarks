@@ -400,61 +400,62 @@ function run () {
 
             # TODO Reduce the code duplication between the check and results
             #      purposes.
-            if [[ $purpose = $purposeCheck ]]
-            then
-                # TODO Remove the sort in the pipe once MorphStore supports
-                #      sorting.
-                cmp --silent \
-                    <( \
-                        printf "SET SCHEMA $benchmark;\n" \
-                            | cat - $pathQueries/q$major.$minor.sql \
-                            | $qdict $pathDataDicts \
-                            | $mclient -d $dbName -f csv \
-                            | sort \
-                    ) \
-                    <( \
-                        $pathExe/$targetName $pathDataColsDict 2> /dev/null \
-                            | sort \
-                    )
-                if [[ $? -eq 0 ]]
-                then
-                    printf "good\n"
-                else
-                    printf "BAD\n"
-                fi
-            elif [[ $purpose = $purposeResults ]]
-            then
-                # TODO Remove the sort in the pipe once MorphStore supports
-                #      sorting.
-                local resFileMonetDB=$pathRes/q$major."$minor"_MonetDB.csv
-                local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
-                printf "SET SCHEMA $benchmark;\n" \
-                    | cat - $pathQueries/q$major.$minor.sql \
-                    | $qdict $pathDataDicts \
-                    | $mclient -d $dbName -f csv \
-                    | sort \
-                    > $resFileMonetDB
-                eval $pathExe/$targetName $pathDataColsDict 2> /dev/null \
-                    | sort \
-                    > $resFileMorphSt
-                cmp --silent $resFileMonetDB $resFileMorphSt
-                if [[ $? -eq 0 ]]
-                then
-                    printf "good\n"
-                else
-                    printf "BAD\n"
-                fi
-            elif [[ $purpose = $purposeTime ]]
-            then
-                printf "\n"
-                eval $pathExe/$targetName $pathDataColsDict > $pathTime/q$major.$minor.csv
-                printf "\n"
-            elif [[ $purpose = $purposeDataCh ]]
-            then
-                printf "\n"
-                eval $pathExe/$targetName $pathDataColsDict > $pathDataCh/q$major.$minor.csv
-                printf "\n"
-            fi
+            case $purpose in
+                $purposeCheck)
+                    # TODO Remove the sort in the pipe once MorphStore supports
+                    #      sorting.
+                    cmp --silent \
+                        <( \
+                            printf "SET SCHEMA $benchmark;\n" \
+                                | cat - $pathQueries/q$major.$minor.sql \
+                                | $qdict $pathDataDicts \
+                                | $mclient -d $dbName -f csv \
+                                | sort \
+                        ) \
+                        <( \
+                            $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                                | sort \
+                        )
+                    if [[ $? -eq 0 ]]
+                    then
+                        printf "good\n"
+                    else
+                        printf "BAD\n"
+                    fi
+                    ;;
+                $purposeResults)
+                    # TODO Remove the sort in the pipe once MorphStore supports
+                    #      sorting.
+                    local resFileMonetDB=$pathRes/q$major."$minor"_MonetDB.csv
+                    local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
+                    printf "SET SCHEMA $benchmark;\n" \
+                        | cat - $pathQueries/q$major.$minor.sql \
+                        | $qdict $pathDataDicts \
+                        | $mclient -d $dbName -f csv \
+                        | sort \
+                        > $resFileMonetDB
+                    eval $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                        | sort \
+                        > $resFileMorphSt
+                    cmp --silent $resFileMonetDB $resFileMorphSt
+                    if [[ $? -eq 0 ]]
+                    then
+                        printf "good\n"
+                    else
+                        printf "BAD\n"
+                    fi
+                    ;;
+                $purposeTime)
+                    printf "\n"
+                    eval $pathExe/$targetName $pathDataColsDict > $pathTime/q$major.$minor.csv
+                    printf "\n"
+                    ;;
+                $purposeDataCh)
+                    printf "\n"
+                    eval $pathExe/$targetName $pathDataColsDict > $pathDataCh/q$major.$minor.csv
+                    printf "\n"
+                    ;;
+            esac
         done
     done
 
