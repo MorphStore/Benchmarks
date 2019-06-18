@@ -233,6 +233,19 @@ function translate () {
 
     set -e
 
+    case $useMonetDB in
+        $umMaterialize)
+            mkdir --parents $pathMal
+            ;;
+        $umSaved)
+            if [[ ! ( -d $pathMal ) ]]
+            then
+                printf "you specified to use saved MAL programs, but the directory '$pathMal' does not exist\n"
+                exit -1
+            fi
+            ;;
+    esac
+
     mkdir --parents $pathSrc
     local cmakeListsFile=$pathSrc/CMakeLists.txt
 
@@ -244,12 +257,35 @@ function translate () {
         do
             printf "$benchmark q$major.$minor: "
 
-            printf "SET SCHEMA $benchmark;\nEXPLAIN " \
-                | cat - $pathQueries/q$major.$minor.sql \
-                | $qdict $pathDataDicts \
-                | $mclient -d $dbName -f raw \
-                | $mal2morphstore $processingStyle $purpose $versionSelect\
-                > $pathSrc/q$major.$minor.cpp
+            case $useMonetDB in
+                $umPipeline)
+                    printf "SET SCHEMA $benchmark;\nEXPLAIN " \
+                        | cat - $pathQueries/q$major.$minor.sql \
+                        | $qdict $pathDataDicts \
+                        | $mclient -d $dbName -f raw \
+                        | $mal2morphstore $processingStyle $purpose $versionSelect\
+                        > $pathSrc/q$major.$minor.cpp
+                    ;;
+                $umMaterialize)
+                    printf "SET SCHEMA $benchmark;\nEXPLAIN " \
+                        | cat - $pathQueries/q$major.$minor.sql \
+                        | $qdict $pathDataDicts \
+                        | $mclient -d $dbName -f raw \
+                        > $pathMal/q$major.$minor.mal
+                    cat $pathMal/q$major.$minor.mal \
+                        | $mal2morphstore $processingStyle $purpose $versionSelect \
+                        > $pathSrc/q$major.$minor.cpp
+                    ;;
+                $umSaved)
+                    cat $pathMal/q$major.$minor.mal \
+                        | $mal2morphstore $processingStyle $purpose $versionSelect \
+                        > $pathSrc/q$major.$minor.cpp
+                    ;;
+                *)
+                    printf "unknown way to use MonetDB (in translate step): $useMonetDB\n"
+                    exit -1
+                    ;;
+            esac
 
             local targetName=q$major.$minor"_sf"$scaleFactor
 
@@ -337,6 +373,12 @@ function run () {
     if [[ $purpose = $purposeResults ]]
     then
         mkdir --parents $pathRes
+    fi
+
+    if [[ $useMonetDB != $umPipeline ]]
+    then
+        printf "currently, the run step only supports using MonetDB in a pipelined way, use '-um p'\n"
+        exit -1
     fi
 
     for major in 1 2 3 4
@@ -467,13 +509,10 @@ declare -A stepMap=(
     [run]=$stepRun
 )
 
-
 # -----------------------------------------------------------------------------
 # Purposes of this script's execution.
 # -----------------------------------------------------------------------------
 
-# TODO There is no reason to make the purposes integers, since no -ge/-le
-#      comparisons are required for them.
 purposeCheck="c"
 purposeResults="r"
 purposeTime="t"
@@ -491,7 +530,7 @@ declare -A purposeMap=(
 )
 
 # -----------------------------------------------------------------------------
-# vectorized version selection
+# Vectorized version selection
 # -----------------------------------------------------------------------------
 
 handImplemented=1
@@ -505,13 +544,30 @@ declare -A versionMap=(
 )
 
 # -----------------------------------------------------------------------------
-# processing styles / vector extensions
+# Processing styles / vector extensions
 # -----------------------------------------------------------------------------
 
 psScalar="scalar<v64<uint64_t>>"
 psSSE="sse<v128<uint64_t>>"
 psAVX2="avx2<v256<uint64_t>>"
 psAVX512="avx512<v512<uint64_t>>"
+
+# -----------------------------------------------------------------------------
+# The use of MonetDB.
+# -----------------------------------------------------------------------------
+
+umPipeline="p"
+umMaterialize="m"
+umSaved="s"
+
+declare -A umMap=(
+    [p]=$umPipeline
+    [pipeline]=$umPipeline
+    [m]=$umMaterialize
+    [materialize]=$umMaterialize
+    [s]=$umSaved
+    [saved]=$umSaved
+)
 
 # *****************************************************************************
 # Argument parsing
@@ -524,6 +580,7 @@ scaleFactor=1
 purpose=$purposeCheck
 versionSelect=$usingLib
 processingStyle=$psScalar
+useMonetDB=$umPipeline
 
 while [[ $# -gt 0 ]]
 do
@@ -581,6 +638,16 @@ do
             processingStyle=$2
             shift
             ;;
+        -um|--useMonetDB)
+            if [[ ${umMap[$2]+_} ]]
+            then
+                useMonetDB=${umMap[$2]}
+                shift
+            else
+                printf "unknown way to use MonetDB: $2\n"
+                exit -1
+            fi
+            ;;
         *)
             printf "unknown option: $key\n"
             exit -1
@@ -614,6 +681,12 @@ pathDataCh=dc_sf$scaleFactor
 
 # Directory for the query results.
 pathRes=res_sf$scaleFactor
+
+# Directory for the MAL plans from MonetDB.
+pathMal=mal_sf$scaleFactor
+
+# Directory for the reference query results from MonetDB.
+pathRefRes=refres_sf$scaleFactor
 
 # The name of the database in MonetDB.
 dbName="$benchmark"_sf$scaleFactor
@@ -662,11 +735,14 @@ fi
 # Execution of the selected steps
 # *****************************************************************************
 
-# TODO Starting the MonetDB daemon is not required if the user only wants to
-#      build MorphStore.
-printf "Starting MonetDB daemon... "
-eval $monetdbd start $pathMonetDBFarm
-printf "done.\n"
+if [[ $useMonetDB != $umSaved ]]
+then
+    # TODO Starting the MonetDB daemon is not required if the user only wants to
+    #      build MorphStore.
+    printf "Starting MonetDB daemon... "
+    eval $monetdbd start $pathMonetDBFarm
+    printf "done.\n"
+fi
 
 if [[ $startStep -le $stepClean ]] && [[ $stepClean -le $endStep ]]
 then
@@ -693,7 +769,10 @@ then
     run
 fi
 
-# TODO Stop the MonetDB daemon only if it was not running before.
-printf "Stopping MonetDB daemon... "
-eval $monetdbd stop $pathMonetDBFarm
-printf "done.\n"
+if [[ $useMonetDB != $umSaved ]]
+then
+    # TODO Stop the MonetDB daemon only if it was not running before.
+    printf "Stopping MonetDB daemon... "
+    eval $monetdbd stop $pathMonetDBFarm
+    printf "done.\n"
+fi
