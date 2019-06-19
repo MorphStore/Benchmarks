@@ -241,7 +241,11 @@ class QueryGraph:
     def __str__(self):
         result = \
             "digraph {graphname} {{\n" \
-            "{tab}rankdir = {direction};\n".format(
+            "{tab}graph[\n" \
+            "{tab}{tab}charset = \"UTF-8\";\n" \
+            "{tab}{tab}label = \"{graphname}\",\n" \
+            "{tab}rankdir = {direction}\n" \
+            "{tab}];".format(
                 graphname=self.__name,
                 tab=self.__tab,
                 direction=self.__direction
