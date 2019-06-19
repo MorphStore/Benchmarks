@@ -1,4 +1,5 @@
 import mal2morphstore.operators as ops
+import sys
 
 class ColumnNode:
     def __init__(self, column_name, label=None):
@@ -11,7 +12,7 @@ class ColumnNode:
         return self.__label
 
     def get_name_str(self):
-        return self.__column_name
+        return self.__column_name.replace(".", "_")
 
     def __hash__(self):
         return hash(self.__column_name)
@@ -50,23 +51,31 @@ class OperatorNode:
         self.__operator_symbol = str_operator_symbol
     @property
     def operator_name(self):
-        return self.__operator_name
+        return self.__operator_name.replace(".", "_")
     @property
     def symbol(self):
         return self.__operator_symbol
+
     def get_name_str(self):
-        return self.__operator_name+self.__operator_name_delimeter+self.__operoator_id,
+        return \
+            "{}{}{}".format(
+                self.__operator_name,
+                self.__operator_name_delimeter,
+                str(self.__operoator_id)
+            )
+
     def get_symbol_str(self):
         return \
             "\"" + self.__operator_symbol + \
             self.__operator_symbol_id_tag_begin + \
-            self.__operoator_id + \
+            str(self.__operoator_id) + \
             self.__operator_symbol_id_tag_end + "\""
     def __str__(self):
+        print(self.get_name_str(), file=sys.stderr)
         return \
             "{operatorname} [shape={shape}, label={symbol}, fontsize={fontsize}, width={size}, height={size}];\n".format(
                 operatorname=self.get_name_str(),
-                shape="\""+self.__shape+"\"",
+                shape="\""+self.__operator_shape+"\"",
                 symbol=self.get_symbol_str(),
                 fontsize=self.__operator_fontsize,
                 size=self.__operator_shape_size
@@ -78,19 +87,27 @@ class DataFlow:
         self.__columnnodesInList = columnnodesInList
         self.__columnnodesOutList = columnnodesOutList
 
-    def __str__(self):
+    def print_in(self, _tab):
         result = ""
         for inNodes in self.__columnnodesInList:
-            result += "{inNode} -> {operatorNode};\n".format(
+            result += "{tab}{inNode} -> {operatorNode};\n".format(
+                tab=_tab,
                 inNode=inNodes.get_name_str(),
                 operatorNode=self.__operatornode.get_name_str()
             )
+        return result
+
+    def print_out(self, _tab):
+        result = ""
         for outNodes in self.__columnnodesOutList:
-            result += "{operatorNode} -> {outNode};\n".format(
+            result += "{tab}{operatorNode} -> {outNode};\n".format(
+                tab=_tab,
                 operatorNode=self.__operatornode.get_name_str(),
                 outNode=outNodes.get_name_str()
             )
         return result
+
+
 
 
 class QueryGraph:
@@ -146,7 +163,7 @@ class QueryGraph:
 
     def __str__(self):
         result = \
-            "digraph {graphname} {\n" \
+            "digraph {graphname} {{\n" \
             "{tab}rankdir = {direction};\n".format(
                 graphname=self.__name,
                 tab=self.__tab,
@@ -154,11 +171,12 @@ class QueryGraph:
             )
 
         for operator in self.__operators:
-            result += operator
+            result += "{}{}".format(self.__tab, operator)
         for columns in self.__columns:
-            result += columns
+            result += "{}{}".format(self.__tab, columns)
         for flow in self.__flow:
-            result += flow
+            result += "{}".format(flow.print_in(self.__tab))
+            result += "{}".format(flow.print_out(self.__tab))
         result += "}\n"
         return result
 
@@ -166,7 +184,7 @@ def dotAnalyze(translationResult, str_name, str_direction="BT"):
     graph = QueryGraph(str_name, str_direction)
     for el in translationResult.prog:
         if isinstance(el, ops.Op):
-            graph.addOperator()
+            graph.addOperator(el)
     return graph
 
 
