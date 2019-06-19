@@ -53,6 +53,8 @@ function print_help () {
     echo "      MonetDB, translating the so-obtained MAL programs to "
     echo "      MorphStore C++ using MorphStore's mal2morphstore.py tool, and "
     echo "      creating a CMakeLists.txt file for the generated C++ programs."
+    echo "  v, visualize"
+    echo "      Creates Dot files for all SSB queries in MorphStore. "
     echo "  b, build"
     echo "      Builds MorphStore using MorphStore's build.sh script."
     echo "  r, run"
@@ -353,6 +355,68 @@ function translate () {
     print_headline1 "Done"
 }
 
+function translateToDot () {
+    print_headline1 "Translating queries to DOT"
+
+    set -e
+
+    case $useMonetDB in
+        $umMaterialize)
+            mkdir --parents $pathMal
+            ;;
+        $umSaved)
+            if [[ ! ( -d $pathMal ) ]]
+            then
+                printf "you specified to use saved MAL programs, but the directory '$pathMal' does not exist\n"
+                exit -1
+            fi
+            ;;
+    esac
+
+    for major in 1 2 3 4
+    do
+        for minor in 1 2 3
+        do
+            printf "$benchmark q$major.$minor: "
+
+            case $useMonetDB in
+                $umPipeline)
+                    printf "SET SCHEMA $benchmark;\nEXPLAIN " \
+                        | cat - $pathQueries/q$major.$minor.sql \
+                        | $qdict $pathDataDicts \
+                        | $mclient -d $dbName -f raw \
+                        | $dotvisualize $major $minor\
+                        > $pathSrc/q$major.$minor.dot
+                    ;;
+                $umMaterialize)
+                    printf "SET SCHEMA $benchmark;\nEXPLAIN " \
+                        | cat - $pathQueries/q$major.$minor.sql \
+                        | $qdict $pathDataDicts \
+                        | $mclient -d $dbName -f raw \
+                        > $pathMal/q$major.$minor.mal
+                    cat $pathMal/q$major.$minor.mal \
+                        | $dotvisualize $major $minor\
+                        > $pathSrc/q$major.$minor.dot
+                    ;;
+                $umSaved)
+                    cat $pathMal/q$major.$minor.mal \
+                        | $dotvisualize $major $minor\
+                        > $pathSrc/q$major.$minor.dot
+                    ;;
+                *)
+                    printf "unknown way to use MonetDB (in translate step): $useMonetDB\n"
+                    exit -1
+                    ;;
+            esac
+            printf "done q$major.$minor .\n"
+        done
+    done
+
+    set +e
+
+    print_headline1 "Done"
+}
+
 function build () {
     print_headline1 "Compiling MorphStore"
 
@@ -582,6 +646,7 @@ createload=$pathTools/monetdb_create+load.py
 dbdict=$pathTools/dict/dbdict.py
 qdict=$pathTools/dict/qdict.py
 mal2morphstore=$pathTools/mal2morphstore/mal2morphstore.py
+dotvisualize=$pathTools/mal2morphstore/mal2dot.py
 
 # -----------------------------------------------------------------------------
 # Steps of this script's execution.
@@ -592,6 +657,7 @@ stepGenerate=2
 stepTranslate=3
 stepBuild=4
 stepRun=5
+stepVisualize=6
 
 declare -A stepMap=(
     [c]=$stepClean
@@ -604,6 +670,8 @@ declare -A stepMap=(
     [build]=$stepBuild
     [r]=$stepRun
     [run]=$stepRun
+    [v]=$stepVisualize
+    [visualize]=$stepVisualize
 )
 
 # -----------------------------------------------------------------------------
@@ -878,6 +946,11 @@ fi
 if [[ $startStep -le $stepRun ]] && [[ $stepRun -le $endStep ]]
 then
     run
+fi
+
+if [[ $startStep -le $stepVisualize ]] && [[ $stepVisualize -le $endStep ]]
+then
+    translateToDot
 fi
 
 if [[ $useMonetDB != $umSaved ]]
