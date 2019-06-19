@@ -28,7 +28,7 @@ class ColumnNode:
     def __str__(self):
         if self.__label is None:
             return \
-                "{columnname} [shape={shape}, label=\"\", width={width}, height={height}];\n".format(
+                "{columnname} [shape={shape}, label=\"\", id={columnname}, width={width}, height={height}];\n".format(
                     columnname=self.get_name_str(),
                     shape="\"" + self.__column_shape + "\"",
                     width=self.__width,
@@ -36,7 +36,7 @@ class ColumnNode:
                 )
         else:
             return \
-                "{columnname} [shape={shape}, label={label}, width={width}, height={height}];\n".format(
+                "{columnname} [shape={shape}, label={label}, id={columnname}, width={width}, height={height}];\n".format(
                     columnname=self.get_name_str(),
                     shape="\"" + self.__column_shape + "\"",
                     label="\"" + self.__label + "\"",
@@ -50,7 +50,7 @@ class OperatorNode:
         #self.__operator_symbol_id_tag_begin = "<sub>"
         #self.__operator_symbol_id_tag_end = "</sub>"
         self.__operator_shape = "circle"
-        self.__operator_fontsize = "24"
+        self.__operator_fontsize = 24
         self.__operator_shape_size = "1.2"
         self.__operator_name = str_operator_name
         self.__operoator_id = operator_id
@@ -61,6 +61,9 @@ class OperatorNode:
     @property
     def symbol(self):
         return self.__operator_symbol
+    @property
+    def fontsize(self):
+        return self.__operator_fontsize
 
     def get_name_str(self):
         return \
@@ -77,7 +80,7 @@ class OperatorNode:
     def __str__(self):
         #print(self.get_name_str(), file=sys.stderr)
         return \
-            "{operatorname} [fixedsize=shape, shape={shape}, label=<{symbol}>, fontsize={fontsize}, width={size}, height={size}];\n".format(
+            "{operatorname} [fixedsize=shape, shape={shape}, label=<{symbol}>, id={operatorname}, fontsize={fontsize}, width={size}, height={size}];\n".format(
                 operatorname=self.get_name_str(),
                 shape="\""+self.__operator_shape+"\"",
                 symbol=self.get_symbol_str(),
@@ -101,8 +104,9 @@ class OperatorNodeSelect(OperatorNode):
 
     def get_symbol_str(self):
         return \
-            "{}<SUB>{}{}</SUB>".format(
+            "{}<FONT POINT-SIZE=\"{}\">{}{}</FONT>".format(
                 super().get_symbol_str(),
+                str((super().fontsize) / 2 ),
                 self.__op,
                 self.__predicate
             )
@@ -112,8 +116,9 @@ class OperatorNodeNto1Join(OperatorNode):
 
     def get_symbol_str(self):
         return \
-            "{}<SUB>{}</SUB>".format(
+            "{}<FONT POINT-SIZE=\"{}\">{}</FONT>".format(
                 super().get_symbol_str(),
+                str((super().fontsize) / 2),
                 "1:N"
             )
 

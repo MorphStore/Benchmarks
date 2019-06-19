@@ -387,7 +387,8 @@ function translateToDot () {
                         | $mclient -d $dbName -f raw \
                         | $dotvisualize $major $minor\
                         > $pathSrc/q$major.$minor.dot
-                    dot -Tsvg:cairo -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
+#                    dot -Tsvg:cairo -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
+                    dot -Tsvg -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
                     ;;
                 $umMaterialize)
                     printf "SET SCHEMA $benchmark;\nEXPLAIN " \
@@ -398,13 +399,15 @@ function translateToDot () {
                     cat $pathMal/q$major.$minor.mal \
                         | $dotvisualize $major $minor\
                         > $pathSrc/q$major.$minor.dot
-                    dot -Tsvg:cairo -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
+#                    dot -Tsvg:cairo -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
+                    dot -Tsvg -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
                     ;;
                 $umSaved)
                     cat $pathMal/q$major.$minor.mal \
                         | $dotvisualize $major $minor \
                         > $pathSrc/q$major.$minor.dot
-                    dot -Tsvg:cairo -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
+#                    dot -Tsvg:cairo -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
+                    dot -Tsvg -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
                     ;;
                 *)
                     printf "unknown way to use MonetDB (in translate step): $useMonetDB\n"
