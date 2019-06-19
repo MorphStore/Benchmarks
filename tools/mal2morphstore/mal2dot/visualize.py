@@ -6,6 +6,8 @@ class ColumnNode:
         self.__column_name = column_name
         self.__column_shape = "cylinder"
         self.__label = label
+        self.__width=1.0
+        self.__height=1.0
 
     @property
     def label(self):
@@ -26,26 +28,30 @@ class ColumnNode:
     def __str__(self):
         if self.__label is None:
             return \
-                "{columnname} [shape={shape}];\n".format(
+                "{columnname} [shape={shape}, label=\"\", width={width}, height={height}];\n".format(
                     columnname=self.get_name_str(),
-                    shape="\"" + self.__column_shape + "\""
+                    shape="\"" + self.__column_shape + "\"",
+                    width=self.__width,
+                    height=self.__height
                 )
         else:
             return \
-                "{columnname} [shape={shape}, label={label}];\n".format(
+                "{columnname} [shape={shape}, label={label}, width={width}, height={height}];\n".format(
                     columnname=self.get_name_str(),
                     shape="\"" + self.__column_shape + "\"",
-                    label="\"" + self.__label + "\""
+                    label="\"" + self.__label + "\"",
+                    width=self.__width,
+                    height=self.__height
                 )
 
 class OperatorNode:
     def __init__(self, str_operator_name, str_operator_symbol, operator_id):
         self.__operator_name_delimeter = "_"
-        self.__operator_symbol_id_tag_begin = "<sub>"
-        self.__operator_symbol_id_tag_end = "</sub>"
+        #self.__operator_symbol_id_tag_begin = "<sub>"
+        #self.__operator_symbol_id_tag_end = "</sub>"
         self.__operator_shape = "circle"
         self.__operator_fontsize = "24"
-        self.__operator_shape_size = "0.8"
+        self.__operator_shape_size = "1.2"
         self.__operator_name = str_operator_name
         self.__operoator_id = operator_id
         self.__operator_symbol = str_operator_symbol
@@ -66,19 +72,64 @@ class OperatorNode:
 
     def get_symbol_str(self):
         return \
-            "\"" + self.__operator_symbol + \
-            self.__operator_symbol_id_tag_begin + \
-            str(self.__operoator_id) + \
-            self.__operator_symbol_id_tag_end + "\""
+            self.__operator_symbol
+
     def __str__(self):
-        print(self.get_name_str(), file=sys.stderr)
+        #print(self.get_name_str(), file=sys.stderr)
         return \
-            "{operatorname} [shape={shape}, label={symbol}, fontsize={fontsize}, width={size}, height={size}];\n".format(
+            "{operatorname} [fixedsize=shape, shape={shape}, label=<{symbol}>, fontsize={fontsize}, width={size}, height={size}];\n".format(
                 operatorname=self.get_name_str(),
                 shape="\""+self.__operator_shape+"\"",
                 symbol=self.get_symbol_str(),
                 fontsize=self.__operator_fontsize,
                 size=self.__operator_shape_size
+            )
+
+class OperatorNodeSelect(OperatorNode):
+    def __init__(self, str_operator_name, str_operator_symbol, operator_id, op, predicate):
+        OperatorNode.__init__(self, str_operator_name, str_operator_symbol, operator_id)
+        self.__op_symbol_map = {
+            "equal": "=",
+            "inequal": "&#x2260;",
+            "less": "&lt;",
+            "lessequal": "&#x2264;",
+            "greater": "&gt;",
+            "greaterequal": "&#x2265;"
+        }
+        self.__op = self.__op_symbol_map[op]
+        self.__predicate = str(predicate)
+
+    def get_symbol_str(self):
+        return \
+            "{}<SUB>{}{}</SUB>".format(
+                super().get_symbol_str(),
+                self.__op,
+                self.__predicate
+            )
+class OperatorNodeNto1Join(OperatorNode):
+    def __init__(self, str_operator_name, str_operator_symbol, operator_id):
+        OperatorNode.__init__(self, str_operator_name, str_operator_symbol, operator_id)
+
+    def get_symbol_str(self):
+        return \
+            "{}<SUB>{}</SUB>".format(
+                super().get_symbol_str(),
+                "1:N"
+            )
+
+class OperatorNodeCalcBinary(OperatorNode):
+    def __init__(self, str_operator_name, str_operator_symbol, operator_id, op):
+        OperatorNode.__init__(self, str_operator_name, str_operator_symbol, operator_id)
+        self.__op_symbol_map = {
+            "mul": "*",
+            "sub": "-",
+        }
+        self.__op = self.__op_symbol_map[op]
+
+    def get_symbol_str(self):
+        return \
+            "[{}]".format(
+                self.__op
             )
 
 class DataFlow:
@@ -123,12 +174,12 @@ class QueryGraph:
             "intersect_sorted":"&#8745;",
             "merge_sorted":"&#8746;",
             "nested_loop_join":"&#10781;",
-            "equi_join":"&#10781;<sup>Hash</sup>",
-            "semi_join":"&#x22c9;<sup>Hash</sup>",
-            "calc_binary":"CALC",
+            "equi_join":"&#10781;",#<sup>Hash</sup>",
+            "semi_join":"&#x22c9;",#<sup>Hash</sup>",
+            "calc_binary":"",
             "agg_sum":"&#931;",
             #SumGrBased is missing
-            "group":"GROUP"
+            "group":"&#947;"
         }
         self.__operators = list()
         self.__columns = set()
@@ -143,7 +194,33 @@ class QueryGraph:
         return self.__direction
 
     def addOperator(self, operator):
-        opNode = OperatorNode(operator.opName, self.__operator_node_smybol_map[operator.opName], self.__operator_id)
+        if isinstance(operator, ops.Select):
+            opNode = OperatorNodeSelect(
+                operator.opName,
+                self.__operator_node_smybol_map[operator.opName],
+                self.__operator_id,
+                operator.op,
+                operator.val
+            )
+        elif isinstance(operator, ops.Nto1Join):
+            opNode = OperatorNodeNto1Join(
+                operator.opName, self.__operator_node_smybol_map["equi_join"], self.__operator_id
+            )
+        elif isinstance(operator, ops.LeftSemiNto1Join):
+            opNode = OperatorNodeNto1Join(
+                operator.opName, self.__operator_node_smybol_map["semi_join"], self.__operator_id
+            )
+        elif isinstance(operator, ops.CalcBinary):
+            #print(operator.op, file=sys.stderr)
+            opNode = OperatorNodeCalcBinary(
+                operator.opName,
+                self.__operator_node_smybol_map[operator.opName],
+                self.__operator_id,
+                operator.op
+            )
+        else :
+            opNode = OperatorNode(operator.opName, self.__operator_node_smybol_map[operator.opName], self.__operator_id)
+
         self.__operators.append(
             opNode
         )
