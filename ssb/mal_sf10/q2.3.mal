@@ -1,0 +1,91 @@
+% .explain # table_name
+% mal # name
+% clob # type
+% 338 # length
+function user.s4_1():void;
+    X_3:void := querylog.define("explain select sum(lo_revenue), d_year, p_brand\nfrom lineorder, date, part, supplier\nwhere lo_orderdate = d_datekey\n and lo_partkey = p_partkey\n and lo_suppkey = s_suppkey\n and p_brand = 272 \n and s_region = 3 \ngroup by d_year, p_brand\norder by d_year, p_brand;":str, "default_pipe":str, 126:int);
+    X_162:bat[:str] := bat.new(nil:str);
+    X_168:bat[:int] := bat.new(nil:int);
+    X_166:bat[:int] := bat.new(nil:int);
+    X_165:bat[:str] := bat.new(nil:str);
+    X_164:bat[:str] := bat.new(nil:str);
+    X_6:int := sql.mvc();
+    C_7:bat[:oid] := sql.tid(X_6:int, "ssb":str, "lineorder":str);
+    X_20:bat[:int] := sql.bind(X_6:int, "ssb":str, "lineorder":str, "lo_suppkey":str, 0:int);
+    X_26:bat[:int] := algebra.projection(C_7:bat[:oid], X_20:bat[:int]);
+    X_50:bat[:int] := sql.bind(X_6:int, "ssb":str, "supplier":str, "s_region":str, 0:int);
+    C_41:bat[:oid] := sql.tid(X_6:int, "ssb":str, "supplier":str);
+    C_59:bat[:oid] := algebra.thetaselect(X_50:bat[:int], C_41:bat[:oid], 3:int, "==":str);
+    X_43:bat[:int] := sql.bind(X_6:int, "ssb":str, "supplier":str, "s_suppkey":str, 0:int);
+    X_61:bat[:int] := algebra.projection(C_59:bat[:oid], X_43:bat[:int]);
+    (X_63:bat[:oid], X_64:bat[:oid]) := algebra.join(X_26:bat[:int], X_61:bat[:int], nil:BAT, nil:BAT, false:bit, nil:lng);
+    X_10:bat[:int] := sql.bind(X_6:int, "ssb":str, "lineorder":str, "lo_partkey":str, 0:int);
+    X_69:bat[:int] := algebra.projectionpath(X_63:bat[:oid], C_7:bat[:oid], X_10:bat[:int]);
+    X_84:bat[:int] := sql.bind(X_6:int, "ssb":str, "part":str, "p_brand":str, 0:int);
+    C_75:bat[:oid] := sql.tid(X_6:int, "ssb":str, "part":str);
+    C_93:bat[:oid] := algebra.thetaselect(X_84:bat[:int], C_75:bat[:oid], 272:int, "==":str);
+    X_77:bat[:int] := sql.bind(X_6:int, "ssb":str, "part":str, "p_partkey":str, 0:int);
+    X_95:bat[:int] := algebra.projection(C_93:bat[:oid], X_77:bat[:int]);
+    (X_97:bat[:oid], X_98:bat[:oid]) := algebra.join(X_69:bat[:int], X_95:bat[:int], nil:BAT, nil:BAT, false:bit, nil:lng);
+    X_27:bat[:int] := sql.bind(X_6:int, "ssb":str, "lineorder":str, "lo_orderdate":str, 0:int);
+    X_105:bat[:int] := algebra.projectionpath(X_97:bat[:oid], X_63:bat[:oid], C_7:bat[:oid], X_27:bat[:int]);
+    C_111:bat[:oid] := sql.tid(X_6:int, "ssb":str, "date":str);
+    X_113:bat[:int] := sql.bind(X_6:int, "ssb":str, "date":str, "d_datekey":str, 0:int);
+    X_119:bat[:int] := algebra.projection(C_111:bat[:oid], X_113:bat[:int]);
+    (X_127:bat[:oid], X_128:bat[:oid]) := algebra.join(X_105:bat[:int], X_119:bat[:int], nil:BAT, nil:BAT, false:bit, nil:lng);
+    X_136:bat[:int] := algebra.projectionpath(X_127:bat[:oid], X_98:bat[:oid], C_93:bat[:oid], X_84:bat[:int]);
+    X_120:bat[:int] := sql.bind(X_6:int, "ssb":str, "date":str, "d_year":str, 0:int);
+    X_138:bat[:int] := algebra.projectionpath(X_128:bat[:oid], C_111:bat[:oid], X_120:bat[:int]);
+    (X_139:bat[:oid], C_140:bat[:oid], X_141:bat[:lng]) := group.group(X_138:bat[:int]);
+    (X_142:bat[:oid], C_143:bat[:oid], X_144:bat[:lng]) := group.subgroupdone(X_136:bat[:int], X_139:bat[:oid]);
+    X_145:bat[:int] := algebra.projection(C_143:bat[:oid], X_138:bat[:int]);
+    X_146:bat[:int] := algebra.projection(C_143:bat[:oid], X_136:bat[:int]);
+    X_34:bat[:int] := sql.bind(X_6:int, "ssb":str, "lineorder":str, "lo_revenue":str, 0:int);
+    X_132:bat[:int] := algebra.projectionpath(X_127:bat[:oid], X_97:bat[:oid], X_63:bat[:oid], C_7:bat[:oid], X_34:bat[:int]);
+    X_147:bat[:hge] := aggr.subsum(X_132:bat[:int], X_142:bat[:oid], C_143:bat[:oid], true:bit, true:bit);
+    (X_150:bat[:int], X_151:bat[:oid], X_152:bat[:oid]) := algebra.sort(X_145:bat[:int], false:bit, false:bit);
+    (X_155:bat[:int], X_156:bat[:oid], X_157:bat[:oid]) := algebra.sort(X_146:bat[:int], X_151:bat[:oid], X_152:bat[:oid], false:bit, false:bit);
+    X_160:bat[:int] := algebra.projection(X_156:bat[:oid], X_146:bat[:int]);
+    X_159:bat[:int] := algebra.projection(X_156:bat[:oid], X_145:bat[:int]);
+    X_158:bat[:hge] := algebra.projection(X_156:bat[:oid], X_147:bat[:hge]);
+    X_169:bat[:str] := bat.append(X_162:bat[:str], "ssb.L2":str);
+    X_171:bat[:str] := bat.append(X_164:bat[:str], "L2":str);
+    X_173:bat[:str] := bat.append(X_165:bat[:str], "hugeint":str);
+    X_175:bat[:int] := bat.append(X_166:bat[:int], 128:int);
+    X_177:bat[:int] := bat.append(X_168:bat[:int], 0:int);
+    X_179:bat[:str] := bat.append(X_169:bat[:str], "ssb.date":str);
+    X_181:bat[:str] := bat.append(X_171:bat[:str], "d_year":str);
+    X_183:bat[:str] := bat.append(X_173:bat[:str], "int":str);
+    X_185:bat[:int] := bat.append(X_175:bat[:int], 32:int);
+    X_187:bat[:int] := bat.append(X_177:bat[:int], 0:int);
+    X_188:bat[:str] := bat.append(X_179:bat[:str], "ssb.part":str);
+    X_190:bat[:str] := bat.append(X_181:bat[:str], "p_brand":str);
+    X_192:bat[:str] := bat.append(X_183:bat[:str], "int":str);
+    X_193:bat[:int] := bat.append(X_185:bat[:int], 32:int);
+    X_194:bat[:int] := bat.append(X_187:bat[:int], 0:int);
+    sql.resultSet(X_188:bat[:str], X_190:bat[:str], X_192:bat[:str], X_193:bat[:int], X_194:bat[:int], X_158:bat[:hge], X_159:bat[:int], X_160:bat[:int]);
+end user.s4_1;
+#inline               actions= 0 time=1 usec 
+#remap                actions= 0 time=1 usec 
+#costmodel            actions= 1 time=2 usec 
+#coercion             actions= 0 time=1 usec 
+#evaluate             actions= 4 time=19 usec 
+#emptybind            actions=10 time=10 usec 
+#pushselect           actions= 6 time=12 usec 
+#aliases              actions=18 time=7 usec 
+#mergetable           actions= 0 time=32 usec 
+#deadcode             actions=36 time=9 usec 
+#aliases              actions= 0 time=0 usec 
+#constants            actions=14 time=9 usec 
+#commonTerms          actions= 0 time=5 usec 
+#projectionpath       actions= 9 time=9 usec 
+#deadcode             actions= 9 time=6 usec 
+#reorder              actions= 1 time=20 usec 
+#matpack              actions= 0 time=0 usec 
+#multiplex            actions= 0 time=1 usec 
+#profiler             actions=1 time=1 usec 
+#candidates           actions=1 time=0 usec 
+#deadcode             actions= 0 time=5 usec 
+#wlc                  actions= 0 time=0 usec 
+#garbagecollector     actions= 1 time=63 usec 
+#total                actions=28 time=288 usec 
