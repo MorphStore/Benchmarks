@@ -25,11 +25,11 @@ criteria:
 - It must store the names of the C++ variables passed as the parameters to
   the query operator as its fields. The names of these fields must start with
   "in" to allow automatic analysis of the translated program (see module
-  mal2morphstore.analysis).
+  mal2x.analysis).
 - It must store the names of the C++ variables of the results obtained from
   the query operator as its fields. The names of these fields must start with
   "out" to allow automatic analysis of the translated program (see module
-  mal2morphstore.analysis).
+  mal2x.analysis).
 - It must provide a __str__()-method returning the C++ code for the call to the
   respective operator with the respective input and output variables. The
   format strings used in the __str__()-methods should include only C++ keywords
@@ -40,10 +40,10 @@ criteria:
   need to be included in the generated C++ program for the respective operator.
   Only headers required for the C++ code returned by __str__() should be
   considered here; headers required for parameter values (such as <functional>
-  for std::less) are taken into account in module mal2morphstore.translation.
+  for std::less) are taken into account in module mal2x.translation.
 
 These classes are used in the abtract representation of a translated MAL
-program. See module mal2morphstore.translation for details.
+program. See module mal2x.translation for details.
   
 Whenever a new query operator is added in the C++ code base of MorphStore, then
 a new class for the calls to that new operator should be created in this

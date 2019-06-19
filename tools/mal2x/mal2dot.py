@@ -52,12 +52,10 @@ Known limitations:
   processing styles (which must be specified as an argument to this script).
 - So far, only operators on uncompressed data are considered.
 
-See the documentations of the modules in package mal2morphstore for further
+See the documentations of the modules in package mal2x for further
 details.
 """
 
-import mal2morphstore.output
-import mal2morphstore.processingstyles as ps
 import mal2morphstore.purposes as pp
 import mal2morphstore.translation
 import mal2dot.visualize as vis

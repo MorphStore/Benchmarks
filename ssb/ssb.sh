@@ -51,7 +51,7 @@ function print_help () {
     echo "      This includes running the queries with EXPLAIN and with "
     echo "      string literals replaced by MorphStore's qdict.py tool using "
     echo "      MonetDB, translating the so-obtained MAL programs to "
-    echo "      MorphStore C++ using MorphStore's mal2morphstore.py tool, and "
+    echo "      MorphStore C++ using MorphStore's mal2x.py tool, and "
     echo "      creating a CMakeLists.txt file for the generated C++ programs."
     echo "  v, visualize"
     echo "      Creates Dot files for all SSB queries in MorphStore. "
@@ -252,7 +252,7 @@ function generate () {
 
     print_headline2 "Loading data into MonetDB"
     eval $monetdb create $dbName
-    # Deactivating multi-threading is important, since mal2morphstore.py cannot
+    # Deactivating multi-threading is important, since mal2x.py cannot
     # translate multi-threaded MAL plans.
     eval $monetdb set nthreads=1 $dbName
     eval $monetdb release $dbName
@@ -651,8 +651,8 @@ pathTools=$pathMorphStore/Benchmarks/tools
 createload=$pathTools/monetdb_create+load.py
 dbdict=$pathTools/dict/dbdict.py
 qdict=$pathTools/dict/qdict.py
-mal2morphstore=$pathTools/mal2morphstore/mal2morphstore.py
-dotvisualize=$pathTools/mal2morphstore/mal2dot.py
+mal2morphstore=$pathTools/mal2x/mal2morphstore.py
+dotvisualize=$pathTools/mal2x/mal2dot.py
 
 # -----------------------------------------------------------------------------
 # Steps of this script's execution.

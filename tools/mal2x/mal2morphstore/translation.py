@@ -23,7 +23,7 @@ This module provides the facilities for translating a MAL program produced by
 MonetDB and available as a plain-text file to an abstract representation of a
 MorphStore C++ program. This abstract representation is defined by class
 TranslationResult in this module and can be further processed using the modules
-mal2morphstore.output and mal2morphstore.analysis.
+mal2x.output and mal2x.analysis.
 
 The function translate() is the entry-point for callers. The translation is
 based on parsing the MAL program using regular expressions. During the
@@ -45,7 +45,7 @@ Known limitations:
 To add support for some additional MAL operator, the following will typically
 have to be done:
 - Add a new translation function for the new MAL operator. This may involve
-  adding a new MorphStore operator in module mal2morphstore.operators if the
+  adding a new MorphStore operator in module mal2x.operators if the
   new MAL operator cannot be expressed with existing MorphStore operators.
 - Add a regular expression for parsing the MAL operator's parameters.
 - In function translate() add a case calling the new translation function when
