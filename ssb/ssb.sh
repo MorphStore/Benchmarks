@@ -389,6 +389,7 @@ function translateToDot () {
                         > $pathSrc/q$major.$minor.dot
 #                    dot -Tsvg:cairo -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
                     dot -Tsvg -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
+#                    dot -Tpng -o $pathSrc/q$major.$minor.png $pathSrc/q$major.$minor.dot
                     ;;
                 $umMaterialize)
                     printf "SET SCHEMA $benchmark;\nEXPLAIN " \
@@ -401,6 +402,7 @@ function translateToDot () {
                         > $pathSrc/q$major.$minor.dot
 #                    dot -Tsvg:cairo -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
                     dot -Tsvg -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
+#                    dot -Tpng -o $pathSrc/q$major.$minor.png $pathSrc/q$major.$minor.dot
                     ;;
                 $umSaved)
                     cat $pathMal/q$major.$minor.mal \
@@ -408,6 +410,7 @@ function translateToDot () {
                         > $pathSrc/q$major.$minor.dot
 #                    dot -Tsvg:cairo -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
                     dot -Tsvg -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
+#                    dot -Tpng -o $pathSrc/q$major.$minor.png $pathSrc/q$major.$minor.dot
                     ;;
                 *)
                     printf "unknown way to use MonetDB (in translate step): $useMonetDB\n"

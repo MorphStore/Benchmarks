@@ -34,7 +34,7 @@ class OperatorNode:
     def __str__(self):
         #print(self.get_name_str(), file=sys.stderr)
         return \
-            "{operatorname} [fixedsize=shape, shape={shape}, label=<{symbol}>, id={operatorname}, fontsize={fontsize}, width={size}, height={size}];\n".format(
+            "{operatorname} [fixedsize=shape, shape={shape}, label=<{symbol}>, id={operatorname}, fontsize={fontsize}, width={size}, height={size}, style = filled, fillcolor = white];\n".format(
                 operatorname=self.get_name_str(),
                 shape="\""+self.__operator_shape+"\"",
                 symbol=self.get_symbol_str(),
