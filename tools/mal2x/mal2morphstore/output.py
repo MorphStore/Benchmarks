@@ -445,7 +445,7 @@ def _printAnalysis(indent, ar):
 
 # Regular expression for recognizing comment lines in the template CPP file to
 # replace by parts of the translated program.
-_pPlaceholder = re.compile(r"(\s*)\/\/ ##### mal2x (.+?) #####\s*")
+_pPlaceholder = re.compile(r"(\s*)\/\/ ##### mal2morphstore (.+?) #####\s*")
 
 def generate(
         translationResult, templateFilePath, purpose, processingStyle, versionSelect
@@ -459,7 +459,7 @@ def generate(
     particular query. This template file is copied to the output line by line,
     whereby special comment lines are replaced by query-dependent C++ source
     snippets. These special comment lines have the following structure:
-    "// ##### mal2x ph #####". They can appear at any indentation
+    "// ##### mal2morphstore ph #####". They can appear at any indentation
     level and the indentation of the comment is used for all lines which are
     inserted. ph is a placeholder for the kind of source snippet to be
     inserted. The supported placeholders are:
