@@ -37,7 +37,7 @@ criteria:
   those for the corresponding input/output columns, but end with "F" instead of
   "Col" (e.g. for "inDataCol", there must be "inDataF") to allow the automatic
   configuration of the formats (see module mal2morphstore.compr). These fields
-  should be None by default.
+  should be None by default (the only exception to this is the morph operator).
 - It must provide a __str__()-method returning the C++ code for the call to the
   respective operator with the respective input and output variables. The
   format strings used in the __str__()-methods should include only C++ keywords
@@ -422,3 +422,22 @@ class GroupBinary(Op):
             "std::tie({outGrCol}, {outExtCol}) = {opName}<{ps}, {outGrF}, {outExtF}, {inGrF}, {inDataF}>({inGrCol}, {inDataCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
+        
+class Morph(Op):
+    """A call to MorphStore's morph operator"""
+    
+    opName = "morph"
+    headers = [
+        "core/morphing/morph.h"
+    ]
+    
+    def __init__(self, outCol, inCol, outF):
+        self.outCol = outCol
+        self.inCol = inCol
+        self.outF = outF
+        
+    def __str__(self):
+        return "auto {outCol} = {opName}<{ps}, {outF}>({inCol});".format(
+            opName=self.opName, **self.__dict__, **_commonIdentifiers
+        )
+            

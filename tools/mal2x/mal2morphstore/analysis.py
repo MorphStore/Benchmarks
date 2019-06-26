@@ -154,6 +154,9 @@ def analyze(translationResult):
                 if el.inDataCol in varsUnique and el.inGrCol in varsUnique:
                     varsUnique.append(el.outGrCol)
                 varsUnique.append(el.outExtCol)
+            elif isinstance(el, ops.Morph):
+                if el.inCol in varsUnique:
+                    varsUnique.append(el.outCol)
             else:
                 raise RuntimeError(
                         "the operator {} is not taken into account in "
