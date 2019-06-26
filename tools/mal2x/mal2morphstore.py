@@ -119,7 +119,7 @@ if __name__ == "__main__":
         "--malfile", dest="inMalFilePath", default=FROM_STDIN, metavar="FILE",
         help="The path to the plain text file containing the MAL program. If "
             "this argument is omitted or if '{}' is specified, then the "
-            "benchmarks will be read from stdin.".format(FROM_STDIN)
+            "MAL program will be read from stdin.".format(FROM_STDIN)
         # TODO Validate existence.
     )
     parser.add_argument(
