@@ -30,6 +30,7 @@ with "F". See module mal2morphstore.operators.
 
 
 import mal2morphstore.operators as ops
+import mal2morphstore.processingstyles as pss
 
 
 # *****************************************************************************
@@ -39,11 +40,51 @@ import mal2morphstore.operators as ops
 # These names are used for the command line arguments.
 
 CC_ALLUNCOMPR = "alluncompr"
+CC_ALLDYNAMICVBP = "alldynamicvbp"
 
 # List of all compression configurations.
 COMPR_CONFIGS = [
     CC_ALLUNCOMPR,
+    CC_ALLDYNAMICVBP,
 ]
+
+
+# *****************************************************************************
+# Format names and utilities.
+# *****************************************************************************
+
+FORMAT_UNCOMPR = "uncompr_f"
+
+def makeDynamicVBP(ps):
+    if ps == pss.PS_SCALAR:
+        blockSizeLog = 64
+        pageSizeBlocks = 8
+        step = 1
+    elif ps == pss.PS_VEC128:
+        blockSizeLog = 128
+        pageSizeBlocks = 16
+        step = 2
+    elif ps == pss.PS_VEC256:
+        blockSizeLog = 256
+        pageSizeBlocks = 32
+        step = 4
+    elif ps == pss.PS_VEC512:
+        blockSizeLog = 512
+        pageSizeBlocks = 32
+        step = 8
+    return "dynamic_vbp_f<{}, {}, {}>".format(
+        blockSizeLog, pageSizeBlocks, step
+    )
+
+shortNames = {
+    FORMAT_UNCOMPR: "u",
+    # We do not intend to use different vector extensions in one query at the
+    # moment, so its ok if the short names are the same.
+    makeDynamicVBP(pss.PS_SCALAR): "d",
+    makeDynamicVBP(pss.PS_VEC128): "d",
+    makeDynamicVBP(pss.PS_VEC256): "d",
+    makeDynamicVBP(pss.PS_VEC512): "d",
+}
 
 
 # *****************************************************************************
@@ -55,7 +96,7 @@ COMPR_CONFIGS = [
 # and output formats of each operator call in the translated program.
 
 # All base and intermediate columns are uncompressed.
-def _configCompr_AllUncompr(tr):
+def _configCompr_AllUncompr(tr, ps):
     # TODO Remove the first header, but currently, uncompr_f is defined there.
     tr.headers.add("core/morphing/format.h")
     tr.headers.add("core/morphing/uncompr.h")
@@ -63,7 +104,27 @@ def _configCompr_AllUncompr(tr):
         if isinstance(el, ops.Op):
             for key in el.__dict__:
                 if key.endswith("F"):
-                    el.__dict__[key] = "uncompr_f"
+                    el.__dict__[key] = FORMAT_UNCOMPR
+                    
+# All base and intermediate columns are represented in the format
+# dynamic_vbp_f.
+# TODO Since not all of MorphStore's query operators support this yet, we use
+#      dynamic_vbp_f where it is supported and otherwise use uncompr_f
+def _configCompr_AllDynamicVBP(tr, ps):
+    # Set all formats to uncompr_f
+    # TODO This should not be required.
+    _configCompr_AllUncompr(tr, ps)
+    
+    tr.headers.add("core/morphing/dynamic_vbp.h")
+    
+    formatName = makeDynamicVBP(ps)
+        
+    # Set the formats to dynamic_vbp_f for all operators that support it.
+    for el in tr.prog:
+        if isinstance(el, ops.Select):
+            for key in el.__dict__:
+                if key.endswith("F"):
+                    el.__dict__[key] = formatName
 
 
 # *****************************************************************************
@@ -75,19 +136,21 @@ def _configCompr_AllUncompr(tr):
 # mal2morphstore.translation.TranslationResult and the name of a compression
 # configuration and delegates the control flow to the function of the selected
 # compression configuration.
-def configCompr(tr, comprConfig):
+def configCompr(translationResult, comprConfig, processingStyle):
     if comprConfig == CC_ALLUNCOMPR:
-        _configCompr_AllUncompr(tr)
+        _configCompr_AllUncompr(translationResult, processingStyle)
+    elif comprConfig == CC_ALLDYNAMICVBP:
+        _configCompr_AllDynamicVBP(translationResult, processingStyle)
     else:
         raise RuntimeError(
-            "Unsupported compression configuration: '{}'".format(baseCompr)
+            "Unsupported compression configuration: '{}'".format(comprConfig)
         )
 
 # Checks if all input and output formats of all operators in the given
 # translated query have been set and raises an error otherwise.
-def checkAllFormatsSet(tr):
+def checkAllFormatsSet(translationResult):
     opIdx = 0
-    for el in tr.prog:
+    for el in translationResult.prog:
         if isinstance(el, ops.Op):
             for key in el.__dict__:
                 if key.endswith("F"):
@@ -98,3 +161,58 @@ def checkAllFormatsSet(tr):
                             "set".format(key, el.opName, opIdx)
                         )
             opIdx += 1
+            
+# Inserts morph-operators before each operator to ensure that its input columns
+# are available in the expected format.
+# TODO Do not insert morphs with the same source and destination format to make
+#      the C++ source code easier to read (it has no impact on the
+#      performance, since such morphs are zero-cost).
+def insertMorphs(translationResult):
+    def makeNewVarName(varName, formatName):
+        return "{}__{}".format(
+            varName.replace(".", "_"), shortNames[formatName]
+        )
+    
+    # The new query program and result column names.
+    newProg = []
+    newResultCols = []
+    
+    # Names of column variables newly introduced by morphs.
+    newVarNames = []
+    
+    # Morphs for the operators' input columns.
+    for el in translationResult.prog:
+        if isinstance(el, ops.Op):
+            for key in el.__dict__:
+                if key.startswith("in") and key.endswith("Col"):
+                    if isinstance(el, ops.SumGrBased) and key == "inExtCol":
+                        # This special case must be skipped, since the
+                        # group-based agg_sum-operator does not access the data
+                        # of its parameter inExtCol, but only needs its number
+                        # of data elements. Thus, no special format is required
+                        # for this input column.
+                        continue
+                    varName = getattr(el, key)
+                    requiredFormat = getattr(
+                        el, "{}F".format(key[:-len("Col")])
+                    )
+                    newVarName = makeNewVarName(varName, requiredFormat)
+                    if newVarName not in newVarNames:
+                        newProg.append(
+                            ops.Morph(newVarName, varName, requiredFormat)
+                        )
+                        newVarNames.append(newVarName)
+                    setattr(el, key, newVarName)
+        newProg.append(el)
+    
+    
+    # Morphs for the query's result columns.
+    newProg.append("// Decompress the output columns, if necessary.")
+    for varName in translationResult.resultCols:
+        newVarName = makeNewVarName(varName, FORMAT_UNCOMPR)
+        newProg.append(ops.Morph(newVarName, varName, FORMAT_UNCOMPR))
+        newResultCols.append(newVarName)
+        
+    # Overwriting the old program and result column names with the new ones.
+    translationResult.prog = newProg
+    translationResult.resultCols = newResultCols

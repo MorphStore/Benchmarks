@@ -162,8 +162,12 @@ if __name__ == "__main__":
     )
     
     # Compression configuration.
-    compr.configCompr(translationResult, args.comprConfig)
+    compr.configCompr(
+        translationResult, args.comprConfig, args.processingStyle
+    )
     compr.checkAllFormatsSet(translationResult)
+    if args.comprConfig != compr.CC_ALLUNCOMPR:
+        compr.insertMorphs(translationResult)
     
     # C++-code generation.
     mal2morphstore.output.generate(

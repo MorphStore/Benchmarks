@@ -111,7 +111,9 @@ class Select(Op):
     
     opName = "select"
     headers = [
-        "core/operators/{{{}}}/select_uncompr.h".format(ps.INCLUDE_DIR_KEY)
+        # TODO Don't hardcode which header to include.
+#        "core/operators/{{{}}}/select_uncompr.h".format(ps.INCLUDE_DIR_KEY)
+        "core/operators/{{{}}}/select_compr.h".format(ps.INCLUDE_DIR_KEY)
     ]
     
     def __init__(self, outPosCol, op, inDataCol, val):
@@ -123,7 +125,11 @@ class Select(Op):
         self.inDataF = None
         
     def __str__(self):
-        return "auto {outPosCol} = {ns}::{opName}<{op}, {ps}, {outPosF}, {inDataF}>({inDataCol}, {val});".format(
+        # TODO Don't hardcode this.
+#        return "auto {outPosCol} = {ns}::{opName}<{op}, {ps}, {outPosF}, {inDataF}>({inDataCol}, {val});".format(
+#            opName=self.opName, **self.__dict__, **_commonIdentifiers
+#        )
+        return "auto {outPosCol} = my_select_wit_t<{op}, {ps}, {outPosF}, {inDataF}>::apply({inDataCol}, {val});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     

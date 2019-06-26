@@ -25,7 +25,7 @@
 function print_help () {
     echo "Usage: ssb.sh [-h] [-s STEP] [-e STEP] [-sf N] [-p PURPOSE]"
     echo "              [-ps PROCESSING_STYLE] [-v vectorVersion]"
-    echo "              [-um WAY_TO_USE_MONETDB]"
+    echo "              [-c COMPRESSION_CONFIG] [-um WAY_TO_USE_MONETDB]"
     echo ""
     echo "Star Schema Benchmark (SSB) in MorphStore."
     echo ""
@@ -106,6 +106,20 @@ function print_help () {
     echo "      Examples: avx2\<v256\<uint64_t\>\>"
     echo "                scalar\<v64\<uint64_t\>\>"
     echo ""
+    echo "The formats of the query operators' input and output columns are "
+    echo "determined by a compression configuration. The following "
+    echo "configurations are available:"
+    echo ""
+    echo "Compression configuations:"
+    echo "  alluncompr"
+    echo "      All base and intermediate columns are uncompressed (uncompr_f "
+    echo "      in MorphStore)."
+    echo "  alldynamicvbp"
+    echo "      All base and intermediate columns use vertical bit-packing "
+    echo "      with a dynamic bit width (dynamic_vbp_f in MorphStore). Note "
+    echo "      that all operators not supporting this yet will still use "
+    echo "      uncompressed data."
+    echo ""
     echo "This script depends on MonetDB, since the 'translate'-step requires "
     echo "MAL programs from MonetDB and the 'run'-step (with the 'check'- or "
     echo "'results'-purpose) requires reference query results from MonetDB. "
@@ -147,6 +161,10 @@ function print_help () {
     echo "                          The processing style to use in MorphStore."
     echo "                          Supported values are scalar, vec128, and "
     echo "                          vec256. Defaults to scalar."
+    echo "  -c COMPRESSION_CONFIG, --comprConfig COMPRESSION_CONFIG"
+    echo "                          The compression configuration to use for "
+    echo "                          the translated queries. Defaults to "
+    echo "                          alluncompr."
     echo "  -um WAY_TO_USE_MONETDB, --useMonetDB WAY_TO_USE_MONETDB"
     echo "                          The way to use MonetDB."
     echo ""
@@ -303,7 +321,7 @@ function translate () {
                         | cat - $pathQueries/q$major.$minor.sql \
                         | $qdict $pathDataDicts \
                         | $mclient -d $dbName -f raw \
-                        | $mal2morphstore $processingStyle $purpose alluncompr $versionSelect\
+                        | $mal2morphstore $processingStyle $purpose $comprConfig $versionSelect\
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 $umMaterialize)
@@ -313,12 +331,12 @@ function translate () {
                         | $mclient -d $dbName -f raw \
                         > $pathMal/q$major.$minor.mal
                     cat $pathMal/q$major.$minor.mal \
-                        | $mal2morphstore $processingStyle $purpose alluncompr $versionSelect \
+                        | $mal2morphstore $processingStyle $purpose $comprConfig $versionSelect \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 $umSaved)
                     cat $pathMal/q$major.$minor.mal \
-                        | $mal2morphstore $processingStyle $purpose alluncompr $versionSelect \
+                        | $mal2morphstore $processingStyle $purpose $comprConfig $versionSelect \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 *)
@@ -754,6 +772,7 @@ scaleFactor=1
 purpose=$purposeCheck
 versionSelect=$usingLib
 processingStyle=$psScalar
+comprConfig=alluncompr
 useMonetDB=$umPipeline
 
 while [[ $# -gt 0 ]]
@@ -810,6 +829,10 @@ do
             ;;
         -ps|--processingStyle)
             processingStyle=$2
+            shift
+            ;;
+        -c|--comprConfig)
+            comprConfig=$2
             shift
             ;;
         -um|--useMonetDB)
