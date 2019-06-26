@@ -57,6 +57,7 @@ details.
 """
 
 
+import mal2morphstore.operators as ops
 import mal2morphstore.output
 import mal2morphstore.processingstyles as ps
 import mal2morphstore.purposes as pp
@@ -137,6 +138,14 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
     # Program translation and output
     # -------------------------------------------------------------------------
+
+    # If vector-lib implementations of the operators shall be used then the
+    # group-operator's name must be "group_vec".
+    # TODO Remove this work-around once the operator names have been harmonized
+    # in MorphStore.
+    if args.versionSelect == 2:
+        ops.GroupUnary.opName = "group_vec"
+        ops.GroupBinary.opName = "group_vec"
 
     mal2morphstore.output.generate(
         mal2morphstore.translation.translate(args.inMalFilePath, args.versionSelect, args.processingStyle),
