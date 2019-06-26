@@ -196,14 +196,7 @@ class Nto1Join(Op):
     
     opName = "equi_join"
     headers = [
-       # TODO Which of these headers do we really need?
-        "vector/primitives/logic.h",
-        "vector/primitives/io.h",
-        "vector/datastructures/hash_based/strategies/linear_probing.h",
-        "vector/datastructures/hash_based/hash_utils.h",
-        "vector/datastructures/hash_based/hash_map.h",
         "core/operators/general_vectorized/join_uncompr.h",
-        "vector/complex/hash.h",
     ]
 
     
@@ -252,14 +245,7 @@ class LeftSemiNto1Join(Op):
     
     opName = "semi_join"
     headers = [
-        # TODO Which of these headers do we really need?
-        "vector/primitives/logic.h",
-        "vector/primitives/io.h",
-        "vector/datastructures/hash_based/strategies/linear_probing.h",
-        "vector/datastructures/hash_based/hash_utils.h",
-        "vector/datastructures/hash_based/hash_set.h",
         "core/operators/general_vectorized/join_uncompr.h",
-        "vector/complex/hash.h",
     ]
     
     def __init__(self, outPosRCol, inDataLCol, inDataRCol):
