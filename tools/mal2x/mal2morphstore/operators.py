@@ -194,7 +194,7 @@ class Join(Op):
 class Nto1Join(Op):
     """A call to MorphStore's N:1-join operator."""
     
-    opName = "equi_join"
+    opName = "join"
     headers = [
         "core/operators/general_vectorized/join_uncompr.h",
     ]
@@ -211,8 +211,11 @@ class Nto1Join(Op):
             "const {column}<{format}> * {outPosLCol};\n" \
             "const {column}<{format}> * {outPosRCol};\n" \
             "std::tie({outPosLCol}, {outPosRCol}) = {opName}<\n" \
-            "    uncompr_f,\n" \
-            "    {ps}\n" \
+            "    {ps},\n" \
+            "    {format},\n" \
+            "    {format},\n" \
+            "    {format},\n" \
+            "    {format}\n" \
             "    >(\n" \
             "    {inDataLCol},\n" \
             "    {inDataRCol},\n" \
@@ -256,8 +259,10 @@ class LeftSemiNto1Join(Op):
     def __str__(self):
         return \
             "auto {outPosRCol} = {opName}<\n" \
-            "    uncompr_f,\n" \
-            "    {ps}\n" \
+            "    {ps},\n" \
+            "    {format},\n" \
+            "    {format},\n" \
+            "    {format}\n" \
             "    >\n" \
             "({inDataLCol}, {inDataRCol});".format(
                     opName=self.opName, **self.__dict__, **_commonIdentifiers
