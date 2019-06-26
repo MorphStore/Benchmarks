@@ -101,43 +101,6 @@ def _printHeaders(indent, tr, purpose, processingStyle, versionSelect):
                               ps.INCLUDE_DIR_LIB[processingStyle]
                           }
                   ))
-
-    if processingStyle == ps.PS_VEC512:
-        tr.headers.add("vector/simd/avx512/extension_avx512.h")
-        tr.headers.add("vector/simd/avx512/primitives/logic_avx512.h")
-        tr.headers.add("vector/simd/avx512/primitives/io_avx512.h")
-        tr.headers.add("vector/simd/avx512/primitives/calc_avx512.h")
-        tr.headers.add("vector/simd/avx512/primitives/compare_avx512.h")
-        tr.headers.add("vector/simd/avx512/primitives/create_avx512.h")
-        tr.headers.add("vector/simd/avx512/primitives/extract_avx512.h")
-    
-    if processingStyle == ps.PS_VEC256:
-        tr.headers.add("vector/simd/avx2/extension_avx2.h")
-        tr.headers.add("vector/simd/avx2/primitives/logic_avx2.h")
-        tr.headers.add("vector/simd/avx2/primitives/io_avx2.h")
-        tr.headers.add("vector/simd/avx2/primitives/calc_avx2.h")
-        tr.headers.add("vector/simd/avx2/primitives/compare_avx2.h")
-        tr.headers.add("vector/simd/avx2/primitives/create_avx2.h")
-        tr.headers.add("vector/simd/avx2/primitives/extract_avx2.h")
-        
-    if processingStyle == ps.PS_VEC128:
-        tr.headers.add("vector/simd/sse/extension_sse.h")
-        tr.headers.add("vector/simd/sse/primitives/logic_sse.h")
-        tr.headers.add("vector/simd/sse/primitives/io_sse.h")
-        tr.headers.add("vector/simd/sse/primitives/calc_sse.h")
-        tr.headers.add("vector/simd/sse/primitives/compare_sse.h")
-        tr.headers.add("vector/simd/sse/primitives/create_sse.h")
-        tr.headers.add("vector/simd/sse/primitives/extract_sse.h")
-        
-
-#We always need the scalar version for the remainders, which did not fit into a vector register
-    tr.headers.add("vector/scalar/extension_scalar.h")
-    tr.headers.add("vector/scalar/primitives/logic_scalar.h")
-    tr.headers.add("vector/scalar/primitives/io_scalar.h")
-    tr.headers.add("vector/scalar/primitives/calc_scalar.h")
-    tr.headers.add("vector/scalar/primitives/compare_scalar.h")
-    tr.headers.add("vector/scalar/primitives/create_scalar.h")
-    tr.headers.add("vector/scalar/primitives/extract_scalar.h")
         
     # Add monitoring header if required.
     if purpose in [pp.PP_TIME, pp.PP_DATACH]:

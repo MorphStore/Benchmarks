@@ -24,6 +24,9 @@
 #include <core/utils/basic_types.h>
 #include <core/utils/printing.h>
 
+#include <vector/vector_extension_structs.h>
+#include <vector/vector_primitives.h>
+
 // ##### mal2morphstore headers #####
 
 #include <iostream>
