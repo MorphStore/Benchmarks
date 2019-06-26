@@ -73,7 +73,6 @@ import mal2morphstore.processingstyles as ps
 _commonIdentifiers = {
     "ns": "morphstore",
     "ps": ps.PS_VAR,
-    "format": "uncompr_f",
     "column": "column",
     "apply": "apply",
     "get_count_values": "get_count_values",
