@@ -24,16 +24,20 @@ criteria:
 - It must be a subclass of Op.
 - It must store the names of the C++ variables passed as the parameters to
   the query operator as its fields. The names of these fields must start with
-  "in" to allow automatic analysis of the translated program (see module
-  mal2x.analysis).
+  "in" and end with "Col" (e.g. "inDataCol") to allow automatic analysis of the
+  translated program (see modules mal2morphstore.analysis and
+  mal2morphstore.compr).
 - It must store the names of the C++ variables of the results obtained from
   the query operator as its fields. The names of these fields must start with
-  "out" to allow automatic analysis of the translated program (see module
-  mal2x.analysis).
+  "out" and end with "Col" (e.g. "outPosCol") to allow automatic analysis of
+  the translated program (see module mal2morphstore.analysis and
+  mal2morphstore.compr).
 - It must store the C++ identifiers of the formats of each parameter and each
-  result as its fields. The names of these fields must end with "F" to allow
-  the automatic configuration of the formats (see module mal2morphstore.compr).
-  These fields should be None by default.
+  result as its fields. The names of these fields must have the same names as 
+  those for the corresponding input/output columns, but end with "F" instead of
+  "Col" (e.g. for "inDataCol", there must be "inDataF") to allow the automatic
+  configuration of the formats (see module mal2morphstore.compr). These fields
+  should be None by default.
 - It must provide a __str__()-method returning the C++ code for the call to the
   respective operator with the respective input and output variables. The
   format strings used in the __str__()-methods should include only C++ keywords

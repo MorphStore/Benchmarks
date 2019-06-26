@@ -99,11 +99,11 @@ def analyze(translationResult):
         if isinstance(el, ops.Op):
             # Tracking the usage of column-variables.
             for key in el.__dict__:
-                if key.startswith("out"):
+                if key.startswith("out") and key.endswith("Col"):
                     varName = getattr(el, key)
                     varsAssigned.append(varName)
                     varsNeverUsed.append(varName)
-                elif key.startswith("in"):
+                elif key.startswith("in") and key.endswith("Col"):
                     varName = getattr(el, key)
                     foundUsage(varName)
                     
