@@ -57,6 +57,7 @@ details.
 """
 
 
+import mal2morphstore.compr as compr
 import mal2morphstore.operators as ops
 import mal2morphstore.output
 import mal2morphstore.processingstyles as ps
@@ -114,6 +115,14 @@ if __name__ == "__main__":
                 ", ".join(map(quote, pp.PURPOSES_LONG))
             )
     )
+    parser.add_argument(
+        "comprConfig", metavar="COMPRESSION_CONFIG",
+        choices=compr.COMPR_CONFIGS,
+        help="The compression configuration to use for the translated query. "
+            "The following configurations are supported: {}.".format(
+                ", ".join(map(quote, compr.COMPR_CONFIGS)),
+            )
+    )
     # Optional arguments
     FROM_STDIN = "-"
     parser.add_argument(
@@ -147,8 +156,18 @@ if __name__ == "__main__":
         ops.GroupUnary.opName = "group_vec"
         ops.GroupBinary.opName = "group_vec"
 
+    # Query translation.
+    translationResult = mal2morphstore.translation.translate(
+        args.inMalFilePath, args.versionSelect, args.processingStyle
+    )
+    
+    # Compression configuration.
+    compr.configCompr(translationResult, args.comprConfig)
+    compr.checkAllFormatsSet(translationResult)
+    
+    # C++-code generation.
     mal2morphstore.output.generate(
-        mal2morphstore.translation.translate(args.inMalFilePath, args.versionSelect, args.processingStyle),
+        translationResult,
         os.path.join(
             os.path.dirname(sys.argv[0]),
             "template.cpp"

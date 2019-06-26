@@ -303,7 +303,7 @@ function translate () {
                         | cat - $pathQueries/q$major.$minor.sql \
                         | $qdict $pathDataDicts \
                         | $mclient -d $dbName -f raw \
-                        | $mal2morphstore $processingStyle $purpose $versionSelect\
+                        | $mal2morphstore $processingStyle $purpose alluncompr $versionSelect\
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 $umMaterialize)
@@ -313,12 +313,12 @@ function translate () {
                         | $mclient -d $dbName -f raw \
                         > $pathMal/q$major.$minor.mal
                     cat $pathMal/q$major.$minor.mal \
-                        | $mal2morphstore $processingStyle $purpose $versionSelect \
+                        | $mal2morphstore $processingStyle $purpose alluncompr $versionSelect \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 $umSaved)
                     cat $pathMal/q$major.$minor.mal \
-                        | $mal2morphstore $processingStyle $purpose $versionSelect \
+                        | $mal2morphstore $processingStyle $purpose alluncompr $versionSelect \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 *)
