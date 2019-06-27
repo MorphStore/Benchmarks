@@ -106,6 +106,8 @@ def _printHeaders(indent, tr, purpose, processingStyle, versionSelect):
     if purpose in [pp.PP_TIME, pp.PP_DATACH]:
         tr.headers.add("core/utils/monitoring.h")
     
+    tr.headers.add("core/utils/histogram.h")
+    
     # Print headers in lexicographical order.
     for header in sorted(tr.headers):
         print("{}#include <{}>".format(indent, header))
@@ -329,6 +331,7 @@ def _printProg(indent, tr, purpose, processingStyle):
 
         # Query program.
         print("{}// Query program.".format(indent))
+        print("{}unsigned * hist;".format(indent,))
         print()
         opIdx = 1
         for el in tr.prog:
@@ -337,6 +340,11 @@ def _printProg(indent, tr, purpose, processingStyle):
                 print("{}{}".format(indent, el).replace("\n", "\n" + indent))
                 for foo in sorted(el.__dict__):
                     if (foo.startswith("in") or foo.startswith("out")) and foo.endswith("Col"):
+                        print('{}hist = get_histogram({});'.format(indent,el.__dict__[foo]))
+                        for cnt in range(1, 65):
+                            print('{}MONITORING_ADD_INT_FOR("bwHist_{}", hist[{}], {}, {}, "{}", "{}");'.format(
+                                    indent, cnt, cnt-1, monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                            )
                         print('{}MONITORING_ADD_INT_FOR({}, {}->get_count_values(), {}, {}, "{}", "{}");'.format(
                                 indent, varColValueCount, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
