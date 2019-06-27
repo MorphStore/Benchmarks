@@ -309,7 +309,7 @@ def _printProg(indent, tr, purpose, processingStyle):
                 start=1
         ):
             for foo in sorted(op.__dict__):
-                if foo.startswith("in") or foo.startswith("out"):
+                if (foo.startswith("in") or foo.startswith("out")) and foo.endswith("Col"):
                     print(
                             '{{}}MONITORING_CREATE_MONITOR(MONITORING_MAKE_MONITOR({{: <{}}}, {{: >{}}}, "{{: <{}}}", "{{: <{}}}"), MONITORING_KEY_IDENTS({{}}, {{}}, {{}}, {{}}));'
                             .format(maxVarOpNameLen, 2, 0, 0)
@@ -336,7 +336,7 @@ def _printProg(indent, tr, purpose, processingStyle):
                 monVarOpNameOp = varOpNameFs.format(el.opName)
                 print("{}{}".format(indent, el).replace("\n", "\n" + indent))
                 for foo in sorted(el.__dict__):
-                    if foo.startswith("in") or foo.startswith("out"):
+                    if (foo.startswith("in") or foo.startswith("out")) and foo.endswith("Col"):
                         print('{}MONITORING_ADD_INT_FOR({}, {}->get_count_values(), {}, {}, "{}", "{}");'.format(
                                 indent, varColValueCount, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
