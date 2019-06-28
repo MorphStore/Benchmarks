@@ -93,6 +93,7 @@ def convertDataChFile(inCsvFile):
     ATTR_BWHIST_FS = "bwHist_{}"
     ATTR_SORTED = "sorted"
     ATTR_UNIQUE = "unique"
+    ATTR_PHYSIZE = "UsedBytes"
     
     reader = csv.DictReader(
             inCsvFile,
@@ -118,7 +119,8 @@ def convertDataChFile(inCsvFile):
                 "bwHist_57", "bwHist_58", "bwHist_59", "bwHist_60",
                 "bwHist_61", "bwHist_62", "bwHist_63", "bwHist_64",
                 ATTR_VALUECOUNT,
-                "isResult"
+                "isResult",
+                ATTR_PHYSIZE
             ],
             delimiter="\t"
     )
@@ -137,11 +139,12 @@ def convertDataChFile(inCsvFile):
         res[row[ATTR_COLNAME]] = {
             ATTR_VALUECOUNT: int(row[ATTR_VALUECOUNT]),
             # Dummy data
-            ATTR_SIZEUSEDBYTE: random.randint(10**2, 10**8),
+#            ATTR_SIZEUSEDBYTE: random.randint(10**2, 10**8),
             ATTR_FORMAT : formats[random.randrange(len(formats))],
             ATTR_SORTED : [False, True][random.randrange(2)],
             ATTR_UNIQUE : [False, True][random.randrange(2)],
 #            # Real data
+            ATTR_SIZEUSEDBYTE: int(row[ATTR_PHYSIZE]),
 #            ATTR_PHYSIZE: int(row[ATTR_PHYSIZE]),
 #            ATTR_FORMAT : row[ATTR_FORMAT],
 #            ATTR_SORTED : bool(row[ATTR_FORMAT]),

@@ -265,6 +265,7 @@ def _printProg(indent, tr, purpose, processingStyle):
         varColColName = "colColName"
         varColValueCount = "colValueCount"
         varColIsResult = "colIsResult"
+        varColUsedBytes = "colUsedBytes"
         print("{}// Constants for the monitoring column names.".format(indent))
         for varName, varVal in [
             # (C++ constant name, CSV column name)
@@ -274,6 +275,7 @@ def _printProg(indent, tr, purpose, processingStyle):
             (varColColName, "colName"),
             (varColValueCount, "valueCount"),
             (varColIsResult, "isResult"),
+            (varColUsedBytes, "UsedBytes"),
         ]:
             print('{}const std::string {} = "{}";'.format(
                     indent, varName, varVal
@@ -352,6 +354,9 @@ def _printProg(indent, tr, purpose, processingStyle):
                                 indent, varColIsResult,
                                 "true" if (el.__dict__[foo] in tr.resultCols) else "false",
                                 monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        )
+                        print('{}MONITORING_ADD_INT_FOR({}, {}->get_size_used_byte(), {}, {}, "{}", "{}");'.format(
+                                indent, varColUsedBytes, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
                 opIdx += 1
             else:
