@@ -107,6 +107,7 @@ def _printHeaders(indent, tr, purpose, processingStyle, versionSelect):
         tr.headers.add("core/utils/monitoring.h")
     
     tr.headers.add("core/utils/histogram.h")
+    tr.headers.add("core/utils/column_info.h")
     
     # Print headers in lexicographical order.
     for header in sorted(tr.headers):
@@ -266,6 +267,8 @@ def _printProg(indent, tr, purpose, processingStyle):
         varColValueCount = "colValueCount"
         varColIsResult = "colIsResult"
         varColUsedBytes = "colUsedBytes"
+        varColUnique = "colUnique"
+        varColSorted = "colSorted"
         print("{}// Constants for the monitoring column names.".format(indent))
         for varName, varVal in [
             # (C++ constant name, CSV column name)
@@ -276,6 +279,8 @@ def _printProg(indent, tr, purpose, processingStyle):
             (varColValueCount, "valueCount"),
             (varColIsResult, "isResult"),
             (varColUsedBytes, "UsedBytes"),
+            (varColUnique, "Unique"),
+            (varColSorted, "Sorted"),
         ]:
             print('{}const std::string {} = "{}";'.format(
                     indent, varName, varVal
@@ -357,6 +362,12 @@ def _printProg(indent, tr, purpose, processingStyle):
                         )
                         print('{}MONITORING_ADD_INT_FOR({}, {}->get_size_used_byte(), {}, {}, "{}", "{}");'.format(
                                 indent, varColUsedBytes, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        )
+                        print('{}MONITORING_ADD_INT_FOR({}, get_sorted({}), {}, {}, "{}", "{}");'.format(
+                                indent, varColSorted, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        )
+                        print('{}MONITORING_ADD_INT_FOR({}, get_unique({}), {}, {}, "{}", "{}");'.format(
+                                indent, varColUnique, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
                 opIdx += 1
             else:

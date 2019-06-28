@@ -94,6 +94,8 @@ def convertDataChFile(inCsvFile):
     ATTR_SORTED = "sorted"
     ATTR_UNIQUE = "unique"
     ATTR_PHYSIZE = "UsedBytes"
+    ATTR_SORT = "Sorted"
+    ATTR_UNI = "Unique"
     
     reader = csv.DictReader(
             inCsvFile,
@@ -120,7 +122,9 @@ def convertDataChFile(inCsvFile):
                 "bwHist_61", "bwHist_62", "bwHist_63", "bwHist_64",
                 ATTR_VALUECOUNT,
                 "isResult",
-                ATTR_PHYSIZE
+                ATTR_PHYSIZE,
+                ATTR_SORT,
+                ATTR_UNI
             ],
             delimiter="\t"
     )
@@ -141,14 +145,14 @@ def convertDataChFile(inCsvFile):
             # Dummy data
 #            ATTR_SIZEUSEDBYTE: random.randint(10**2, 10**8),
             ATTR_FORMAT : formats[random.randrange(len(formats))],
-            ATTR_SORTED : [False, True][random.randrange(2)],
-            ATTR_UNIQUE : [False, True][random.randrange(2)],
+#           ATTR_SORTED : [False, True][random.randrange(2)],
+#           ATTR_UNIQUE : [False, True][random.randrange(2)],
 #            # Real data
             ATTR_SIZEUSEDBYTE: int(row[ATTR_PHYSIZE]),
 #            ATTR_PHYSIZE: int(row[ATTR_PHYSIZE]),
 #            ATTR_FORMAT : row[ATTR_FORMAT],
-#            ATTR_SORTED : bool(row[ATTR_FORMAT]),
-#            ATTR_UNIQUE : bool(row[ATTR_FORMAT]),
+            ATTR_SORTED : True if row[ATTR_SORT]==1 else False,
+            ATTR_UNIQUE : True if row[ATTR_UNI]==1 else False,
         }
         for bw in range(1, 64+1):
             key = ATTR_BWHIST_FS.format(bw)
