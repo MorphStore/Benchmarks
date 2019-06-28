@@ -366,9 +366,23 @@ def _printProg(indent, tr, purpose, processingStyle):
                         print('{}MONITORING_ADD_INT_FOR({}, get_sorted({}), {}, {}, "{}", "{}");'.format(
                                 indent, varColSorted, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
-                        print('{}MONITORING_ADD_INT_FOR({}, get_unique({}), {}, {}, "{}", "{}");'.format(
+                        print('{}MONITORING_ADD_INT_FOR({}, get_unique_estimate({}), {}, {}, "{}", "{}");'.format(
                                 indent, varColUnique, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
+                
+                for foo in sorted(el.__dict__):
+                    if (foo.endswith("F")):
+                        if ("uncompr" in el.__dict__[foo]):
+                            print('{}MONITORING_ADD_INT_FOR("format", {}, {}, {}, "{}", "{}");'.format(indent,  0,  monVarOpNameOp, opIdx, foo[:-1] + "Col", el.__dict__[foo[:-1] + "Col"]))
+                        elif ("static_vbp" in el.__dict__[foo]):
+                            print('{}MONITORING_ADD_INT_FOR({}, {}, {}, {}, "{}", "{}");'.format(indent, "format", 1,  monVarOpNameOp, opIdx, foo[:-1] + "Col", el.__dict__[foo[:-1] + "Col"]))
+                        elif ("dynamic_vbp" in el.__dict__[foo]):
+                            print('{}MONITORING_ADD_INT_FOR({}, {}, {}, {}, "{}", "{}");'.format(indent, "format", 2,  monVarOpNameOp, opIdx, foo[:-1] + "Col", el.__dict__[foo[:-1] + "Col"]))
+                        elif ("rle" in el.__dict__[foo]):
+                            print('{}MONITORING_ADD_INT_FOR({}, {}, {}, {}, "{}", "{}");'.format(indent, "format", 3,  monVarOpNameOp, opIdx, foo[:-1] + "Col", el.__dict__[foo[:-1] + "Col"]))
+                        else:
+                            print('{}MONITORING_ADD_INT_FOR({}, {}, {}, {}, "{}", "{}");'.format(indent, "format", 4,  monVarOpNameOp, opIdx, foo[:-1] + "Col", el.__dict__[foo[:-1] + "Col"]))   
+                
                 opIdx += 1
             else:
                 print("{}{}".format(indent, el).replace("\n", "\n" + indent))

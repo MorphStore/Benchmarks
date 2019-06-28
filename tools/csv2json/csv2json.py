@@ -96,6 +96,7 @@ def convertDataChFile(inCsvFile):
     ATTR_PHYSIZE = "UsedBytes"
     ATTR_SORT = "Sorted"
     ATTR_UNI = "Unique"
+    ATTR_FORM = "format"
     
     reader = csv.DictReader(
             inCsvFile,
@@ -124,7 +125,8 @@ def convertDataChFile(inCsvFile):
                 "isResult",
                 ATTR_PHYSIZE,
                 ATTR_SORT,
-                ATTR_UNI
+                ATTR_UNI,
+                ATTR_FORM
             ],
             delimiter="\t"
     )
@@ -134,7 +136,7 @@ def convertDataChFile(inCsvFile):
         next(reader)
 
     # For the dummy data.
-    formats = ["uncompr_f", "static_vbp_f", "dynamic_vbp_f", "rle"]
+    formats = ["uncompr", "static_vbp", "dynamic_vbp", "rle", "other"]
     
     res = {}
     for row in reader:
@@ -144,13 +146,13 @@ def convertDataChFile(inCsvFile):
             ATTR_VALUECOUNT: int(row[ATTR_VALUECOUNT]),
             # Dummy data
 #            ATTR_SIZEUSEDBYTE: random.randint(10**2, 10**8),
-            ATTR_FORMAT : formats[random.randrange(len(formats))],
+#            ATTR_FORMAT : formats[random.randrange(len(formats))],
 #           ATTR_SORTED : [False, True][random.randrange(2)],
 #           ATTR_UNIQUE : [False, True][random.randrange(2)],
 #            # Real data
             ATTR_SIZEUSEDBYTE: int(row[ATTR_PHYSIZE]),
 #            ATTR_PHYSIZE: int(row[ATTR_PHYSIZE]),
-#            ATTR_FORMAT : row[ATTR_FORMAT],
+            ATTR_FORMAT : "uncompr" if row[ATTR_FORM] == None else formats[int(row[ATTR_FORM])],
             ATTR_SORTED : True if row[ATTR_SORT]==1 else False,
             ATTR_UNIQUE : True if row[ATTR_UNI]==1 else False,
         }
