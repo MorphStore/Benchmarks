@@ -101,6 +101,22 @@ def convertDataChFile(inCsvFile):
                 "opIdx",
                 "colRole",
                 ATTR_COLNAME,
+                "bwHist_1", "bwHist_2", "bwHist_3", "bwHist_4",
+                "bwHist_5", "bwHist_6", "bwHist_7", "bwHist_8",
+                "bwHist_9", "bwHist_10", "bwHist_11", "bwHist_12",
+                "bwHist_13", "bwHist_14", "bwHist_15", "bwHist_16",
+                "bwHist_17", "bwHist_18", "bwHist_19", "bwHist_20",
+                "bwHist_21", "bwHist_22", "bwHist_23", "bwHist_24",
+                "bwHist_25", "bwHist_26", "bwHist_27", "bwHist_28",
+                "bwHist_29", "bwHist_30", "bwHist_31", "bwHist_32",
+                "bwHist_33", "bwHist_34", "bwHist_35", "bwHist_36",
+                "bwHist_37", "bwHist_38", "bwHist_39", "bwHist_40",
+                "bwHist_41", "bwHist_42", "bwHist_43", "bwHist_44",
+                "bwHist_45", "bwHist_46", "bwHist_47", "bwHist_48",
+                "bwHist_49", "bwHist_50", "bwHist_51", "bwHist_52",
+                "bwHist_53", "bwHist_54", "bwHist_55", "bwHist_56",
+                "bwHist_57", "bwHist_58", "bwHist_59", "bwHist_60",
+                "bwHist_61", "bwHist_62", "bwHist_63", "bwHist_64",
                 ATTR_VALUECOUNT,
                 "isResult"
             ],
@@ -134,9 +150,10 @@ def convertDataChFile(inCsvFile):
         for bw in range(1, 64+1):
             key = ATTR_BWHIST_FS.format(bw)
             # Dummy data
-            res[row[ATTR_COLNAME]][key] = int(res[row[ATTR_COLNAME]][ATTR_VALUECOUNT] / 64)
+#            res[row[ATTR_COLNAME]][key] = int(res[row[ATTR_COLNAME]][ATTR_VALUECOUNT] / 64)
 #            # Real data
-#            res[row[ATTR_COLNAME]][key] = int(row[ATTR_COLNAME][key])
+            #res[row[ATTR_COLNAME]][key] = int(row[ATTR_COLNAME][key])
+            res[row[ATTR_COLNAME]][key] = int(row[key])
         
     return res
 
