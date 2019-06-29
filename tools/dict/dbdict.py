@@ -204,6 +204,11 @@ def _encodeTable(
             # The column's size in byte (physical size).
             outColFiles[idx].write(struct.pack("<Q", countRows * 8))
         
+        # TODO Implement this in a cleaner way.
+        # ...
+        maxVals = [0] * countCols
+        countRows = 0
+        
         # Encode non-integer columns, write output files.
         with open(outTblFilePath, "w") as outTblFile:
             for line in inTblFile:
@@ -215,6 +220,19 @@ def _encodeTable(
                     outColFiles[idx].write(
                         struct.pack("<Q", int(lineEntries[idx]))
                     )
+                    if int(lineEntries[idx]) > maxVals[idx]:
+                        maxVals[idx] = int(lineEntries[idx])
+                countRows += 1
+                
+        with open("{}_stats.json".format(outTblFilePath), "w") as outStatFile:
+            json.dump(
+                dict(
+                    {colNames[idx]: maxVals[idx] for idx in range(countCols)},
+                    _candinality=countRows,
+                ),
+                outStatFile,
+                indent=2
+            )
         
         # Close output files for all columns.
         for outColFile in outColFiles:
