@@ -105,7 +105,7 @@ def _configCompr_AllUncompr(tr, ps):
             for key in el.__dict__:
                 if key.endswith("F"):
                     el.__dict__[key] = FORMAT_UNCOMPR
-                    
+
 # All base and intermediate columns are represented in the format
 # dynamic_vbp_f.
 # TODO Since not all of MorphStore's query operators support this yet, we use
@@ -121,10 +121,21 @@ def _configCompr_AllDynamicVBP(tr, ps):
         
     # Set the formats to dynamic_vbp_f for all operators that support it.
     for el in tr.prog:
-        if isinstance(el, ops.Select):
+        if (
+            isinstance(el, ops.GroupUnary) or
+            isinstance(el, ops.LeftSemiNto1Join) or
+            isinstance(el, ops.Nto1Join) or
+            isinstance(el, ops.Select) or
+            isinstance(el, ops.SumWholeCol)
+        ):
             for key in el.__dict__:
                 if key.endswith("F"):
                     el.__dict__[key] = formatName
+        elif isinstance(el, ops.Project):
+            # The project-operator does not support dynamic_vbp_f for the input
+            # data column.
+            el.outDataF = formatName
+            el.inPosF = formatName
 
 
 # *****************************************************************************

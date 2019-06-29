@@ -88,9 +88,11 @@ class Op:
 class Project(Op):
     """A call to MorphStore's project operator."""
     
-    opName = "project"
+#    opName = "project"
+    opName = "my_project_wit_t"
     headers = [
-        "core/operators/{{{}}}/project_uncompr.h".format(ps.INCLUDE_DIR_KEY)
+#        "core/operators/{{{}}}/project_uncompr.h".format(ps.INCLUDE_DIR_KEY)
+        "core/operators/{{{}}}/project_compr.h".format(ps.INCLUDE_DIR_KEY)
     ]
     
     def __init__(self, outDataCol, inDataCol, inPosCol):
@@ -102,9 +104,12 @@ class Project(Op):
         self.inPosF = None
         
     def __str__(self):
-        return "auto {outDataCol} = {opName}<{ps}, {outDataF}, {inDataF}, {inPosF}>({inDataCol}, {inPosCol});".format(
+        return "auto {outDataCol} = {opName}<{ps}, {outDataF}, {inDataF}, {inPosF}>::apply({inDataCol}, {inPosCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
+#        return "auto {outDataCol} = {opName}<{ps}, {outDataF}, {inDataF}, {inPosF}>({inDataCol}, {inPosCol});".format(
+#            opName=self.opName, **self.__dict__, **_commonIdentifiers
+#        )
     
 class Select(Op):
     """A call to MorphStore's select operator."""
@@ -224,7 +229,8 @@ class Nto1Join(Op):
     
     opName = "join"
     headers = [
-        "core/operators/general_vectorized/join_uncompr.h",
+#        "core/operators/general_vectorized/join_uncompr.h",
+        "core/operators/general_vectorized/join_compr.h",
     ]
 
     
@@ -280,7 +286,8 @@ class LeftSemiNto1Join(Op):
     
     opName = "semi_join"
     headers = [
-        "core/operators/general_vectorized/join_uncompr.h",
+#        "core/operators/general_vectorized/join_uncompr.h",
+        "core/operators/general_vectorized/join_compr.h",
     ]
     
     def __init__(self, outPosRCol, inDataLCol, inDataRCol):
@@ -330,7 +337,8 @@ class SumWholeCol(Op):
     
     opName = "agg_sum"
     headers = [
-        "core/operators/{{{}}}/agg_sum_uncompr.h".format(ps.INCLUDE_DIR_KEY)
+#        "core/operators/{{{}}}/agg_sum_uncompr.h".format(ps.INCLUDE_DIR_KEY)
+        "core/operators/{{{}}}/agg_sum_compr.h".format(ps.INCLUDE_DIR_KEY)
     ]
     
     def __init__(self, outDataCol, inDataCol):
@@ -379,9 +387,11 @@ class SumGrBased(Op):
 class GroupUnary(Op):
     """A call to MorphStore's unary group operator."""
     
-    opName = "group"
+#    opName = "group"
+    opName = "group_vec"
     headers = [
-        "core/operators/{{{}}}/group_uncompr.h".format(ps.INCLUDE_DIR_KEY),
+#        "core/operators/{{{}}}/group_uncompr.h".format(ps.INCLUDE_DIR_KEY),
+        "core/operators/{{{}}}/group_compr.h".format(ps.INCLUDE_DIR_KEY),
         "tuple"
     ]
     
