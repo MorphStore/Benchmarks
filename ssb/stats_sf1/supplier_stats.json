@@ -1,0 +1,10 @@
+{
+  "s_phone": 1999,
+  "s_region": 4,
+  "_cardinality": 2000,
+  "s_suppkey": 2000,
+  "s_name": 1999,
+  "s_city": 249,
+  "s_address": 1999,
+  "s_nation": 24
+}

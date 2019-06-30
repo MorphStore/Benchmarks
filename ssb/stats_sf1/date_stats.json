@@ -1,0 +1,20 @@
+{
+  "d_year": 1998,
+  "d_sellingseason": 4,
+  "_cardinality": 2556,
+  "d_dayofweek": 6,
+  "d_daynuminmonth": 31,
+  "d_yearmonthnum": 199812,
+  "d_weekdayfl": 1,
+  "d_lastdayinweekfl": 1,
+  "d_datekey": 19981230,
+  "d_month": 11,
+  "d_date": 2555,
+  "d_holidayfl": 1,
+  "d_weeknuminyear": 53,
+  "d_daynuminyear": 366,
+  "d_lastdayinmonthfl": 1,
+  "d_yearmonth": 83,
+  "d_monthnuminyear": 12,
+  "d_daynuminweek": 7
+}

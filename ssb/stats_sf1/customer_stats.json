@@ -1,0 +1,11 @@
+{
+  "c_address": 29999,
+  "c_city": 249,
+  "c_mktsegment": 4,
+  "c_name": 29999,
+  "_cardinality": 30000,
+  "c_region": 4,
+  "c_nation": 24,
+  "c_phone": 29999,
+  "c_custkey": 30000
+}
