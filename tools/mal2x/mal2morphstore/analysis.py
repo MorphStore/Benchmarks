@@ -29,6 +29,8 @@ relevant information.
 
 import mal2morphstore.operators as ops
 
+import json
+
 
 class AnalysisResult:
     """
@@ -36,7 +38,14 @@ class AnalysisResult:
     used as the result type of the function analyze().
     """
     
-    def __init__(self, varsUsedBeforeAssigned, varsNeverUsed, varsUnique):
+    def __init__(
+        self,
+        varsUsedBeforeAssigned,
+        varsNeverUsed,
+        varsUnique,
+        maxCardByCol,
+        maxBwByCol,
+    ):
         # A list of the names of column-variables in the translated program
         # which are used before they are assigned.
         # This should never happen, since the translated C++ programm will not
@@ -53,8 +62,16 @@ class AnalysisResult:
         # whose contents is unique, i.e., columns that are known at query
         # translation-time to contain only unique data elements.
         self.varsUnique = varsUnique
+        
+        # A dictionary mapping a column name to a pessimistic estimate of that
+        # column's cardinality.
+        self.maxCardByCol = maxCardByCol
+        
+        # A dictionary mapping a column name to the effective bit width of the 
+        # pessimisticly estimated maximum value in that column.
+        self.maxBwByCol = maxBwByCol
 
-def analyze(translationResult):
+def analyze(translationResult, analyzeCardsAndBws=False):
     """
     Analyzes the given abstratc representation of a translated program to find
     out some interesting things about it. The result is an instance of class
@@ -81,6 +98,35 @@ def analyze(translationResult):
         "part.p_partkey",
         "supplier.s_suppkey",
     ]
+    
+    def effective_bitwidth(val):
+        if val == 0:
+            return 1
+        else:
+            return 64 - "{:0>64b}".format(val).find("1")
+    
+    if analyzeCardsAndBws:
+        stats = {}
+        for tblName in translationResult.colNamesByTblName:
+            # TODO Don't hardcode this path. It should be a command line argument.
+            with open("stats_sf1/{}_stats.json".format(tblName), "r") as inFile:
+                stats[tblName] = json.load(inFile)
+
+        maxCardByCol = {
+            "{}.{}".format(tblName, colName): stats[tblName]["_cardinality"]
+            for tblName in translationResult.colNamesByTblName
+            for colName in translationResult.colNamesByTblName[tblName]
+        }
+        maxBwByCol = {
+            "{}.{}".format(tblName, colName): effective_bitwidth(
+                stats[tblName][colName]
+            )
+            for tblName in translationResult.colNamesByTblName
+            for colName in translationResult.colNamesByTblName[tblName]
+        }
+    else:
+        maxCardByCol = None
+        maxBwByCol = None
     
     def foundUsage(var):
         if var not in varsAssigned and var not in varsUsedBeforeAssigned:
@@ -164,8 +210,141 @@ def analyze(translationResult):
                                 el.__class__.__name__
                         )
                 )
+                
+            if analyzeCardsAndBws:
+                # Tracking the maximum cardinalities of columns.
+                if isinstance(el, ops.Project):
+                    maxCardByCol[el.outDataCol] = maxCardByCol[el.inPosCol]
+                elif isinstance(el, ops.Select):
+                    maxCardByCol[el.outPosCol] = maxCardByCol[el.inDataCol]
+                elif isinstance(el, ops.Intersect):
+                    maxCardByCol[el.outPosCol] = min(
+                        maxCardByCol[el.inPosLCol], maxCardByCol[el.inPosRCol]
+                    )
+                elif isinstance(el, ops.Merge):
+                    maxCardByCol[el.outPosCol] = \
+                        maxCardByCol[el.inPosLCol] + maxCardByCol[el.inPosRCol]
+                elif isinstance(el, ops.Join):
+                    # We do not use this variant of the join-operator any more.
+                    pass
+                elif isinstance(el, ops.Nto1Join):
+                    #
+                    maxCardByCol[el.outPosLCol] = maxCardByCol[el.inDataRCol]
+                    maxCardByCol[el.outPosRCol] = maxCardByCol[el.inDataRCol]
+                elif isinstance(el, ops.LeftSemiNto1Join):
+                    #
+                    maxCardByCol[el.outPosRCol] = maxCardByCol[el.inDataRCol]
+                elif isinstance(el, ops.CalcBinary):
+                    maxCardByCol[el.outDataCol] = maxCardByCol[el.inDataLCol]
+                elif isinstance(el, ops.SumWholeCol):
+                    maxCardByCol[el.outDataCol] = 1
+                elif isinstance(el, ops.SumGrBased):
+                    maxCardByCol[el.outDataCol] = maxCardByCol[el.inExtCol]
+                elif isinstance(el, ops.GroupUnary):
+                    maxCardByCol[el.outGrCol] = maxCardByCol[el.inDataCol]
+                    maxCardByCol[el.outExtCol] = maxCardByCol[el.inDataCol]
+                elif isinstance(el, ops.GroupBinary):
+                    maxCardByCol[el.outGrCol] = maxCardByCol[el.inDataCol]
+                    maxCardByCol[el.outExtCol] = maxCardByCol[el.inDataCol]
+                elif isinstance(el, ops.Morph):
+                    maxCardByCol[el.outCol] = maxCardByCol[el.inCol]
+                else:
+                    raise RuntimeError(
+                            "the operator {} is not taken into account in "
+                            "tracking the maximum cardinalities of columns".format(
+                                    el.__class__.__name__
+                            )
+                    )
+
+                # Tracking the maximum bit width of columns.
+                if isinstance(el, ops.Project):
+                    maxBwByCol[el.outDataCol] = maxBwByCol[el.inDataCol]
+                elif isinstance(el, ops.Select):
+                    maxBwByCol[el.outPosCol] = effective_bitwidth(
+                        maxCardByCol[el.inDataCol] - 1
+                    )
+                elif isinstance(el, ops.Intersect):
+                    maxBwByCol[el.outPosCol] = min(
+                        maxBwByCol[el.inPosLCol], maxBwByCol[el.inPosRCol]
+                    )
+                elif isinstance(el, ops.Merge):
+                    maxBwByCol[el.outPosCol] = max(
+                        maxBwByCol[el.inPosLCol], maxBwByCol[el.inPosRCol]
+                    )
+                elif isinstance(el, ops.Join):
+                    # We do not use this variant of the join-operator any more.
+                    pass
+                elif isinstance(el, ops.Nto1Join):
+                    maxBwByCol[el.outPosLCol] = effective_bitwidth(
+                        maxCardByCol[el.inDataLCol] - 1
+                    )
+                    maxBwByCol[el.outPosRCol] = effective_bitwidth(
+                        maxCardByCol[el.inDataRCol] - 1
+                    )
+                elif isinstance(el, ops.LeftSemiNto1Join):
+                    maxBwByCol[el.outPosRCol] = effective_bitwidth(
+                        maxCardByCol[el.inDataRCol] - 1
+                    )
+                elif isinstance(el, ops.CalcBinary):
+                    if el.op == "add":
+                        maxBwByCol[el.outDataCol] = min(
+                            64,
+                            1 + max(
+                                maxBwByCol[el.inDataLCol], maxBwByCol[el.inDataRCol]
+                            )
+                        )
+                    elif el.op == "sub":
+                        maxBwByCol[el.outDataCol] = max(
+                            maxBwByCol[el.inDataLCol],
+                            maxBwByCol[el.inDataRCol]
+                        )
+                    elif el.op == "mul":
+                        maxBwByCol[el.outDataCol] = min(
+                            64,
+                            maxBwByCol[el.inDataLCol] + \
+                                maxBwByCol[el.inDataRCol]
+                        )
+                    else:
+                        raise RuntimeError(
+                            "binary calc with the operation '{}' is not taken "
+                            "into account".format(el.op)
+                        )
+                elif (
+                    isinstance(el, ops.SumWholeCol) or
+                    isinstance(el, ops.SumGrBased)
+                ):
+                    maxBwByCol[el.outDataCol] = 64
+                elif isinstance(el, ops.GroupUnary):
+                    maxBwByCol[el.outGrCol] = effective_bitwidth(
+                        maxCardByCol[el.inDataCol] - 1
+                    )
+                    maxBwByCol[el.outExtCol] = effective_bitwidth(
+                        maxCardByCol[el.inDataCol] - 1
+                    )
+                elif isinstance(el, ops.GroupBinary):
+                    maxBwByCol[el.outGrCol] = effective_bitwidth(
+                        maxCardByCol[el.inDataCol] - 1
+                    )
+                    maxBwByCol[el.outExtCol] = effective_bitwidth(
+                        maxCardByCol[el.inDataCol] - 1
+                    )
+                elif isinstance(el, ops.Morph):
+                    maxBwByCol[el.outCol] = maxBwByCol[el.inCol]
+                else:
+                    raise RuntimeError(
+                            "the operator {} is not taken into account in "
+                            "tracking the maximum cardinalities of columns".format(
+                                    el.__class__.__name__
+                            )
+                    )
     
     for varName in translationResult.resultCols:
         foundUsage(varName)
     
-    return AnalysisResult(varsUsedBeforeAssigned, varsNeverUsed, varsUnique)
+    return AnalysisResult(
+        varsUsedBeforeAssigned,
+        varsNeverUsed,
+        varsUnique,
+        maxCardByCol,
+        maxBwByCol,
+    )
