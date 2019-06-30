@@ -462,12 +462,15 @@ function build () {
 
     local oldPwd=$(pwd)
     cd $pathMorphStore/Engine
-    if [[ $processingStyle = $psAVX2 ]]
+    if [[ $processingStyle = $psSSE ]]
     then
-        local extensionFlags="-avxtwo"
+        local extensionFlags="-sse4"
+    elif [[ $processingStyle = $psAVX2 ]]
+    then
+        local extensionFlags="-sse4 -avxtwo"
     elif [[ $processingStyle = $psAVX512 ]]
     then
-        local extensionFlags="-avxtwo -avx512"
+        local extensionFlags="-sse4 -avxtwo -avx512"
     else
         local extensionFlags=""
     fi
