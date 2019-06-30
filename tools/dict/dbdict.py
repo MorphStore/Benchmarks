@@ -228,7 +228,7 @@ def _encodeTable(
             json.dump(
                 dict(
                     {colNames[idx]: maxVals[idx] for idx in range(countCols)},
-                    _candinality=countRows,
+                    _cardinality=countRows,
                 ),
                 outStatFile,
                 indent=2
