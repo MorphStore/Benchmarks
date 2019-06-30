@@ -29,6 +29,7 @@ with "F". See module mal2morphstore.operators.
 """
 
 
+import mal2morphstore.analysis as analysis
 import mal2morphstore.operators as ops
 import mal2morphstore.processingstyles as pss
 
@@ -40,11 +41,13 @@ import mal2morphstore.processingstyles as pss
 # These names are used for the command line arguments.
 
 CC_ALLUNCOMPR = "alluncompr"
+CC_ALLSTATICVBP = "allstaticvbp"
 CC_ALLDYNAMICVBP = "alldynamicvbp"
 
 # List of all compression configurations.
 COMPR_CONFIGS = [
     CC_ALLUNCOMPR,
+    CC_ALLSTATICVBP,
     CC_ALLDYNAMICVBP,
 ]
 
@@ -54,6 +57,17 @@ COMPR_CONFIGS = [
 # *****************************************************************************
 
 FORMAT_UNCOMPR = "uncompr_f"
+
+def makeStaticVBP(bw, ps):
+    if ps == pss.PS_SCALAR:
+        step = 1
+    elif ps == pss.PS_VEC128:
+        step = 2
+    elif ps == pss.PS_VEC256:
+        step = 4
+    elif ps == pss.PS_VEC512:
+        step = 8
+    return "static_vbp_f<{}, {}>".format(bw, step)
 
 def makeDynamicVBP(ps):
     if ps == pss.PS_SCALAR:
@@ -78,13 +92,18 @@ def makeDynamicVBP(ps):
 
 shortNames = {
     FORMAT_UNCOMPR: "u",
-    # We do not intend to use different vector extensions in one query at the
-    # moment, so its ok if the short names are the same.
-    makeDynamicVBP(pss.PS_SCALAR): "d",
-    makeDynamicVBP(pss.PS_VEC128): "d",
-    makeDynamicVBP(pss.PS_VEC256): "d",
-    makeDynamicVBP(pss.PS_VEC512): "d",
 }
+# We do not intend to use different vector extensions in one query at the
+# moment, so its ok if the short names are the same.
+for ps in [
+    pss.PS_SCALAR,
+    pss.PS_VEC128,
+    pss.PS_VEC256,
+    pss.PS_VEC512,
+]:
+    shortNames[makeDynamicVBP(ps)] = "d"
+    for bw in range(1, 64 + 1):
+        shortNames[makeStaticVBP(bw, ps)] = "s{}".format(bw)
 
 
 # *****************************************************************************
@@ -105,7 +124,36 @@ def _configCompr_AllUncompr(tr, ps):
             for key in el.__dict__:
                 if key.endswith("F"):
                     el.__dict__[key] = FORMAT_UNCOMPR
-
+            
+# All base and intermediate columns are represented in the format static_vbp_f.
+# TODO Since not all of MorphStore's query operators support this yet, we use
+#      static_vbp_f where it is supported and otherwise use uncompr_f
+def _configCompr_AllStaticVBP(tr, ps):
+    # Set all formats to uncompr_f
+    # TODO This should not be required.
+    _configCompr_AllUncompr(tr, ps)
+    
+    tr.headers.add("core/morphing/static_vbp.h")
+    
+    ar = analysis.analyze(tr, analyzeCardsAndBws=True)
+        
+    # Set the formats to static_vbp_f for all operators that support it.
+    for el in tr.prog:
+        if (
+            isinstance(el, ops.GroupUnary) or
+            isinstance(el, ops.LeftSemiNto1Join) or
+            isinstance(el, ops.Nto1Join) or
+            isinstance(el, ops.Project) or
+            isinstance(el, ops.Select) or
+            isinstance(el, ops.SumWholeCol)
+        ):
+            for key in el.__dict__:
+                if key.endswith("F"):
+                    correspondingCol = "{}Col".format(key[:-1])
+                    el.__dict__[key] = makeStaticVBP(
+                        ar.maxBwByCol[el.__dict__[correspondingCol]], ps
+                    )
+                    
 # All base and intermediate columns are represented in the format
 # dynamic_vbp_f.
 # TODO Since not all of MorphStore's query operators support this yet, we use
@@ -150,6 +198,8 @@ def _configCompr_AllDynamicVBP(tr, ps):
 def configCompr(translationResult, comprConfig, processingStyle):
     if comprConfig == CC_ALLUNCOMPR:
         _configCompr_AllUncompr(translationResult, processingStyle)
+    elif comprConfig == CC_ALLSTATICVBP:
+        _configCompr_AllStaticVBP(translationResult, processingStyle)
     elif comprConfig == CC_ALLDYNAMICVBP:
         _configCompr_AllDynamicVBP(translationResult, processingStyle)
     else:
