@@ -141,8 +141,9 @@ def _configCompr_AllStaticVBP(tr, ps):
     for el in tr.prog:
         if (
             isinstance(el, ops.GroupUnary) or
-            isinstance(el, ops.LeftSemiNto1Join) or
-            isinstance(el, ops.Nto1Join) or
+            # TODO Use compressed data for the joins again.
+#            isinstance(el, ops.LeftSemiNto1Join) or
+#            isinstance(el, ops.Nto1Join) or
             isinstance(el, ops.Project) or
             isinstance(el, ops.Select) or
             isinstance(el, ops.SumWholeCol)
@@ -171,8 +172,9 @@ def _configCompr_AllDynamicVBP(tr, ps):
     for el in tr.prog:
         if (
             isinstance(el, ops.GroupUnary) or
-            isinstance(el, ops.LeftSemiNto1Join) or
-            isinstance(el, ops.Nto1Join) or
+            # TODO Use compressed data for the joins again.
+#            isinstance(el, ops.LeftSemiNto1Join) or
+#            isinstance(el, ops.Nto1Join) or
             isinstance(el, ops.Select) or
             isinstance(el, ops.SumWholeCol)
         ):
