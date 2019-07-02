@@ -12,10 +12,11 @@ class DataFlow:
     def print_in(self, _tab):
         result = ""
         for inNodes in self.__columnnodesInList:
-            result += "{tab}{inNode} -> {operatorNode};\n".format(
+            result += "{tab}{inNode} -> {operatorNode} [id={id}];\n".format(
                 tab=_tab,
-                inNode=inNodes.get_name_str(),
-                operatorNode=self.__operatornode.get_name_str()
+                inNode=inNodes.get_escaped_name_str(),
+                operatorNode=self.__operatornode.get_name_str(),
+                id=self.__operatornode.get_name_str() + "_" + inNodes.get_escaped_name_str()
             )
         return result
 
@@ -29,14 +30,14 @@ class DataFlow:
                     style="solid"
             else:
                 style="solid"
-            result += "{tab}{operatorNode} -> {outNode} [style={style}];\n".format(
+            result += "{tab}{operatorNode} -> {outNode} [style={style}, id={id}];\n".format(
                 tab=_tab,
                 operatorNode=self.__operatornode.get_name_str(),
-                outNode=outNodes.get_name_str(),
-                style=style
+                outNode=outNodes.get_escaped_name_str(),
+                style=style,
+                id=(self.__operatornode.get_name_str()) + "_" + outNodes.get_escaped_name_str()
             )
         return result
-
 
 
 
@@ -53,6 +54,7 @@ class QueryGraph:
         self.__tab = "   "
         self.__operator_node_smybol_map = {
             "project":"&#960;",
+            "my_project_wit_t": "&#960;",
             "select":"&#963;",
             "intersect_sorted":"&#8745;",
             "merge_sorted":"&#8746;",
@@ -62,7 +64,8 @@ class QueryGraph:
             "calc_binary":"",
             "agg_sum":"&#931;",
             #SumGrBased is missing
-            "group":"&#947;"
+            "group":"&#947;",
+            "group_vec": "&#947;"
         }
         self.__operators = list()
         self.__columns = set()
@@ -111,7 +114,7 @@ class QueryGraph:
         columnsIn = list()
         columnsOut = list()
         for key in op.__dict__:
-            if key.startswith("out"):
+            if key.startswith("out") and key.endswith("Col"):
                 colName = getattr(op, key)
                 colNode = columns.columnFactory(
                     colName,
@@ -122,7 +125,7 @@ class QueryGraph:
                 )
                 columnsOut.append(colNode)
                 self.__columns.add(colNode)
-            elif key.startswith("in"):#
+            elif key.startswith("in") and key.endswith("Col"):
                 colName = getattr(op, key)
                 colNode = columns.columnFactory(
                     colName,
@@ -151,7 +154,6 @@ class QueryGraph:
             "digraph {graphname} {{\n" \
             "{tab}graph[\n" \
             "{tab}{tab}charset = \"UTF-8\";\n" \
-            "{tab}{tab}label = \"{graphname}\",\n" \
             "{tab}rankdir = {direction}\n" \
             "{tab}];".format(
                 graphname=self.__name,

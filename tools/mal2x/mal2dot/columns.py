@@ -1,3 +1,5 @@
+import sys
+
 class ColumnNode:
     def __init__(self, column_name, label=None):
         self.__column_name = column_name
@@ -15,6 +17,10 @@ class ColumnNode:
 
 
     def get_name_str(self):
+        return self.__column_name
+        # return self.__column_name.replace(".", "&#46;")
+
+    def get_escaped_name_str(self):
         return self.__column_name.replace(".", "_")
 
     def __hash__(self):
@@ -28,15 +34,16 @@ class ColumnNode:
 
     def __str__(self):
         return \
-            "{columnname} [" \
+            "{columnname_escaped} [" \
             "shape={shape}, " \
             "fillcolor=\"{color}\"," \
             "style=\"filled,{additional_style}\"," \
             "label=\"{label}\", " \
-            "id={columnname}, " \
+            "id=\"{columnname}\", " \
             "width={width}, " \
             "height={height}" \
             "];\n".format(
+                columnname_escaped=self.get_escaped_name_str(),
                 columnname=self.get_name_str(),
                 shape=self.__column_shape,
                 color=self.get_color(),
@@ -81,7 +88,7 @@ class IntermediateColumnNode(ColumnNode):
 class ResultColumnNode(ColumnNode):
     def __init__(self,  column_name, label=None):
         ColumnNode.__init__(self,  column_name, label)
-        self.__color = "#1a91f2"
+        self.__color = "#2c9c74"
 
     def get_color(self):
         return self.__color
