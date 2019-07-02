@@ -59,6 +59,13 @@ def convertOperatorFile(inCsvFile):
     ATTR_OPIDX = "opIdx"
     ATTR_RUNTIME = "runtime"
     
+    # TODO Remove this workaround.
+    opNameMap = {
+        "my_project_wit_t": "project",
+        "group_vec": "group",
+        "join": "equi_join",
+    }
+    
     reader = csv.DictReader(
             inCsvFile,
             fieldnames=[ATTR_OPNAME, ATTR_OPIDX, ATTR_RUNTIME],
@@ -84,7 +91,7 @@ def convertOperatorFile(inCsvFile):
         if opName == "query":
             key = opName
         else:
-            key = "{}_{}".format(opName, opIdx)
+            key = "{}_{}".format(opNameMap.get(opName, opName), opIdx)
             opIdx += 1
             
         res[key] = {
