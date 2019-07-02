@@ -6,7 +6,8 @@ psShortAVX2=avx2
 psShortAVX512=avx512
 
 sf=1
-comprs="alluncompr allstaticvbp alldynamicvbp"
+#comprs="alluncompr allstaticvbp alldynamicvbp alldynamicvbp_projectstatic"
+comprs="alldynamicvbp_projectstatic"
 pss="$psShortScalar $psShortSSE $psShortAVX2 $psShortAVX512"
 
 declare -A psMap=(

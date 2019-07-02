@@ -43,12 +43,14 @@ import mal2morphstore.processingstyles as pss
 CC_ALLUNCOMPR = "alluncompr"
 CC_ALLSTATICVBP = "allstaticvbp"
 CC_ALLDYNAMICVBP = "alldynamicvbp"
+CC_ALLDYNAMICVBP_PROJSTATICVBP = "alldynamicvbp_projectstatic"
 
 # List of all compression configurations.
 COMPR_CONFIGS = [
     CC_ALLUNCOMPR,
     CC_ALLSTATICVBP,
     CC_ALLDYNAMICVBP,
+    CC_ALLDYNAMICVBP_PROJSTATICVBP,
 ]
 
 
@@ -187,6 +189,53 @@ def _configCompr_AllDynamicVBP(tr, ps):
             el.outDataF = formatName
             el.inPosF = formatName
 
+def _configCompr_AllDynamicVBP_ProjectStaticVBP(tr, ps):
+    # Set all formats to uncompr_f
+    # TODO This should not be required.
+    _configCompr_AllUncompr(tr, ps)
+    
+    tr.headers.add("core/morphing/dynamic_vbp.h")
+    tr.headers.add("core/morphing/static_vbp.h")
+    
+    ar = analysis.analyze(tr, analyzeCardsAndBws=True)
+    
+    formatNameDyn = makeDynamicVBP(ps)
+        
+    # Set the formats to dynamic_vbp_f for all operators that support it.
+    for elIdx, el in enumerate(tr.prog):
+        if (
+            isinstance(el, ops.GroupUnary) or
+            # TODO Use compressed data for the joins again.
+            isinstance(el, ops.LeftSemiNto1Join) or
+            isinstance(el, ops.Nto1Join) or
+            isinstance(el, ops.Select) or
+            isinstance(el, ops.SumWholeCol)
+        ):
+            for key in el.__dict__:
+                if key.endswith("F"):
+                    el.__dict__[key] = formatNameDyn
+        elif isinstance(el, ops.Project):
+            outDataNeededForProject = False
+            outDataNeededForOther = False
+            for elOther in tr.prog[elIdx:]:
+                if isinstance(elOther, ops.Op):
+                    for key in elOther.__dict__:
+                        if key.startswith("in") and key.endswith("Col"):
+                            if elOther.__dict__[key] == el.outDataF:
+                                if isinstance(elOther, ops.Project):
+                                    outDataNeededForProject = True
+                                else:
+                                    outDataNeededForOther = True
+            if outDataNeededForProject and not outDataNeededForOther:
+                el.outDataF = makeStaticVBP(ar.maxBwByCol[el.outDataCol], ps)
+            elif not outDataNeededForProject and outDataNeededForOther:
+                el.outDataF = formatNameDyn
+            else: # Needed for both.
+                el.outDataF = "uncompr_f"
+
+            el.inPosF = formatNameDyn
+            el.inDataF = makeStaticVBP(ar.maxBwByCol[el.inDataCol], ps)
+
 
 # *****************************************************************************
 # Functions to be used from outside.
@@ -204,6 +253,10 @@ def configCompr(translationResult, comprConfig, processingStyle):
         _configCompr_AllStaticVBP(translationResult, processingStyle)
     elif comprConfig == CC_ALLDYNAMICVBP:
         _configCompr_AllDynamicVBP(translationResult, processingStyle)
+    elif comprConfig == CC_ALLDYNAMICVBP_PROJSTATICVBP:
+        _configCompr_AllDynamicVBP_ProjectStaticVBP(
+            translationResult, processingStyle
+        )
     else:
         raise RuntimeError(
             "Unsupported compression configuration: '{}'".format(comprConfig)
