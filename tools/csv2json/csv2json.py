@@ -39,7 +39,7 @@ import argparse
 import csv
 import json
 import random
-    
+
 
 # *****************************************************************************
 # Constants
@@ -70,14 +70,23 @@ def convertOperatorFile(inCsvFile):
         next(reader)
 
     res = {}
+    opIdx = 0
     for row in reader:
+        opName = row[ATTR_OPNAME]
+        
         # Skip the query results.
-        if row[ATTR_OPNAME] == "[RES]":
+        if opName == "[RES]":
             break
+        # Skip morph-operators.
+        if opName == "morph":
+            continue
+        
+        if opName == "query":
+            key = opName
+        else:
+            key = "{}_{}".format(opName, opIdx)
+            opIdx += 1
             
-        key = row[ATTR_OPNAME] \
-                if row[ATTR_OPNAME] == "query" \
-                else "{}_{}".format(row[ATTR_OPNAME], int(row[ATTR_OPIDX]) - 1)
         res[key] = {
             ATTR_RUNTIME: int(row[ATTR_RUNTIME])
         }
