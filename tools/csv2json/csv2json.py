@@ -169,24 +169,13 @@ def convertDataChFile(inCsvFile):
                 continue
         res[colName] = {
             ATTR_VALUECOUNT: int(row[ATTR_VALUECOUNT]),
-            # Dummy data
-#            ATTR_SIZEUSEDBYTE: random.randint(10**2, 10**8),
-#            ATTR_FORMAT : formats[random.randrange(len(formats))],
-#           ATTR_SORTED : [False, True][random.randrange(2)],
-#           ATTR_UNIQUE : [False, True][random.randrange(2)],
-#            # Real data
             ATTR_SIZEUSEDBYTE: int(row[ATTR_PHYSIZE]),
-#            ATTR_PHYSIZE: int(row[ATTR_PHYSIZE]),
             ATTR_FORMAT : "uncompr" if row[ATTR_FORM] == None else formats[int(row[ATTR_FORM])],
             ATTR_SORTED : True if row[ATTR_SORT]==1 else False,
             ATTR_UNIQUE : True if row[ATTR_UNI]==1 else False,
         }
         for bw in range(1, 64+1):
             key = ATTR_BWHIST_FS.format(bw)
-            # Dummy data
-#            res[row[ATTR_COLNAME]][key] = int(res[row[ATTR_COLNAME]][ATTR_VALUECOUNT] / 64)
-#            # Real data
-            #res[row[ATTR_COLNAME]][key] = int(row[ATTR_COLNAME][key])
             res[colName][key] = int(row[key])
         
     return res
