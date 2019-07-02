@@ -161,7 +161,11 @@ def convertDataChFile(inCsvFile):
         if opName == "[RES]":
             break
         if opName == "morph":
-            if "." not in colName: # If it is not a base column
+            # If this line represents the output column of a morph-operator on
+            # a base column.
+            if colName[0] != "X" and colName[0] != "C" and "__" in colName:
+                colName = colName[:colName.find("__")].replace("_", ".", 1)
+            else:
                 continue
         res[colName] = {
             ATTR_VALUECOUNT: int(row[ATTR_VALUECOUNT]),
