@@ -11,7 +11,7 @@ class OperatorNode:
         self.__operator_symbol = str_operator_symbol
     @property
     def operator_name(self):
-        return self.__operator_name.replace(".", "_")
+        return self.__operator_name.replace(".", "\.")
     @property
     def symbol(self):
         return self.__operator_symbol
