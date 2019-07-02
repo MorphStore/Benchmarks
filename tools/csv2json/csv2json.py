@@ -156,9 +156,14 @@ def convertDataChFile(inCsvFile):
     
     res = {}
     for row in reader:
-        if row[ATTR_OPNAME] == "[RES]":
+        opName = row[ATTR_OPNAME]
+        colName = row[ATTR_COLNAME]
+        if opName == "[RES]":
             break
-        res[row[ATTR_COLNAME]] = {
+        if opName == "morph":
+            if "." not in colName: # If it is not a base column
+                continue
+        res[colName] = {
             ATTR_VALUECOUNT: int(row[ATTR_VALUECOUNT]),
             # Dummy data
 #            ATTR_SIZEUSEDBYTE: random.randint(10**2, 10**8),
@@ -178,7 +183,7 @@ def convertDataChFile(inCsvFile):
 #            res[row[ATTR_COLNAME]][key] = int(res[row[ATTR_COLNAME]][ATTR_VALUECOUNT] / 64)
 #            # Real data
             #res[row[ATTR_COLNAME]][key] = int(row[ATTR_COLNAME][key])
-            res[row[ATTR_COLNAME]][key] = int(row[key])
+            res[colName][key] = int(row[key])
         
     return res
 
