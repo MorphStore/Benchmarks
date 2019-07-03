@@ -48,6 +48,13 @@ MODE_OPS = "ops"
 MODE_DATA = "data"
 MODE_EDGE = "edge"
 MODES = [MODE_OPS, MODE_DATA, MODE_EDGE]
+    
+# TODO Remove this workaround.
+opNameMap = {
+    "my_project_wit_t": "project",
+    "group_vec": "group",
+    "join": "equi_join",
+}
 
 
 # *****************************************************************************
@@ -58,13 +65,6 @@ def convertOperatorFile(inCsvFile):
     ATTR_OPNAME = "opName"
     ATTR_OPIDX = "opIdx"
     ATTR_RUNTIME = "runtime"
-    
-    # TODO Remove this workaround.
-    opNameMap = {
-        "my_project_wit_t": "project",
-        "group_vec": "group",
-        "join": "equi_join",
-    }
     
     reader = csv.DictReader(
             inCsvFile,
@@ -256,6 +256,7 @@ def convertDataChFileEdge(inCsvFile):
                 colName = colName[:colName.find("__")].replace("_", ".", 1)
         if "__" in colName:
             colName = colName[:colName.find("__")]
+        colName = colName.replace(".", "_")
         
         formatCode = 0 if row[ATTR_FORM] is None else int(row[ATTR_FORM])
         if colName not in colInfo:
@@ -267,6 +268,8 @@ def convertDataChFileEdge(inCsvFile):
             colInfo[colName][KEY_MORPHED] = True
          
     res = {}
+    countMorphs = 0
+    lastOrigOpIdx = -1
     for row in fileContents:
         opName = row[ATTR_OPNAME]
         colName = row[ATTR_COLNAME]
@@ -279,12 +282,18 @@ def convertDataChFileEdge(inCsvFile):
                 colName = colName[:colName.find("__")].replace("_", ".", 1)
         if "__" in colName:
             colName = colName[:colName.find("__")]
+        colName = colName.replace(".", "_")
         
-        edgeKey = "{}_{}_{}".format(opName, int(row["opIdx"]), colName)
+        origOpIdx = int(row["opIdx"]) - 1
+        opIdx = origOpIdx - countMorphs
+        edgeKey = "{}_{}_{}".format(opNameMap.get(opName, opName), opIdx, colName)
         formatCode = 0 if row[ATTR_FORM] is None else int(row[ATTR_FORM])
         res[edgeKey] = {
             "morphed": colInfo[colName][KEY_MORPHED] and formatCode == 0
         }
+        if opName == "morph" and origOpIdx != lastOrigOpIdx:
+            countMorphs += 1
+            lastOrigOpIdx = origOpIdx
         
     return res
 
