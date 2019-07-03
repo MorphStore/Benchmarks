@@ -396,7 +396,7 @@ function translateToDot () {
         for minor in 1 2 3
         do
             printf "$benchmark q$major.$minor: "
-
+            filename=$pathSrc/q$major.$minor
             case $useMonetDB in
                 $umPipeline)
                     printf "SET SCHEMA $benchmark;\nEXPLAIN " \
@@ -405,9 +405,8 @@ function translateToDot () {
                         | $mclient -d $dbName -f raw \
                         | $dotvisualize $major $minor\
                         > $pathSrc/q$major.$minor.dot
-#                    dot -Tsvg:cairo -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
-                    dot -Tsvg -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
-#                    dot -Tpng -o $pathSrc/q$major.$minor.png $pathSrc/q$major.$minor.dot
+                    dot -Tsvg -o $filename.svg $filename.dot
+                    sed -i '/^<title/ d' $filename.svg
                     ;;
                 $umMaterialize)
                     printf "SET SCHEMA $benchmark;\nEXPLAIN " \
@@ -418,23 +417,22 @@ function translateToDot () {
                     cat $pathMal/q$major.$minor.mal \
                         | $dotvisualize $major $minor\
                         > $pathSrc/q$major.$minor.dot
-#                    dot -Tsvg:cairo -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
-                    dot -Tsvg -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
-#                    dot -Tpng -o $pathSrc/q$major.$minor.png $pathSrc/q$major.$minor.dot
+                    dot -Tsvg -o $filename.svg $filename.dot
+                    sed -i '/^<title/ d' $filename.svg
                     ;;
                 $umSaved)
                     cat $pathMal/q$major.$minor.mal \
                         | $dotvisualize $major $minor \
                         > $pathSrc/q$major.$minor.dot
-#                    dot -Tsvg:cairo -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
-                    dot -Tsvg -o $pathSrc/q$major.$minor.svg $pathSrc/q$major.$minor.dot
-#                    dot -Tpng -o $pathSrc/q$major.$minor.png $pathSrc/q$major.$minor.dot
+                    dot -Tsvg -o $filename.svg $filename.dot
+                    sed -i '/^<title/ d' $filename.svg
                     ;;
                 *)
                     printf "unknown way to use MonetDB (in translate step): $useMonetDB\n"
                     exit -1
                     ;;
             esac
+
             printf "done q$major.$minor .\n"
         done
     done

@@ -52,6 +52,11 @@ class QueryGraph:
         self.__columnsUnusedOut = columnsUnusedOut
         self.__columnsResult = columnsResult
         self.__tab = "   "
+        self.__opNameMap = {
+            "my_project_wit_t": "project",
+            "group_vec": "group",
+            "join": "equi_join",
+        }
         self.__operator_node_smybol_map = {
             "project":"&#960;",
             "my_project_wit_t": "&#960;",
@@ -80,32 +85,36 @@ class QueryGraph:
         return self.__direction
 
     def addOperator(self, op):
+        opName = op.opName
+        if opName in self.__opNameMap:
+            opName = self.__opNameMap[opName]
+
         if isinstance(op, ops.Select):
             opNode = operators.OperatorNodeSelect(
-                op.opName,
-                self.__operator_node_smybol_map[op.opName],
+                opName,
+                self.__operator_node_smybol_map[opName],
                 self.__operator_id,
                 op.op,
                 op.val
             )
         elif isinstance(op, ops.Nto1Join):
             opNode = operators.OperatorNodeNto1Join(
-                op.opName, self.__operator_node_smybol_map["equi_join"], self.__operator_id
+                opName, self.__operator_node_smybol_map["equi_join"], self.__operator_id
             )
         elif isinstance(op, ops.LeftSemiNto1Join):
             opNode = operators.OperatorNodeNto1Join(
-                op.opName, self.__operator_node_smybol_map["semi_join"], self.__operator_id
+                opName, self.__operator_node_smybol_map["semi_join"], self.__operator_id
             )
         elif isinstance(op, ops.CalcBinary):
             #print(operator.op, file=sys.stderr)
             opNode = operators.OperatorNodeCalcBinary(
-                op.opName,
-                self.__operator_node_smybol_map[op.opName],
+                opName,
+                self.__operator_node_smybol_map[opName],
                 self.__operator_id,
                 op.op
             )
         else :
-            opNode = operators.OperatorNode(op.opName, self.__operator_node_smybol_map[op.opName], self.__operator_id)
+            opNode = operators.OperatorNode(opName, self.__operator_node_smybol_map[opName], self.__operator_id)
 
         self.__operators.append(
             opNode
