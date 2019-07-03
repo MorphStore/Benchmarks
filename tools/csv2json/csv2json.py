@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License along with this program. *
 # If not, see <http://www.gnu.org/licenses/>.                                                *
 #*********************************************************************************************
-
+import sys
 """
 This tool converts CSV files output by MorphStore's monitoring feature to JSON
 files suitable for use in the web interface.
@@ -165,9 +165,9 @@ def convertDataChFile(inCsvFile):
             # a base column.
             if colName[0] != "X" and colName[0] != "C" and "__" in colName:
                 colName = colName[:colName.find("__")].replace("_", ".", 1)
-            else:
-                continue
-        res[colName] = {
+        if "__" in colName:
+            colName = colName[:colName.find("__")]
+        newObj = {
             ATTR_VALUECOUNT: int(row[ATTR_VALUECOUNT]),
             ATTR_SIZEUSEDBYTE: int(row[ATTR_PHYSIZE]),
             ATTR_FORMAT : "uncompr" if row[ATTR_FORM] == None else formats[int(row[ATTR_FORM])],
@@ -176,7 +176,9 @@ def convertDataChFile(inCsvFile):
         }
         for bw in range(1, 64+1):
             key = ATTR_BWHIST_FS.format(bw)
-            res[colName][key] = int(row[key])
+            newObj[key] = int(row[key])
+        if colName not in res or res[colName][ATTR_FORMAT] == "uncompr":
+            res[colName] = newObj
         
     return res
 
