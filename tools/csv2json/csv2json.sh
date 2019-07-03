@@ -16,6 +16,8 @@ do
                         > $key/ops_q$major.$minor.json
                     ./csv2json.py --csvfile ../../ssb/demo/dc_sf1_$key/q$major.$minor.csv data \
                         > $key/data_q$major.$minor.json
+                    ./csv2json.py --csvfile ../../ssb/demo/dc_sf1_$key/q$major.$minor.csv edge \
+                        > $key/edge_q$major.$minor.json
                 done
             done
         done

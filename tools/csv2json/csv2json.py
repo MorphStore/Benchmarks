@@ -38,7 +38,6 @@ Known limitations:
 import argparse
 import csv
 import json
-import random
 
 
 # *****************************************************************************
@@ -47,7 +46,8 @@ import random
 
 MODE_OPS = "ops"
 MODE_DATA = "data"
-MODES = [MODE_OPS, MODE_DATA]
+MODE_EDGE = "edge"
+MODES = [MODE_OPS, MODE_DATA, MODE_EDGE]
 
 
 # *****************************************************************************
@@ -182,6 +182,112 @@ def convertDataChFile(inCsvFile):
         
     return res
 
+def convertDataChFileEdge(inCsvFile):
+    ATTR_OPNAME = "opName"
+    ATTR_COLNAME = "colName"
+    ATTR_VALUECOUNT = "valueCount"
+    ATTR_SIZEUSEDBYTE = "sizeUsedByte"
+    ATTR_FORMAT = "formatName"
+    ATTR_BWHIST_FS = "bwHist_{}"
+    ATTR_SORTED = "sorted"
+    ATTR_UNIQUE = "unique"
+    ATTR_PHYSIZE = "UsedBytes"
+    ATTR_SORT = "Sorted"
+    ATTR_UNI = "Unique"
+    ATTR_FORM = "format"
+    
+    reader = csv.DictReader(
+            inCsvFile,
+            fieldnames=[
+                ATTR_OPNAME,
+                "opIdx",
+                "colRole",
+                ATTR_COLNAME,
+                "bwHist_1", "bwHist_2", "bwHist_3", "bwHist_4",
+                "bwHist_5", "bwHist_6", "bwHist_7", "bwHist_8",
+                "bwHist_9", "bwHist_10", "bwHist_11", "bwHist_12",
+                "bwHist_13", "bwHist_14", "bwHist_15", "bwHist_16",
+                "bwHist_17", "bwHist_18", "bwHist_19", "bwHist_20",
+                "bwHist_21", "bwHist_22", "bwHist_23", "bwHist_24",
+                "bwHist_25", "bwHist_26", "bwHist_27", "bwHist_28",
+                "bwHist_29", "bwHist_30", "bwHist_31", "bwHist_32",
+                "bwHist_33", "bwHist_34", "bwHist_35", "bwHist_36",
+                "bwHist_37", "bwHist_38", "bwHist_39", "bwHist_40",
+                "bwHist_41", "bwHist_42", "bwHist_43", "bwHist_44",
+                "bwHist_45", "bwHist_46", "bwHist_47", "bwHist_48",
+                "bwHist_49", "bwHist_50", "bwHist_51", "bwHist_52",
+                "bwHist_53", "bwHist_54", "bwHist_55", "bwHist_56",
+                "bwHist_57", "bwHist_58", "bwHist_59", "bwHist_60",
+                "bwHist_61", "bwHist_62", "bwHist_63", "bwHist_64",
+                ATTR_VALUECOUNT,
+                "isResult",
+                ATTR_PHYSIZE,
+                ATTR_SORT,
+                ATTR_UNI,
+                ATTR_FORM
+            ],
+            delimiter="\t"
+    )
+    
+    # Skip the useless lines at the beginning.
+    for i in range(4):
+        next(reader)
+
+    # For the dummy data.
+    formats = ["uncompr", "static_vbp", "dynamic_vbp", "rle", "other"]
+    
+    KEY_FORMAT = "format"
+    KEY_MORPHED = "morphed"
+    
+    fileContents = []
+    for row in reader:
+        fileContents.append(row)
+    
+    colInfo = {}
+    for row in fileContents:
+        opName = row[ATTR_OPNAME]
+        colName = row[ATTR_COLNAME]
+        if opName == "[RES]":
+            break
+        if opName == "morph":
+            # If this line represents the output column of a morph-operator on
+            # a base column.
+            if colName[0] != "X" and colName[0] != "C" and "__" in colName:
+                colName = colName[:colName.find("__")].replace("_", ".", 1)
+        if "__" in colName:
+            colName = colName[:colName.find("__")]
+        
+        formatCode = 0 if row[ATTR_FORM] is None else int(row[ATTR_FORM])
+        if colName not in colInfo:
+            colInfo[colName] = {
+                KEY_FORMAT: formatCode,
+                KEY_MORPHED: False,
+            }
+        elif colInfo[colName][KEY_FORMAT] != formatCode:
+            colInfo[colName][KEY_MORPHED] = True
+         
+    res = {}
+    for row in fileContents:
+        opName = row[ATTR_OPNAME]
+        colName = row[ATTR_COLNAME]
+        if opName == "[RES]":
+            break
+        if opName == "morph":
+            # If this line represents the output column of a morph-operator on
+            # a base column.
+            if colName[0] != "X" and colName[0] != "C" and "__" in colName:
+                colName = colName[:colName.find("__")].replace("_", ".", 1)
+        if "__" in colName:
+            colName = colName[:colName.find("__")]
+        
+        edgeKey = "{}_{}_{}".format(opName, int(row["opIdx"]), colName)
+        formatCode = 0 if row[ATTR_FORM] is None else int(row[ATTR_FORM])
+        res[edgeKey] = {
+            "morphed": colInfo[colName][KEY_MORPHED] and formatCode == 0
+        }
+        
+    return res
+
 
 # *****************************************************************************
 # Main program
@@ -227,6 +333,8 @@ if __name__ == "__main__":
             res = convertOperatorFile(inCsvFile)
         elif args.mode == MODE_DATA:
             res = convertDataChFile(inCsvFile)
+        elif args.mode == MODE_EDGE:
+            res = convertDataChFileEdge(inCsvFile)
         else:
             raise RuntimeError("unsupported mode: '{}'".format(args.mode))
 
