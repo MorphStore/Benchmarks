@@ -115,7 +115,7 @@ def _printHeaders(indent, tr, purpose, processingStyle, versionSelect):
         
     
     if (versionSelect == 2):
-        print("{}using namespace vector;".format(indent))
+        print("{}using namespace vectorlib;".format(indent))
     
 def _printSchema(indent, tr):
     """
@@ -519,4 +519,4 @@ def generate(
                         "unknown placeholder in C++ template file: {}".format(
                             ph
                         )
-                    )	
+                    )
