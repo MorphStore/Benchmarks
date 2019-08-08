@@ -309,6 +309,7 @@ function translate () {
 
     rm -f $cmakeListsFile
 
+    printf "if( BUILD_ALL OR BUILD_SSB )\n" >> $cmakeListsFile
     for major in 1 2 3 4
     do
         for minor in 1 2 3
@@ -348,25 +349,26 @@ function translate () {
             local targetName=q$major.$minor"_sf"$scaleFactor
 
             # TODO Maybe we should outsource this snippet to a file.
-            printf "add_executable( $targetName q$major.$minor.cpp )\n"      >> $cmakeListsFile
-            printf "target_compile_options( $targetName PRIVATE\n"           >> $cmakeListsFile
-            printf "                        -Werror\n"                       >> $cmakeListsFile
-            printf "                        -Wall\n"                         >> $cmakeListsFile
-            printf "                        -Wextra\n"                       >> $cmakeListsFile
-            printf "                        -O0\n"                       >> $cmakeListsFile
+            printf "\tadd_executable( $targetName q$major.$minor.cpp )\n"      >> $cmakeListsFile
+            printf "\ttarget_compile_options( $targetName PRIVATE\n"           >> $cmakeListsFile
+            printf "\t                        -Werror\n"                       >> $cmakeListsFile
+            printf "\t                        -Wall\n"                         >> $cmakeListsFile
+            printf "\t                        -Wextra\n"                       >> $cmakeListsFile
+            printf "\t                        -O0\n"                           >> $cmakeListsFile
             # TODO Remove -Wno-ignored-attributes as soon as we have it at a
             #      higher-level in the build script.
-            printf "                        -Wno-ignored-attributes\n"       >> $cmakeListsFile
-            printf "                        -Wno-unused-parameter\n"       >> $cmakeListsFile
-            printf "                        -pedantic\n"                     >> $cmakeListsFile
-            printf "                        -fstack-protector-all\n"         >> $cmakeListsFile
-            printf "                        $<$<CONFIG:DEBUG>:-DDEBUG> )\n"  >> $cmakeListsFile
-            printf "target_link_libraries( $targetName PRIVATE \"-ldl\" )\n" >> $cmakeListsFile
-            printf "\n"                                                      >> $cmakeListsFile
+            printf "\t                        -Wno-ignored-attributes\n"       >> $cmakeListsFile
+            printf "\t                        -Wno-unused-parameter\n"         >> $cmakeListsFile
+            printf "\t                        -pedantic\n"                     >> $cmakeListsFile
+            printf "\t                        -fstack-protector-all\n"         >> $cmakeListsFile
+            printf "\t                        $<$<CONFIG:DEBUG>:-DDEBUG> )\n"  >> $cmakeListsFile
+            printf "\ttarget_link_libraries( $targetName PRIVATE \"-ldl\" )\n" >> $cmakeListsFile
+            printf "\n"                                                        >> $cmakeListsFile
 
             printf "done.\n"
         done
     done
+    printf "endif( BUILD_ALL OR BUILD_SSB )\n" >> $cmakeListsFile
 
     set +e
 
@@ -473,7 +475,7 @@ function build () {
         local extensionFlags=""
     fi
     # TODO Do not hard-code the arguments for build.sh.
-    ./build.sh -deb -j8 $monitoringFlag $extensionFlags
+    ./build.sh -deb -j8 $monitoringFlag $extensionFlags -bSSB
     cd $oldPwd
 
     set +e
