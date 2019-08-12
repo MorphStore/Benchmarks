@@ -65,6 +65,8 @@ def makeStaticVBP(bw, ps):
         step = 1
     elif ps == pss.PS_VEC128:
         step = 2
+    elif ps == pss.PS_VEC128_NEON:
+        step = 2
     elif ps == pss.PS_VEC256:
         step = 4
     elif ps == pss.PS_VEC512:
@@ -80,6 +82,10 @@ def makeDynamicVBP(ps):
         blockSizeLog = 128
         pageSizeBlocks = 16
         step = 2
+    elif ps == pss.PS_VEC128_NEON:
+        blockSizeLog = 128
+        pageSizeBlocks = 16
+        step = 2        
     elif ps == pss.PS_VEC256:
         blockSizeLog = 256
         pageSizeBlocks = 32
@@ -100,6 +106,7 @@ shortNames = {
 for ps in [
     pss.PS_SCALAR,
     pss.PS_VEC128,
+    pss.PS_VEC128_NEON,
     pss.PS_VEC256,
     pss.PS_VEC512,
 ]:
