@@ -71,7 +71,7 @@ def makeStaticVBP(bw, ps):
         step = 4
     elif ps == pss.PS_VEC512:
         step = 8
-    return "static_vbp_f<{}, {}>".format(bw, step)
+    return "static_vbp_f<vbp_l<{}, {}> >".format(bw, step)
 
 def makeDynamicVBP(ps):
     if ps == pss.PS_SCALAR:
@@ -143,6 +143,7 @@ def _configCompr_AllStaticVBP(tr, ps):
     _configCompr_AllUncompr(tr, ps)
     
     tr.headers.add("core/morphing/static_vbp.h")
+    tr.headers.add("core/morphing/vbp.h")
     
     ar = analysis.analyze(tr, analyzeCardsAndBws=True)
         
@@ -203,6 +204,7 @@ def _configCompr_AllDynamicVBP_ProjectStaticVBP(tr, ps):
     
     tr.headers.add("core/morphing/dynamic_vbp.h")
     tr.headers.add("core/morphing/static_vbp.h")
+    tr.headers.add("core/morphing/vbp.h")
     
     ar = analysis.analyze(tr, analyzeCardsAndBws=True)
     
