@@ -36,7 +36,8 @@ RUN_NAMES = [
     # enter result sets here
 ]
 diaDirName = "dias"
-os.mkdir(diaDirName)
+if not os.path.exists(diaDirName):
+    os.mkdir(diaDirName)
 
 
 
@@ -120,19 +121,22 @@ for runName in RUN_NAMES:
 
 
 pal = sns.hls_palette(8, l=0.5, s=0.5)
+# TODO Harmonize the names of all operators.
 colorByOpName = {
     "query": (0.6, 0.6, 0.6),
     
     "select"                         : pal[0],
     "project"                        : pal[1],
+    "my_project_wit_t"               : pal[1],
     "intersect_sorted"               : pal[2],
     "merge_sorted"                   : pal[2],
-    # TODO Harmonize the names of the join operators.
     "nested_loop_join"               : pal[4],
     "left_semi_nto1_nested_loop_join": pal[4],
     "semi_join"                      : pal[4],
     "equi_join"                      : pal[4],
+    "join"                           : pal[4],
     "group"                          : pal[5],
+    "group_vec"                      : pal[5],
     "agg_sum"                        : pal[6],
     "calc_unary"                     : pal[7],
     "calc_binary"                    : pal[7],
