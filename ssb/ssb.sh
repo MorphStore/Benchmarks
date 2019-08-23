@@ -26,6 +26,7 @@ function print_help () {
     echo "Usage: ssb.sh [-h] [-s STEP] [-e STEP] [-sf N] [-p PURPOSE]"
     echo "              [-ps PROCESSING_STYLE] [-v vectorVersion]"
     echo "              [-c COMPRESSION_CONFIG] [-um WAY_TO_USE_MONETDB]"
+    echo "              [-noSelfManaging]"
     echo ""
     echo "Star Schema Benchmark (SSB) in MorphStore."
     echo ""
@@ -178,6 +179,9 @@ function print_help () {
     echo "                          alluncompr."
     echo "  -um WAY_TO_USE_MONETDB, --useMonetDB WAY_TO_USE_MONETDB"
     echo "                          The way to use MonetDB."
+    echo "  -noSelfManaging         The query executables will use standard "
+    echo "                          C++ memory management instead of "
+    echo "                          MorphStore's own memory manager."
     echo ""
     echo "Examples:"
     echo "  ssb.sh"
@@ -486,7 +490,7 @@ function build () {
         local extensionFlags=""
     fi
     # TODO Do not hard-code the arguments for build.sh.
-    ./build.sh -deb -j8 $monitoringFlag $extensionFlags -bSSB
+    ./build.sh -deb -j8 $monitoringFlag $extensionFlags -bSSB $noSelfManaging
     cd $oldPwd
 
     set +e
@@ -788,6 +792,7 @@ versionSelect=$usingLib
 processingStyle=$psScalar
 comprConfig=alluncompr
 useMonetDB=$umPipeline
+noSelfManaging=""
 
 while [[ $# -gt 0 ]]
 do
@@ -858,6 +863,9 @@ do
                 printf "unknown way to use MonetDB: $2\n"
                 exit -1
             fi
+            ;;
+        -noSelfManaging)
+            noSelfManaging="-noSelfManaging"
             ;;
         *)
             printf "unknown option: $key\n"
