@@ -482,8 +482,14 @@ function build () {
     else
         local extensionFlags=""
     fi
+    if [[ $scaleFactor -eq 1 ]]
+    then
+        local vbpFlag="--vbpLimitRoutinesForSSBSF1"
+    else
+        local vbpFlag=""
+    fi
     # TODO Do not hard-code the arguments for build.sh.
-    ./build.sh -hi -j8 $monitoringFlag $extensionFlags -bSSB $noSelfManaging
+    ./build.sh -hi -j8 $monitoringFlag $extensionFlags -bSSB $noSelfManaging $vbpFlag
     cd $oldPwd
 
     set +e
