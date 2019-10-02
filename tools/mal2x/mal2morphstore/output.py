@@ -156,10 +156,19 @@ def _printDataLoad(indent, tr):
             )
         print()
 
-def _printProg(indent, tr, purpose, processingStyle):
+def _printProg(indent, tr, purpose, processingStyle, ar):
     """
     Prints the core program, i.e., the sequence of operators.
     """
+
+    def _prepareOutColsForRandomAccess(op):
+        for key in el.__dict__:
+            if key.startswith("out") and key.endswith("Col"):
+                varName = getattr(el, key)
+                if varName in ar.varsRndAccess:
+                    print("{}{}->template prepare_for_random_access<{}>();".format(
+                            indent, varName, ps.PS_VAR
+                    ))
     
     # The constant representing the processing style to use for all operators.
     #print("{}// The processing style used by all operators.".format(indent))
@@ -250,6 +259,7 @@ def _printProg(indent, tr, purpose, processingStyle):
                 print('{}MONITORING_END_INTERVAL_FOR  ({}, {}, {});'.format(
                         indent, varColRuntime, monVarOpNameOp, opIdx)
                 )
+                _prepareOutColsForRandomAccess(el)
                 opIdx += 1
             else:
                 print("{}{}".format(indent, el).replace("\n", "\n" + indent))
@@ -345,6 +355,7 @@ def _printProg(indent, tr, purpose, processingStyle):
             if isinstance(el, Op):
                 monVarOpNameOp = varOpNameFs.format(el.opName)
                 print("{}{}".format(indent, el).replace("\n", "\n" + indent))
+                _prepareOutColsForRandomAccess(el)
                 for foo in sorted(el.__dict__):
                     if (foo.startswith("in") or foo.startswith("out")) and foo.endswith("Col"):
                         print('{}hist = get_histogram({});'.format(indent,el.__dict__[foo]))
@@ -390,6 +401,8 @@ def _printProg(indent, tr, purpose, processingStyle):
     elif purpose in [pp.PP_CHECK, pp.PP_RESULTS]:
         for el in tr.prog:
             print("{}{}".format(indent, el).replace("\n", "\n" + indent))
+            if isinstance(el, Op):
+                _prepareOutColsForRandomAccess(el)
     else:
         raise RuntimeError("unsupported purpose: '{}'".format(purpose))
 
@@ -474,6 +487,7 @@ def generate(
     """
     
     with open(templateFilePath, "r") as templateFile:
+        ar = mal2morphstore.analysis.analyze(translationResult)
         for line in templateFile:
             line = line.rstrip()
             mPlaceholder = _pPlaceholder.fullmatch(line)
@@ -503,17 +517,15 @@ def generate(
                             indent,
                             translationResult,
                             purpose,
-                            processingStyle
+                            processingStyle,
+                            ar
                     )
                 elif ph == "result":
                     _printResultOutput(
                             indent, translationResult, purpose
                     )
                 elif ph == "analysis":
-                    _printAnalysis(
-                        indent,
-                        mal2morphstore.analysis.analyze(translationResult)
-                    )
+                    _printAnalysis(indent, ar)
                 else:
                     raise RuntimeError(
                         "unknown placeholder in C++ template file: {}".format(
