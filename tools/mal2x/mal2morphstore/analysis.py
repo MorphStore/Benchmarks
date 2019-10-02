@@ -45,6 +45,7 @@ class AnalysisResult:
         varsUnique,
         maxCardByCol,
         maxBwByCol,
+        varsRndAccess,
     ):
         # A list of the names of column-variables in the translated program
         # which are used before they are assigned.
@@ -70,10 +71,15 @@ class AnalysisResult:
         # A dictionary mapping a column name to the effective bit width of the 
         # pessimisticly estimated maximum value in that column.
         self.maxBwByCol = maxBwByCol
+        
+        # A list of the names of column-variables in the translated program
+        # which require random access, i.e., which are the input data column of
+        # some project-operator.
+        self.varsRndAccess = varsRndAccess
 
 def analyze(translationResult, analyzeCardsAndBws=False):
     """
-    Analyzes the given abstratc representation of a translated program to find
+    Analyzes the given abstract representation of a translated program to find
     out some interesting things about it. The result is an instance of class
     AnalysisResult.
     """
@@ -98,6 +104,7 @@ def analyze(translationResult, analyzeCardsAndBws=False):
         "part.p_partkey",
         "supplier.s_suppkey",
     ]
+    varsRndAccess = []
     
     def effective_bitwidth(val):
         if val == 0:
@@ -337,6 +344,11 @@ def analyze(translationResult, analyzeCardsAndBws=False):
                                     el.__class__.__name__
                             )
                     )
+                    
+            # Tracking which columns require random access.
+            if isinstance(el, ops.Project):
+                if el.inDataCol not in varsRndAccess:
+                    varsRndAccess.append(el.inDataCol)
     
     for varName in translationResult.resultCols:
         foundUsage(varName)
@@ -347,4 +359,5 @@ def analyze(translationResult, analyzeCardsAndBws=False):
         varsUnique,
         maxCardByCol,
         maxBwByCol,
+        varsRndAccess,
     )
