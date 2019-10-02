@@ -46,6 +46,7 @@ class AnalysisResult:
         maxCardByCol,
         maxBwByCol,
         varsRndAccess,
+        varsSorted,
     ):
         # A list of the names of column-variables in the translated program
         # which are used before they are assigned.
@@ -76,6 +77,10 @@ class AnalysisResult:
         # which require random access, i.e., which are the input data column of
         # some project-operator.
         self.varsRndAccess = varsRndAccess
+        
+        # A list of the names of column-variables in the translated program
+        # whose contents is known to be sorted at query translation-time.
+        self.varsSorted = varsSorted
 
 def analyze(translationResult, analyzeCardsAndBws=False):
     """
@@ -90,8 +95,11 @@ def analyze(translationResult, analyzeCardsAndBws=False):
         for tblName in translationResult.colNamesByTblName
         for colName in translationResult.colNamesByTblName[tblName]
     ]
+    
     varsUsedBeforeAssigned = []
+    
     varsNeverUsed = []
+    
     # TODO This is specific to the Star Schema Benchmark (SSB) and covers only
     #      what we currently need for translating the queries in this benchmark
     #      correctly.
@@ -104,7 +112,21 @@ def analyze(translationResult, analyzeCardsAndBws=False):
         "part.p_partkey",
         "supplier.s_suppkey",
     ]
+    
     varsRndAccess = []
+    
+    # TODO This is specific to the Star Schema Benchmark (SSB). Do not hardcode
+    #      this.
+    # All base-columns known to be sorted.
+    varsSorted = [
+        "customer.c_custkey",
+        "customer.c_name",
+        "date.d_datekey",
+        "lineorder.lo_shippriority",
+        "part.p_partkey",
+        "supplier.s_name",
+        "supplier.s_suppkey",
+    ]
     
     def effective_bitwidth(val):
         if val == 0:
@@ -144,6 +166,13 @@ def analyze(translationResult, analyzeCardsAndBws=False):
     def raiseNonUnique(op, param):
         raise RuntimeError(
                 "input column '{}' of operator '{}' must be unique".format(
+                        param, op.__class__.__name__
+                )
+        )
+            
+    def raiseUnsorted(op, param):
+        raise RuntimeError(
+                "input column '{}' of operator '{}' must be sorted".format(
                         param, op.__class__.__name__
                 )
         )
@@ -349,6 +378,62 @@ def analyze(translationResult, analyzeCardsAndBws=False):
             if isinstance(el, ops.Project):
                 if el.inDataCol not in varsRndAccess:
                     varsRndAccess.append(el.inDataCol)
+                    
+            # Tracking the sortedness of column-variables.
+            if isinstance(el, ops.Project):
+                if el.inDataCol in varsSorted and el.inPosCol in varsSorted:
+                    varsSorted.append(el.outDataCol)
+            elif isinstance(el, ops.Select):
+                varsSorted.append(el.outPosCol)
+            elif isinstance(el, ops.Intersect) or isinstance(el, ops.Merge):
+                if el.inPosLCol not in varsSorted:
+                    raiseUnsorted(el, "inPosLCol")
+                if el.inPosRCol not in varsSorted:
+                    raiseUnsorted(el, "inPosRCol")
+                varsSorted.append(el.outPosCol)
+            elif isinstance(el, ops.Join):
+                # We do not know which of the two input data columns is the
+                # inner and which is the outer, so we do not know which output
+                # column is sorted.
+                pass
+            elif isinstance(el, ops.Nto1Join) or isinstance(el, ops.LeftSemiNto1Join):
+                # The output positions corresponding to the right input, which
+                # is the probe-side and, thus, the outer, is always sorted.
+                varsSorted.append(el.outPosRCol)
+            elif isinstance(el, ops.CalcBinary):
+                # We do not know whether the output is sorted.
+                pass
+            elif isinstance(el, ops.SumWholeCol):
+                # Sorted since it contains only one data element.
+                varsSorted.append(el.outDataCol)
+            elif isinstance(el, ops.SumGrBased):
+                # We do not know whether the output is sorted.
+                pass
+            elif isinstance(el, ops.GroupUnary):
+                # Generelly, outGrCol is sorted if a value in inDataCol cannot
+                # re-occur after another value occurred.
+                # There are more cases when this is fulfilled, however, this is
+                # the case we can detect with the information we have.
+                if el.inDataCol in varsUnique or el.inDataCol in varsSorted:
+                    varsSorted.append(el.outGrCol)
+                varsSorted.append(el.outExtCol)
+            elif isinstance(el, ops.GroupBinary):
+                # Analogous to the unary case, but for combinations.
+                # There are more cases when this is fulfilled, however, these
+                # are the cases we can detect with the information we have.
+                if (el.inDataCol in varsUnique or el.inDataCol in varsSorted) and (el.inGrCol in varsUnique or el.inGrCol in varsSorted):
+                    varsSorted.append(el.outGrCol)
+                varsSorted.append(el.outExtCol)
+            elif isinstance(el, ops.Morph):
+                if el.inCol in varsSorted:
+                    varsSorted.append(el.outCol)
+            else:
+                raise RuntimeError(
+                        "the operator {} is not taken into account in "
+                        "tracking the sortedness of columns".format(
+                                el.__class__.__name__
+                        )
+                )
     
     for varName in translationResult.resultCols:
         foundUsage(varName)
@@ -360,4 +445,5 @@ def analyze(translationResult, analyzeCardsAndBws=False):
         maxCardByCol,
         maxBwByCol,
         varsRndAccess,
+        varsSorted,
     )
