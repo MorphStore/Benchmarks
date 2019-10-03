@@ -47,6 +47,7 @@ class AnalysisResult:
         maxBwByCol,
         varsRndAccess,
         varsSorted,
+        varsForcedUncompr,
     ):
         # A list of the names of column-variables in the translated program
         # which are used before they are assigned.
@@ -81,6 +82,11 @@ class AnalysisResult:
         # A list of the names of column-variables in the translated program
         # whose contents is known to be sorted at query translation-time.
         self.varsSorted = varsSorted
+        
+        # A list of the names of column-variables in the translated program
+        # which must be uncompressed, since they are produced or consumed by an
+        # operator which does not support compressed data.
+        self.varsForcedUncompr = varsForcedUncompr
 
 def analyze(translationResult, analyzeCardsAndBws=False):
     """
@@ -127,6 +133,8 @@ def analyze(translationResult, analyzeCardsAndBws=False):
         "supplier.s_name",
         "supplier.s_suppkey",
     ]
+    
+    varsForcedUncompr = []
     
     def effective_bitwidth(val):
         if val == 0:
@@ -434,6 +442,48 @@ def analyze(translationResult, analyzeCardsAndBws=False):
                                 el.__class__.__name__
                         )
                 )
+                
+            # Tracking which columns must be uncompressed.
+            if (
+                    isinstance(el, ops.Intersect) or
+                    isinstance(el, ops.Merge) or
+                    isinstance(el, ops.CalcBinary) or
+                    isinstance(el, ops.GroupBinary) or
+                    isinstance(el, ops.SumGrBased)
+            ):
+                # These operators do not support compressed inputs and outputs.
+                for key in el.__dict__:
+                    if key.endswith("Col"):
+                        # The group-based sum-operator does not access the data
+                        # of its input extents column, but only needs to know
+                        # the number of data elements.
+                        if isinstance(el, ops.SumGrBased) and key == "inExtCol":
+                            continue
+                        varName = getattr(el, key)
+                        if varName not in varsForcedUncompr:
+                            varsForcedUncompr.append(varName)
+            elif isinstance(el, ops.SumWholeCol):
+                # This operators does not support compressed output (because it
+                # would not make sense).
+                varsForcedUncompr.append(el.outDataCol)
+            elif (
+                isinstance(el, ops.Project) or
+                isinstance(el, ops.Select) or
+                isinstance(el, ops.Join) or
+                isinstance(el, ops.Nto1Join) or
+                isinstance(el, ops.LeftSemiNto1Join) or
+                isinstance(el, ops.GroupUnary) or
+                isinstance(el, ops.Morph)
+            ):
+                # These operators support compressed inputs and outputs.
+                pass
+            else:
+                raise RuntimeError(
+                        "the operator {} is not taken into account in "
+                        "tracking which columns must be uncompressed".format(
+                                el.__class__.__name__
+                        )
+                )
     
     for varName in translationResult.resultCols:
         foundUsage(varName)
@@ -446,4 +496,5 @@ def analyze(translationResult, analyzeCardsAndBws=False):
         maxBwByCol,
         varsRndAccess,
         varsSorted,
+        varsForcedUncompr,
     )
