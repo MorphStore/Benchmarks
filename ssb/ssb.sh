@@ -25,8 +25,9 @@
 function print_help () {
     echo "Usage: ssb.sh [-h] [-s STEP] [-e STEP] [-sf N] [-p PURPOSE]"
     echo "              [-ps PROCESSING_STYLE] [-v vectorVersion]"
-    echo "              [-c COMPRESSION_CONFIG] [-um WAY_TO_USE_MONETDB]"
-    echo "              [-noSelfManaging]"
+    echo "              [-c COMPRESSION_STRATEGY] [-crnd FORMAT]"
+    echo "              [-csequ FORMAT] [-cseqs FORMAT]"
+    echo "              [-um WAY_TO_USE_MONETDB] [-noSelfManaging]"
     echo ""
     echo "Star Schema Benchmark (SSB) in MorphStore."
     echo ""
@@ -107,30 +108,18 @@ function print_help () {
     echo "      Examples: avx2\<v256\<uint64_t\>\>"
     echo "                scalar\<v64\<uint64_t\>\>"
     echo ""
-    echo "The formats of the query operators' input and output columns are "
-    echo "determined by a compression configuration. The following "
-    echo "configurations are available:"
+    echo "The formats of all base columns and intermediate results are "
+    echo "determined by a compression strategy. The following strategies are "
+    echo "available:"
     echo ""
-    echo "Compression configuations:"
-    echo "  alluncompr"
-    echo "      All base and intermediate columns are uncompressed (uncompr_f "
-    echo "      in MorphStore)."
-    echo "  allstaticvbp"
-    echo "      All base and intermediate columns use vertical bit-packing "
-    echo "      with a static bit width (static_vbp_f in MorphStore). The bit "
-    echo "      widths are determined at query translation time (i.e., before "
-    echo "      the query actually runs) in a pessimistic way. Note that all "
-    echo "      operators not supporting static bit packing yet will still "
-    echo "      use uncompressed data."
-    echo "  alldynamicvbp"
-    echo "      All base and intermediate columns use vertical bit-packing "
-    echo "      with a dynamic bit width (dynamic_vbp_f in MorphStore). Note "
-    echo "      that all operators not supporting this yet will still use "
-    echo "      uncompressed data."
-    echo "  alldynamicvbp_projectstatic"
-    echo "      Like alldynamicvbp, but the input data columns of project-"
-    echo "      operators are represented using static_vbp_f. This "
-    echo "      configuration is quite experimental."
+    echo "Compression Strategies:"
+    echo "  uncompr"
+    echo "      All columns are uncompressed (uncompr_f in MorphStore)."
+    echo "  rulebased"
+    echo "      Applies a simple rule-based strategy. This allows the "
+    echo "      specification of the arguments -crnd, -csequ, -cseqs, each of "
+    echo "      which must be followed by a format name. See the help of "
+    echo "      mal2morphstore for more details."
     echo ""
     echo "This script depends on MonetDB, since the 'translate'-step requires "
     echo "MAL programs from MonetDB and the 'run'-step (with the 'check'- or "
@@ -324,6 +313,20 @@ function translate () {
 
     rm -f $cmakeListsFile
 
+    local comprFlags="-c $comprStrategy"
+    if [[ $comprRnd ]]
+    then
+        comprFlags="$comprFlags -crnd $comprRnd"
+    fi
+    if [[ $comprSeqUnsorted ]]
+    then
+        comprFlags="$comprFlags -csequ $comprSeqUnsorted"
+    fi
+    if [[ $comprSeqSorted ]]
+    then
+        comprFlags="$comprFlags -cseqs $comprSeqSorted"
+    fi
+
     printf "if( BUILD_ALL OR BUILD_SSB )\n" >> $cmakeListsFile
     for major in 1 2 3 4
     do
@@ -337,7 +340,7 @@ function translate () {
                         | cat - $pathQueries/q$major.$minor.sql \
                         | $qdict $pathDataDicts \
                         | $mclient -d $dbName -f raw \
-                        | $mal2morphstore $processingStyle $purpose $comprConfig $versionSelect\
+                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags  \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 $umMaterialize)
@@ -347,12 +350,12 @@ function translate () {
                         | $mclient -d $dbName -f raw \
                         > $pathMal/q$major.$minor.mal
                     cat $pathMal/q$major.$minor.mal \
-                        | $mal2morphstore $processingStyle $purpose $comprConfig $versionSelect \
+                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 $umSaved)
                     cat $pathMal/q$major.$minor.mal \
-                        | $mal2morphstore $processingStyle $purpose $comprConfig $versionSelect \
+                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 *)
@@ -789,7 +792,10 @@ scaleFactor=1
 purpose=$purposeCheck
 versionSelect=$usingLib
 processingStyle=$psScalar
-comprConfig=alluncompr
+comprStrategy=uncompr
+comprRnd=""
+comprSeqUnsorted=""
+comprSeqSorted=""
 useMonetDB=$umPipeline
 noSelfManaging=""
 
@@ -849,8 +855,20 @@ do
             processingStyle=$2
             shift
             ;;
-        -c|--comprConfig)
-            comprConfig=$2
+        -c|--comprStrategy)
+            comprStrategy=$2
+            shift
+            ;;
+        -crnd)
+            comprRnd=$2
+            shift
+            ;;
+        -csequ)
+            comprSeqUnsorted=$2
+            shift
+            ;;
+        -cseqs)
+            comprSeqSorted=$2
             shift
             ;;
         -um|--useMonetDB)

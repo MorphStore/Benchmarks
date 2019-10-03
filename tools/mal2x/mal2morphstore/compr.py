@@ -19,10 +19,9 @@
 This module contains everything related to compression.
 
 The basic idea of employing compression in the translated queries is to select
-one of the compression configurations defined in this module. A compression
-configuration assigns the input and output formats of all operators in a
-translated query program. At the moment, this is done using simple rule-based
-strategies.
+one of the compression strategies defined in this module. A compression
+strategy assigns the input and output formats of all operators in a translated
+query program. At the moment, this is done using simple rule-based strategies.
 
 By convention, the name of each format attribute of an operator-object must end
 with "F". See module mal2morphstore.operators.
@@ -35,71 +34,94 @@ import mal2morphstore.processingstyles as pss
 
 
 # *****************************************************************************
-# Names of the compression configurations.
+# Constants
 # *****************************************************************************
 
-# These names are used for the command line arguments.
+# -----------------------------------------------------------------------------
+# Compression strategies
+# -----------------------------------------------------------------------------
 
-CC_ALLUNCOMPR = "alluncompr"
-CC_ALLSTATICVBP = "allstaticvbp"
-CC_ALLDYNAMICVBP = "alldynamicvbp"
-CC_ALLDYNAMICVBP_PROJSTATICVBP = "alldynamicvbp_projectstatic"
+CS_UNCOMPR = "uncompr"
+CS_RULEBASED = "rulebased"
 
-# List of all compression configurations.
-COMPR_CONFIGS = [
-    CC_ALLUNCOMPR,
-    CC_ALLSTATICVBP,
-    CC_ALLDYNAMICVBP,
-    CC_ALLDYNAMICVBP_PROJSTATICVBP,
+COMPR_STRATEGIES = [
+    CS_UNCOMPR,
+    CS_RULEBASED,
 ]
 
+# -----------------------------------------------------------------------------
+# Format names
+# -----------------------------------------------------------------------------
+# We need to distinguish between the C++ identifiers (including template
+# parameters) in the MorphStore code and the simpler format names in this
+# script.
 
-# *****************************************************************************
-# Format names and utilities.
-# *****************************************************************************
+_MS_UNCOMPR = "uncompr_f"
 
-FORMAT_UNCOMPR = "uncompr_f"
+FN_UNCOMPR = "uncompr"
+FN_STATICVBP = "static_vbp"
+FN_DYNAMICVBP = "dynamic_vbp"
+FN_DELTA = "delta"
+FN_FOR = "for"
 
-def makeStaticVBP(bw, ps):
-    if ps == pss.PS_SCALAR:
-        step = 1
-    elif ps == pss.PS_VEC128:
-        step = 2
-    elif ps == pss.PS_VEC128_NEON:
-        step = 2
-    elif ps == pss.PS_VEC256:
-        step = 4
-    elif ps == pss.PS_VEC512:
-        step = 8
-    return "static_vbp_f<vbp_l<{}, {}> >".format(bw, step)
+_CASC_SEP = "/"
+def _makeCascName(logName, phyName):
+    return "{}/{}".format(logName, phyName)
 
-def makeDynamicVBP(ps):
-    if ps == pss.PS_SCALAR:
-        blockSizeLog = 64
-        pageSizeBlocks = 8
-        step = 1
-    elif ps == pss.PS_VEC128:
-        blockSizeLog = 128
-        pageSizeBlocks = 16
-        step = 2
-    elif ps == pss.PS_VEC128_NEON:
-        blockSizeLog = 128
-        pageSizeBlocks = 16
-        step = 2        
-    elif ps == pss.PS_VEC256:
-        blockSizeLog = 256
-        pageSizeBlocks = 32
-        step = 4
-    elif ps == pss.PS_VEC512:
-        blockSizeLog = 512
-        pageSizeBlocks = 32
-        step = 8
-    return "dynamic_vbp_f<{}, {}, {}>".format(
-        blockSizeLog, pageSizeBlocks, step
-    )
+COMPR_FORMATS = [
+    FN_UNCOMPR,
+    FN_STATICVBP,
+    FN_DYNAMICVBP,
+    _makeCascName(FN_DELTA, FN_DYNAMICVBP),
+    _makeCascName(FN_FOR, FN_DYNAMICVBP),
+]
 
-shortNames = {
-    FORMAT_UNCOMPR: "u",
+def _getMorphStoreFormatByName(fn, ps, maxBw):
+    pos = fn.find(_CASC_SEP)
+    if pos == -1:
+        if fn == FN_UNCOMPR:
+            return _MS_UNCOMPR
+        elif fn == FN_STATICVBP:
+            if maxBw is None:
+                raise RuntimeError(
+                    "static bit-packing needs to know the maximum bit width"
+                )
+            step = pss.PS_INFOS[ps].vectorElementCount
+            return "static_vbp_f<vbp_l<{}, {}> >".format(maxBw, step)
+        elif fn == FN_DYNAMICVBP:
+            blockSizeLog = pss.PS_INFOS[ps].vectorSizeBit
+            pageSizeBlocks = pss.PS_INFOS[ps].vectorSizeByte
+            step = pss.PS_INFOS[ps].vectorElementCount
+            return "dynamic_vbp_f<{}, {}, {}>".format(
+                blockSizeLog, pageSizeBlocks, step
+            )
+        else:
+            raise RuntimeError("unsupported format: '{}'".format(fn))
+    else:
+        outerName = fn[:pos]
+        innerName = fn[pos+1:]
+        # TODO reduce the code duplication here
+        if outerName == FN_DELTA:
+            blockSizeLog = 1024 # TODO dont hardcode
+            step = pss.PS_INFOS[ps].vectorElementCount
+            inner = _getMorphStoreFormatByName(innerName, ps, None)
+            return "delta_f<{}, {}, {} >".format(blockSizeLog, step, inner)
+        elif outerName == FN_FOR:
+            blockSizeLog = 1024 # TODO dont hardcode
+            step = pss.PS_INFOS[ps].vectorElementCount
+            inner = _getMorphStoreFormatByName(innerName, ps, None)
+            return "for_f<{}, {}, {} >".format(blockSizeLog, step, inner)
+        else:
+            raise RuntimeError(
+                "unsupported outer format of a cascade: '{}'".format(outerName)
+            )
+        
+# -----------------------------------------------------------------------------
+# Short names of the formats
+# -----------------------------------------------------------------------------
+
+_SHORT_NAMES = {
+    _MS_UNCOMPR: "u",
 }
 # We do not intend to use different vector extensions in one query at the
 # moment, so its ok if the short names are the same.
@@ -110,166 +132,106 @@ for ps in [
     pss.PS_VEC256,
     pss.PS_VEC512,
 ]:
-    shortNames[makeDynamicVBP(ps)] = "d"
+    _SHORT_NAMES[_getMorphStoreFormatByName(FN_DYNAMICVBP, ps, None)] = "d"
+    _SHORT_NAMES[_getMorphStoreFormatByName(
+        _makeCascName(FN_DELTA, FN_DYNAMICVBP), ps, None
+    )] = "dd"
+    _SHORT_NAMES[_getMorphStoreFormatByName(
+        _makeCascName(FN_FOR, FN_DYNAMICVBP), ps, None
+    )] = "fd"
     for bw in range(1, 64 + 1):
-        shortNames[makeStaticVBP(bw, ps)] = "s{}".format(bw)
+        _SHORT_NAMES[_getMorphStoreFormatByName(
+            FN_STATICVBP, ps, bw
+        )] = "s{}".format(bw)
 
+# -----------------------------------------------------------------------------
+# C++ headers required for the formats
+# -----------------------------------------------------------------------------
 
+_HEADERS_BY_FN = {
+    FN_UNCOMPR: [
+        # TODO format.h is only required, sinec uncompr_f is still defined there.
+        "core/morphing/format.h",
+        "core/morphing/uncompr.h"
+    ],
+    FN_STATICVBP: [
+        "core/morphing/static_vbp.h",
+        "core/morphing/vbp.h"
+    ],
+    FN_DYNAMICVBP: ["core/morphing/dynamic_vbp.h"],
+    FN_DELTA: ["core/morphing/delta.h"],
+    FN_FOR: ["core/morphing/for.h"],
+}
+
+def _addHeaders(tr, fn):
+    pos = fn.find(_CASC_SEP)
+    if pos == -1:
+        for header in _HEADERS_BY_FN[fn]:
+            tr.headers.add(header)
+    else:
+        _addHeaders(tr, fn[:pos])
+        _addHeaders(tr, fn[pos+1:])
+        
+        
 # *****************************************************************************
-# Implementations of the compression configurations.
+# Compression strategies
 # *****************************************************************************
-
-# Each of these functions takes an instance of
-# mal2morphstore.translation.TranslationResult as input and must set all input
-# and output formats of each operator call in the translated program.
 
 # All base and intermediate columns are uncompressed.
-def _configCompr_AllUncompr(tr, ps):
-    # TODO Remove the first header, but currently, uncompr_f is defined there.
-    tr.headers.add("core/morphing/format.h")
-    tr.headers.add("core/morphing/uncompr.h")
+def configureUncompr(tr):
+    _addHeaders(tr, FN_UNCOMPR)
+    
     for el in tr.prog:
         if isinstance(el, ops.Op):
             for key in el.__dict__:
                 if key.endswith("F"):
-                    el.__dict__[key] = FORMAT_UNCOMPR
-            
-# All base and intermediate columns are represented in the format static_vbp_f.
-# TODO Since not all of MorphStore's query operators support this yet, we use
-#      static_vbp_f where it is supported and otherwise use uncompr_f
-def _configCompr_AllStaticVBP(tr, ps):
-    # Set all formats to uncompr_f
-    # TODO This should not be required.
-    _configCompr_AllUncompr(tr, ps)
-    
-    tr.headers.add("core/morphing/static_vbp.h")
-    tr.headers.add("core/morphing/vbp.h")
-    
-    ar = analysis.analyze(tr, analyzeCardsAndBws=True)
-        
-    # Set the formats to static_vbp_f for all operators that support it.
-    for el in tr.prog:
-        if (
-            isinstance(el, ops.GroupUnary) or
-            # TODO Use compressed data for the joins again.
-            isinstance(el, ops.LeftSemiNto1Join) or
-            isinstance(el, ops.Nto1Join) or
-            isinstance(el, ops.Project) or
-            isinstance(el, ops.Select) or
-            isinstance(el, ops.SumWholeCol)
-        ):
-            for key in el.__dict__:
-                if key.endswith("F"):
-                    correspondingCol = "{}Col".format(key[:-1])
-                    el.__dict__[key] = makeStaticVBP(
-                        ar.maxBwByCol[el.__dict__[correspondingCol]], ps
-                    )
+                    el.__dict__[key] = _MS_UNCOMPR
                     
-# All base and intermediate columns are represented in the format
-# dynamic_vbp_f.
-# TODO Since not all of MorphStore's query operators support this yet, we use
-#      dynamic_vbp_f where it is supported and otherwise use uncompr_f
-def _configCompr_AllDynamicVBP(tr, ps):
-    # Set all formats to uncompr_f
-    # TODO This should not be required.
-    _configCompr_AllUncompr(tr, ps)
-    
-    tr.headers.add("core/morphing/dynamic_vbp.h")
-    
-    formatName = makeDynamicVBP(ps)
-        
-    # Set the formats to dynamic_vbp_f for all operators that support it.
-    for el in tr.prog:
-        if (
-            isinstance(el, ops.GroupUnary) or
-            # TODO Use compressed data for the joins again.
-            isinstance(el, ops.LeftSemiNto1Join) or
-            isinstance(el, ops.Nto1Join) or
-            isinstance(el, ops.Select) or
-            isinstance(el, ops.SumWholeCol)
-        ):
-            for key in el.__dict__:
-                if key.endswith("F"):
-                    el.__dict__[key] = formatName
-        elif isinstance(el, ops.Project):
-            # The project-operator does not support dynamic_vbp_f for the input
-            # data column.
-            el.outDataF = formatName
-            el.inPosF = formatName
-
-def _configCompr_AllDynamicVBP_ProjectStaticVBP(tr, ps):
-    # Set all formats to uncompr_f
-    # TODO This should not be required.
-    _configCompr_AllUncompr(tr, ps)
-    
-    tr.headers.add("core/morphing/dynamic_vbp.h")
-    tr.headers.add("core/morphing/static_vbp.h")
-    tr.headers.add("core/morphing/vbp.h")
+# Simple rule-based strategy.
+def configureRuleBased(tr, ps, fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted):
+    _addHeaders(tr, FN_UNCOMPR)
+    _addHeaders(tr, fnRndAcc)
+    _addHeaders(tr, fnSeqAccUnsorted)
+    _addHeaders(tr, fnSeqAccSorted)
     
     ar = analysis.analyze(tr, analyzeCardsAndBws=True)
     
-    formatNameDyn = makeDynamicVBP(ps)
-        
-    # Set the formats to dynamic_vbp_f for all operators that support it.
-    for elIdx, el in enumerate(tr.prog):
-        if (
-            isinstance(el, ops.GroupUnary) or
-            # TODO Use compressed data for the joins again.
-            isinstance(el, ops.LeftSemiNto1Join) or
-            isinstance(el, ops.Nto1Join) or
-            isinstance(el, ops.Select) or
-            isinstance(el, ops.SumWholeCol)
-        ):
+    formatByCol = {}
+    
+    def _decideFormat(varName):
+        if varName in ar.varsForcedUncompr:
+            return _MS_UNCOMPR
+        elif varName in ar.varsRndAccess:
+            return _getMorphStoreFormatByName(
+                    fnRndAcc, ps, ar.maxBwByCol[varName]
+            )
+        elif varName in ar.varsSorted:
+            return _getMorphStoreFormatByName(
+                    fnSeqAccSorted, ps, ar.maxBwByCol[varName]
+            )
+        else:
+            return _getMorphStoreFormatByName(
+                    fnSeqAccUnsorted, ps, ar.maxBwByCol[varName]
+            )
+    
+    for tblName in tr.colNamesByTblName:
+        for colName in tr.colNamesByTblName[tblName]:
+            varName = "{}.{}".format(tblName, colName)
+            formatByCol[varName] = _decideFormat(varName)
+    
+    for el in tr.prog:
+        if isinstance(el, ops.Op):
             for key in el.__dict__:
                 if key.endswith("F"):
-                    el.__dict__[key] = formatNameDyn
-        elif isinstance(el, ops.Project):
-            outDataNeededForProject = False
-            outDataNeededForOther = False
-            for elOther in tr.prog[elIdx:]:
-                if isinstance(elOther, ops.Op):
-                    for key in elOther.__dict__:
-                        if key.startswith("in") and key.endswith("Col"):
-                            if elOther.__dict__[key] == el.outDataF:
-                                if isinstance(elOther, ops.Project):
-                                    outDataNeededForProject = True
-                                else:
-                                    outDataNeededForOther = True
-            if outDataNeededForProject and not outDataNeededForOther:
-                el.outDataF = makeStaticVBP(ar.maxBwByCol[el.outDataCol], ps)
-            elif not outDataNeededForProject and outDataNeededForOther:
-                el.outDataF = formatNameDyn
-            else: # Needed for both.
-                el.outDataF = "uncompr_f"
-
-            el.inPosF = formatNameDyn
-            el.inDataF = makeStaticVBP(ar.maxBwByCol[el.inDataCol], ps)
-
-
+                    varName = getattr(el, key[:-1] + "Col")
+                    if key.startswith("out"):
+                        formatByCol[varName] = _decideFormat(varName)
+                    el.__dict__[key] = formatByCol[varName]
+                    
+                    
 # *****************************************************************************
-# Functions to be used from outside.
+# Utilities after the compression configuration
 # *****************************************************************************
-
-# Sets all formats in the given translated program according to the specified
-# compression configuration. This function takes an instance of
-# mal2morphstore.translation.TranslationResult and the name of a compression
-# configuration and delegates the control flow to the function of the selected
-# compression configuration.
-def configCompr(translationResult, comprConfig, processingStyle):
-    if comprConfig == CC_ALLUNCOMPR:
-        _configCompr_AllUncompr(translationResult, processingStyle)
-    elif comprConfig == CC_ALLSTATICVBP:
-        _configCompr_AllStaticVBP(translationResult, processingStyle)
-    elif comprConfig == CC_ALLDYNAMICVBP:
-        _configCompr_AllDynamicVBP(translationResult, processingStyle)
-    elif comprConfig == CC_ALLDYNAMICVBP_PROJSTATICVBP:
-        _configCompr_AllDynamicVBP_ProjectStaticVBP(
-            translationResult, processingStyle
-        )
-    else:
-        raise RuntimeError(
-            "Unsupported compression configuration: '{}'".format(comprConfig)
-        )
 
 # Checks if all input and output formats of all operators in the given
 # translated query have been set and raises an error otherwise.
@@ -295,7 +257,7 @@ def checkAllFormatsSet(translationResult):
 def insertMorphs(translationResult):
     def makeNewVarName(varName, formatName):
         return "{}__{}".format(
-            varName.replace(".", "_"), shortNames[formatName]
+            varName.replace(".", "_"), _SHORT_NAMES[formatName]
         )
     
     # The new query program and result column names.
@@ -334,8 +296,8 @@ def insertMorphs(translationResult):
     # Morphs for the query's result columns.
     newProg.append("// Decompress the output columns, if necessary.")
     for varName in translationResult.resultCols:
-        newVarName = makeNewVarName(varName, FORMAT_UNCOMPR)
-        newProg.append(ops.Morph(newVarName, varName, FORMAT_UNCOMPR))
+        newVarName = makeNewVarName(varName, _MS_UNCOMPR)
+        newProg.append(ops.Morph(newVarName, varName, _MS_UNCOMPR))
         newResultCols.append(newVarName)
         
     # Overwriting the old program and result column names with the new ones.

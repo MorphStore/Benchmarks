@@ -50,7 +50,6 @@ Known limitations:
   program, but for the moment it should suffice for our purposes.
 - So far, the generated C++ code will employ only one of MorphStore's
   processing styles (which must be specified as an argument to this script).
-- So far, only operators on uncompressed data are considered.
 
 See the documentations of the modules in package mal2x for further
 details.
@@ -115,15 +114,8 @@ if __name__ == "__main__":
                 ", ".join(map(quote, pp.PURPOSES_LONG))
             )
     )
-    parser.add_argument(
-        "comprConfig", metavar="COMPRESSION_CONFIG",
-        choices=compr.COMPR_CONFIGS,
-        help="The compression configuration to use for the translated query. "
-            "The following configurations are supported: {}.".format(
-                ", ".join(map(quote, compr.COMPR_CONFIGS)),
-            )
-    )
-    # Optional arguments
+    
+    # General optional arguments
     FROM_STDIN = "-"
     parser.add_argument(
         "--malfile", dest="inMalFilePath", default=FROM_STDIN, metavar="FILE",
@@ -137,8 +129,69 @@ if __name__ == "__main__":
         help="Are the hand implemented operators used (1), "
             "or the operators using the vector library (2)?"
     )
+    
+    # Compression arguments
+    comprArgGr = parser.add_argument_group(
+        "compression arguments",
+        "The following arguments control the selection of the (un)compressed "
+        "formats for each base column and each intermediate result in the "
+        "translated query program. The compression strategy determines the "
+        "basic approch how to do this. Depending on the strategy, additional "
+        "arguments may be allowed. "
+        "The following FORMATs are supported: {}".format(
+            ", ".join(map(quote, compr.COMPR_FORMATS))
+        )
+    );
+    comprArgGr.add_argument(
+        "-c", dest="comprStrategy",
+        metavar="COMPRESSION_STRATEGY",
+        choices=compr.COMPR_STRATEGIES, default=compr.CS_UNCOMPR,
+        help="The strategy to use for deciding the compressed formats of all "
+            "base and intermediate columns in the translated query. The "
+            "following strategies are supported: {}.".format(
+                ", ".join(map(quote, compr.COMPR_STRATEGIES)),
+            )
+    )
+    comprArgGr.add_argument(
+        "-crnd", dest="comprRndFormat", metavar="FORMAT",
+        choices=compr.COMPR_FORMATS, default=None,
+        help="The format to use for columns requiring random access. Only "
+            "allowed for the '{}' strategy. Defaults to '{}'".format(
+                compr.CS_RULEBASED, compr.FN_UNCOMPR
+            )
+    )
+    comprArgGr.add_argument(
+        "-csequ", dest="comprSeqUnsortedFormat", metavar="FORMAT",
+        choices=compr.COMPR_FORMATS, default=None,
+        help="The format to use for unsorted columns requiring only "
+            "sequential access. Only  allowed for the '{}' strategy. Defaults "
+            "to the value of -crnd".format(compr.CS_RULEBASED)
+    )
+    comprArgGr.add_argument(
+        "-cseqs", dest="comprSeqSortedFormat", metavar="FORMAT",
+        choices=compr.COMPR_FORMATS, default=None,
+        help="The format to use for sorted columns requiring only "
+            "sequential access. Only  allowed for the '{}' strategy. Defaults "
+            "to the value of -csequ".format(compr.CS_RULEBASED)
+    )
 
     args = parser.parse_args()
+    
+    # Validation of the combination of the compression arguments.
+    if args.comprStrategy == compr.CS_UNCOMPR:
+        if (
+            args.comprRndFormat is not None or
+            args.comprSeqUnsortedFormat is not None or
+            args.comprSeqSortedFormat is not None
+        ):
+            parser.error("Illegal combination of the compression arguments.")
+    elif args.comprStrategy == compr.CS_RULEBASED:
+        if args.comprRndFormat is None:
+            args.comprRndFormat = compr.FN_UNCOMPR
+        if args.comprSeqUnsortedFormat is None:
+            args.comprSeqUnsortedFormat = args.comprRndFormat
+        if args.comprSeqSortedFormat is None:
+            args.comprSeqSortedFormat = args.comprSeqUnsortedFormat
 
     if args.inMalFilePath == FROM_STDIN:
         # 0 is the file descriptor of stdin, can be used with open().
@@ -162,11 +215,23 @@ if __name__ == "__main__":
     )
     
     # Compression configuration.
-    compr.configCompr(
-        translationResult, args.comprConfig, args.processingStyle
-    )
+    if args.comprStrategy == compr.CS_UNCOMPR:
+        compr.configureUncompr(translationResult)
+    elif args.comprStrategy == compr.CS_RULEBASED:
+        compr.configureRuleBased(
+            translationResult,
+            args.processingStyle,
+            args.comprRndFormat,
+            args.comprSeqUnsortedFormat,
+            args.comprSeqSortedFormat,
+        )
+    else:
+        # This case should have been handled by the parser before.
+        raise RuntimeError(
+            "Unsupported compression strategy: '{}'".format(args.comprStrategy)
+        )
     compr.checkAllFormatsSet(translationResult)
-    if args.comprConfig != compr.CC_ALLUNCOMPR:
+    if args.comprStrategy != compr.CS_UNCOMPR:
         compr.insertMorphs(translationResult)
     
     # C++-code generation.
