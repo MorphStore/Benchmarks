@@ -386,6 +386,28 @@ def analyze(translationResult, analyzeCardsAndBws=False):
             if isinstance(el, ops.Project):
                 if el.inDataCol not in varsRndAccess:
                     varsRndAccess.append(el.inDataCol)
+            elif (
+                isinstance(el, ops.Select) or
+                isinstance(el, ops.Intersect) or
+                isinstance(el, ops.Merge) or
+                isinstance(el, ops.Join) or
+                isinstance(el, ops.Nto1Join) or
+                isinstance(el, ops.LeftSemiNto1Join) or
+                isinstance(el, ops.CalcBinary) or
+                isinstance(el, ops.SumWholeCol) or
+                isinstance(el, ops.SumGrBased) or
+                isinstance(el, ops.GroupUnary) or
+                isinstance(el, ops.GroupBinary) or
+                isinstance(el, ops.Morph)
+            ):
+                pass
+            else:
+                raise RuntimeError(
+                        "the operator {} is not taken into account in "
+                        "tracking which columns require random access.".format(
+                                el.__class__.__name__
+                        )
+                )
                     
             # Tracking the sortedness of column-variables.
             if isinstance(el, ops.Project):
