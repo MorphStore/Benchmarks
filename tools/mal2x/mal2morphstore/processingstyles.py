@@ -28,6 +28,8 @@ the program translation.
 """
 
 
+_BITS_PER_BYTE = 8
+
 # Names of the Vector extensions in MorphStore.
 # These must follow Morphstore's VectorExtension template:
 # VectorExtension<VectorSize<BaseType>
@@ -35,7 +37,23 @@ PS_SCALAR = "scalar<v64<uint64_t>>"
 PS_VEC128 = "sse<v128<uint64_t>>"
 PS_VEC256 = "avx2<v256<uint64_t>>"
 PS_VEC512 = "avx512<v512<uint64_t>>"
-PS_VEC128_NEON = "neon<v128<uint64_t>>" 
+PS_VEC128_NEON = "neon<v128<uint64_t>>"
+
+class ProcessingStyleInfo:
+    def __init__(self, vectorSizeBit, elementSizeBit):
+        self.vectorSizeBit = vectorSizeBit
+        self.elementSizeBit = elementSizeBit
+        self.vectorSizeByte = int(vectorSizeBit / _BITS_PER_BYTE)
+        self.elementSizeByte = int(elementSizeBit / _BITS_PER_BYTE)
+        self.vectorElementCount = int(vectorSizeBit / elementSizeBit)
+        
+PS_INFOS = {
+    PS_SCALAR: ProcessingStyleInfo(64, 64),
+    PS_VEC128: ProcessingStyleInfo(128, 64),
+    PS_VEC256: ProcessingStyleInfo(256, 64),
+    PS_VEC512: ProcessingStyleInfo(512, 64),
+    PS_VEC128_NEON: ProcessingStyleInfo(128, 64),
+}
 
 # Maps the name of a processing style to the name of the subdirectory of 
 # MorphStore's include directory in which the operator implementations for the
