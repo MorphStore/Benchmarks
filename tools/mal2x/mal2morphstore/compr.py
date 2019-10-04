@@ -249,29 +249,37 @@ def checkAllFormatsSet(translationResult):
                         )
             opIdx += 1
             
-# Inserts morph-operators before each operator to ensure that its input columns
-# are available in the expected format.
-# TODO Do not insert morphs with the same source and destination format to make
-#      the C++ source code easier to read (it has no impact on the
-#      performance, since such morphs are zero-cost).
+# Inserts morph-operators before each operator, if necessary to ensure that its
+# input columns are available in the expected format.
 def insertMorphs(translationResult):
-    def makeNewVarName(varName, formatName):
-        return "{}__{}".format(
-            varName.replace(".", "_"), _SHORT_NAMES[formatName]
-        )
+    def _ensureAvailable(varName, formatName):
+        # If there is no column variable for this column in the given format
+        # yet, then we add a full-column morph.
+        if formatName not in actualNames[varName]:
+            newVarName = "{}__{}".format(
+                varName.replace(".", "_"), _SHORT_NAMES[formatName]
+            )
+            newProg.append(ops.Morph(newVarName, varName, formatName))
+            actualNames[varName][formatName] = newVarName
     
     # The new query program and result column names.
     newProg = []
     newResultCols = []
+
+    # A mapping from original column variable names to a mapping from
+    # MorphStore format names to original or newly introduced column variable
+    # names.
+    actualNames = {}
+    for tblName in translationResult.colNamesByTblName:
+        for colName in translationResult.colNamesByTblName[tblName]:
+            varName = "{}.{}".format(tblName, colName)
+            actualNames[varName] = {_MS_UNCOMPR: varName}
     
-    # Names of column variables newly introduced by morphs.
-    newVarNames = []
-    
-    # Morphs for the operators' input columns.
+    # Add full-column morphs for the operators' input columns, if necessary.
     for el in translationResult.prog:
         if isinstance(el, ops.Op):
             for key in el.__dict__:
-                if key.startswith("in") and key.endswith("Col"):
+                if key.endswith("Col"):
                     if isinstance(el, ops.SumGrBased) and key == "inExtCol":
                         # This special case must be skipped, since the
                         # group-based agg_sum-operator does not access the data
@@ -280,25 +288,23 @@ def insertMorphs(translationResult):
                         # for this input column.
                         continue
                     varName = getattr(el, key)
-                    requiredFormat = getattr(
+                    configuredFormat = getattr(
                         el, "{}F".format(key[:-len("Col")])
                     )
-                    newVarName = makeNewVarName(varName, requiredFormat)
-                    if newVarName not in newVarNames:
-                        newProg.append(
-                            ops.Morph(newVarName, varName, requiredFormat)
-                        )
-                        newVarNames.append(newVarName)
-                    setattr(el, key, newVarName)
+                    if key.startswith("in"): # Input columns
+                        _ensureAvailable(varName, configuredFormat)
+                        setattr(el, key, actualNames[varName][configuredFormat])
+                    else: # Output columns
+                        # Remember in which format this column was created.
+                        actualNames[varName] = {configuredFormat: varName}
         newProg.append(el)
     
     
     # Morphs for the query's result columns.
     newProg.append("// Decompress the output columns, if necessary.")
     for varName in translationResult.resultCols:
-        newVarName = makeNewVarName(varName, _MS_UNCOMPR)
-        newProg.append(ops.Morph(newVarName, varName, _MS_UNCOMPR))
-        newResultCols.append(newVarName)
+        _ensureAvailable(varName, _MS_UNCOMPR)
+        newResultCols.append(actualNames[varName][_MS_UNCOMPR])
         
     # Overwriting the old program and result column names with the new ones.
     translationResult.prog = newProg

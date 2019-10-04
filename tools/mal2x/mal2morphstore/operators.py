@@ -346,6 +346,7 @@ class SumWholeCol(Op):
         self.inDataCol = inDataCol
         # The output format is hardcoded to uncompr_f in MorphStore, since
         # compression does not make sense for a single data element.
+        self.outDataF = "uncompr_f"
         self.inDataF = None
         
     def __str__(self):
