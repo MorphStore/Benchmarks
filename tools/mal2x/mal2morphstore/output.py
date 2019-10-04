@@ -131,7 +131,16 @@ def _printSchema(indent, tr):
         print("{}}} {};".format(indent, tblName))
         print()
 
-def _printDataLoad(indent, tr):
+def _prepareOutColsForRandomAccess(indent, op, ar):
+    for key in op.__dict__:
+        if key.startswith("out") and key.endswith("Col"):
+            varName = getattr(op, key)
+            if varName in ar.varsRndAccess:
+                print("{}{}->template prepare_for_random_access<{}>();".format(
+                        indent, varName, ps.PS_VAR
+                ))
+
+def _printDataLoad(indent, tr, ar):
     """
     Prints C++ statements for loading the data of each column used by the
     translated program from a file on disk.
@@ -163,23 +172,15 @@ def _printDataLoad(indent, tr):
         print("{}// Morph the base columns.".format(indent))
         for op in sorted(tr.baseMorphs, key=lambda op: op.inCol):
             print("{}{}".format(indent, op).replace("\n", "\n" + indent))
+            _prepareOutColsForRandomAccess(indent, op, ar)
     else:
         print("{}// No morphing of the base columns required.".format(indent))
     print()
-
+    
 def _printProg(indent, tr, purpose, ar):
     """
     Prints the core program, i.e., the sequence of operators.
     """
-
-    def _prepareOutColsForRandomAccess(op):
-        for key in el.__dict__:
-            if key.startswith("out") and key.endswith("Col"):
-                varName = getattr(el, key)
-                if varName in ar.varsRndAccess:
-                    print("{}{}->template prepare_for_random_access<{}>();".format(
-                            indent, varName, ps.PS_VAR
-                    ))
     
     # The query program.
     if purpose == pp.PP_TIME:
@@ -262,7 +263,7 @@ def _printProg(indent, tr, purpose, ar):
                 print('{}MONITORING_END_INTERVAL_FOR  ({}, {}, {});'.format(
                         indent, varColRuntime, monVarOpNameOp, opIdx)
                 )
-                _prepareOutColsForRandomAccess(el)
+                _prepareOutColsForRandomAccess(indent, el, ar)
                 opIdx += 1
             else:
                 print("{}{}".format(indent, el).replace("\n", "\n" + indent))
@@ -358,7 +359,7 @@ def _printProg(indent, tr, purpose, ar):
             if isinstance(el, Op):
                 monVarOpNameOp = varOpNameFs.format(el.opName)
                 print("{}{}".format(indent, el).replace("\n", "\n" + indent))
-                _prepareOutColsForRandomAccess(el)
+                _prepareOutColsForRandomAccess(indent, el, ar)
                 for foo in sorted(el.__dict__):
                     if (foo.startswith("in") or foo.startswith("out")) and foo.endswith("Col"):
                         print('{}hist = get_histogram({});'.format(indent,el.__dict__[foo]))
@@ -405,7 +406,7 @@ def _printProg(indent, tr, purpose, ar):
         for el in tr.prog:
             print("{}{}".format(indent, el).replace("\n", "\n" + indent))
             if isinstance(el, Op):
-                _prepareOutColsForRandomAccess(el)
+                _prepareOutColsForRandomAccess(indent, el, ar)
     else:
         raise RuntimeError("unsupported purpose: '{}'".format(purpose))
 
@@ -535,7 +536,7 @@ def generate(
                     ))
                     print()
                 elif ph == "dataload":
-                    _printDataLoad(indent, translationResult)
+                    _printDataLoad(indent, translationResult, ar)
                 elif ph == "prog":
                     _printProg(
                             indent,
