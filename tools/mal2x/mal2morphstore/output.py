@@ -167,7 +167,7 @@ def _printDataLoad(indent, tr):
         print("{}// No morphing of the base columns required.".format(indent))
     print()
 
-def _printProg(indent, tr, purpose, processingStyle, ar):
+def _printProg(indent, tr, purpose, ar):
     """
     Prints the core program, i.e., the sequence of operators.
     """
@@ -541,7 +541,6 @@ def generate(
                             indent,
                             translationResult,
                             purpose,
-                            processingStyle,
                             ar
                     )
                 elif ph == "result":
