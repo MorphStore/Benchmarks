@@ -170,14 +170,6 @@ def _printProg(indent, tr, purpose, processingStyle, ar):
                             indent, varName, ps.PS_VAR
                     ))
     
-    # The constant representing the processing style to use for all operators.
-    #print("{}// The processing style used by all operators.".format(indent))
-    #print("{}const processing_style_t {} = processing_style_t::{};".format(
-    #indent, ps.PS_VAR, processingStyle
-    #))
-    print("{}using {} = {};".format(indent, ps.PS_VAR, processingStyle))
-    print()
-    
     # The query program.
     if purpose == pp.PP_TIME:
         # Constants for the monitoring column names.
@@ -410,7 +402,7 @@ def _printResultOutput(indent, tr, purpose):
     """
     Prints C++ statements for the output of the query's result columns.
     """
-
+        
     if purpose in [pp.PP_TIME, pp.PP_DATACH]:
         print('{}std::cout << "[MEA]" << std::endl;'.format(indent))
         print("{}MONITORING_PRINT_MONITORS(monitorCsvLog);".format(indent))
@@ -433,7 +425,7 @@ def _printAnalysis(indent, ar):
     Prints C++ comments containing some interesting facts about the translated
     program.
     """
-    
+
     print("{}//         Intermediates used before assigned".format(indent))
     if len(ar.varsUsedBeforeAssigned):
         print("{}// [WARN]: Found the following:".format(indent))
@@ -510,6 +502,13 @@ def generate(
                     )
                 elif ph == "schema":
                     _printSchema(indent, translationResult)
+                elif ph == "processingstyle":
+                    # The constant representing the processing style to use for
+                    # all operators.
+                    print("{}using {} = {};".format(
+                            indent, ps.PS_VAR, processingStyle
+                    ))
+                    print()
                 elif ph == "dataload":
                     _printDataLoad(indent, translationResult)
                 elif ph == "prog":

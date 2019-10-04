@@ -53,6 +53,8 @@ int main(int argc, const char ** argv) {
     }
     const std::string dataPath(argv[1]);
     
+    // ##### mal2morphstore processingstyle #####
+    
     // ------------------------------------------------------------------------
     // Loading the base data
     // ------------------------------------------------------------------------
