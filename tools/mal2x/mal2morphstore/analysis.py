@@ -185,7 +185,7 @@ def analyze(translationResult, analyzeCardsAndBws=False):
                 )
         )
     
-    for el in translationResult.prog:
+    for el in translationResult.baseMorphs + translationResult.prog + translationResult.resultMorphs:
         if isinstance(el, ops.Op):
             # Tracking the usage of column-variables.
             for key in el.__dict__:

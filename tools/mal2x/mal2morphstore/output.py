@@ -82,7 +82,7 @@ def _printHeaders(indent, tr, purpose, processingStyle, versionSelect):
     # selected processing style.
     # TODO switch include directories depending on vector version
     if (versionSelect == 1):
-      for el in tr.prog:
+      for el in tr.baseMorphs + tr.prog + tr.resultMorphs:
           if isinstance(el, Op):
               for header in el.headers:
                   tr.headers.add(header.format(
@@ -92,7 +92,7 @@ def _printHeaders(indent, tr, purpose, processingStyle, versionSelect):
                           }
                   ))
     else:             
-      for el in tr.prog:
+      for el in tr.baseMorphs + tr.prog + tr.resultMorphs:
           if isinstance(el, Op):
               for header in el.headers:
                   tr.headers.add(header.format(
@@ -137,6 +137,8 @@ def _printDataLoad(indent, tr):
     translated program from a file on disk.
     """
     
+    # Load the base columns.
+    print("{}// Load the base columns.".format(indent))
     maxLen = max([
         len(tblName) + 1 + len(colName)
         for tblName in tr.colNamesByTblName
@@ -154,7 +156,16 @@ def _printDataLoad(indent, tr):
                     fullName
                 )
             )
-        print()
+    print()
+    
+    # Morph the base columns.
+    if len(tr.baseMorphs):
+        print("{}// Morph the base columns.".format(indent))
+        for op in sorted(tr.baseMorphs, key=lambda op: op.inCol):
+            print("{}{}".format(indent, op).replace("\n", "\n" + indent))
+    else:
+        print("{}// No morphing of the base columns required.".format(indent))
+    print()
 
 def _printProg(indent, tr, purpose, processingStyle, ar):
     """
@@ -402,12 +413,26 @@ def _printResultOutput(indent, tr, purpose):
     """
     Prints C++ statements for the output of the query's result columns.
     """
-        
+
+    # Print the monitoring data.
     if purpose in [pp.PP_TIME, pp.PP_DATACH]:
+        print("{}// Print the monitoring data.".format(indent))
         print('{}std::cout << "[MEA]" << std::endl;'.format(indent))
         print("{}MONITORING_PRINT_MONITORS(monitorCsvLog);".format(indent))
         print('{}std::cout << "[RES]" << std::endl;'.format(indent))
+        print()
     
+    # Morph the result columns.
+    if len(tr.resultMorphs):
+        print("{}// Morph the result columns.".format(indent))
+        for op in sorted(tr.resultMorphs, key=lambda op: op.inCol):
+            print("{}{}".format(indent, op).replace("\n", "\n" + indent))
+    else:
+        print("{}// No morphing of the result columns required.".format(indent))
+    print()
+    
+    # Print the result columns.
+    print("{}// Print the result columns.".format(indent))
     if True:
         # Output in the same CSV dialect MonetDB uses.
         print("{}print_columns_csv({{{}}});".format(

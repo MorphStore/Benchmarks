@@ -301,7 +301,6 @@ def insertMorphs(translationResult):
     
     
     # Morphs for the query's result columns.
-    newProg.append("// Decompress the output columns, if necessary.")
     for varName in translationResult.resultCols:
         _ensureAvailable(varName, _MS_UNCOMPR)
         newResultCols.append(actualNames[varName][_MS_UNCOMPR])
@@ -309,3 +308,31 @@ def insertMorphs(translationResult):
     # Overwriting the old program and result column names with the new ones.
     translationResult.prog = newProg
     translationResult.resultCols = newResultCols
+    
+def reorderMorphs(translationResult):
+    """
+    Separates the morphs of the base and result columns (which might have been
+    inserted by insertMorphs()) from the rest of the query program.
+    """
+    
+    newProg = []
+    baseMorphs = []
+    resultMorphs = []
+    
+    for el in translationResult.prog:
+        if isinstance(el, ops.Morph):
+            if "." in el.inCol:
+                # The input is a base column.
+                baseMorphs.append(el)
+            elif el.outCol in translationResult.resultCols:
+                # The output is a result column.
+                resultMorphs.append(el)
+            else:
+                # Input and output are intermediate results.
+                newProg.append(el)
+        else:
+            newProg.append(el)
+            
+    translationResult.prog = newProg
+    translationResult.baseMorphs = baseMorphs
+    translationResult.resultMorphs = resultMorphs

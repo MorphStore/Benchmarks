@@ -217,6 +217,14 @@ class TranslationResult():
             if tblName not in self.colNamesByTblName:
                 self.colNamesByTblName[tblName] = set()
             self.colNamesByTblName[tblName].add(colName)
+        
+        # A list of morph-operators consuming base columns. These need to be
+        # executed before the actual query program in self.prog.
+        self.baseMorphs = []
+        
+        # A list of morph-operators producing result columns. These need to be
+        # executed after the actual query program in self.prog.
+        self.resultMorphs = []
 
 
 # *****************************************************************************

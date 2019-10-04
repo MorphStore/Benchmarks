@@ -233,6 +233,7 @@ if __name__ == "__main__":
     compr.checkAllFormatsSet(translationResult)
     if args.comprStrategy != compr.CS_UNCOMPR:
         compr.insertMorphs(translationResult)
+    compr.reorderMorphs(translationResult)
     
     # C++-code generation.
     mal2morphstore.output.generate(
