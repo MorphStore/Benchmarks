@@ -199,7 +199,7 @@ def configureRuleBased(tr, ps, fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted):
     formatByCol = {}
     
     def _decideFormat(varName):
-        if varName in ar.varsForcedUncompr:
+        if varName in ar.varsForcedUncompr or varName in tr.resultCols:
             return _MS_UNCOMPR
         elif varName in ar.varsRndAccess:
             return _getMorphStoreFormatByName(
