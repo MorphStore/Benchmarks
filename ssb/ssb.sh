@@ -645,7 +645,7 @@ function run () {
                             eval $pathExe/$targetName $pathDataColsDict 2> /dev/null \
                                 | sort \
                                 > $resFileMorphSt
-                            cmp --silent $pathRefRes/q$major.$minor $resFileMorphSt
+                            cmp --silent $pathRefRes/q$major.$minor.csv $resFileMorphSt
                             ;;
                     esac
                     if [[ $? -eq 0 ]]
