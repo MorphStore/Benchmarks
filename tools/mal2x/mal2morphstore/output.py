@@ -45,7 +45,8 @@ of an abstract representation of the translated program.
 
 
 import mal2morphstore.analysis
-from mal2morphstore.operators import Op
+import mal2morphstore.compr as compr
+from mal2morphstore.operators import Op, Morph
 import mal2morphstore.processingstyles as ps
 import mal2morphstore.purposes as pp
 
@@ -103,7 +104,7 @@ def _printHeaders(indent, tr, purpose, processingStyle, versionSelect):
                   ))
         
     # Add monitoring header if required.
-    if purpose in [pp.PP_TIME, pp.PP_DATACH]:
+    if purpose in [pp.PP_TIME, pp.PP_DATACH, pp.PP_SIZE]:
         tr.headers.add("core/utils/monitoring.h")
     
     tr.headers.add("core/utils/histogram.h")
@@ -177,7 +178,7 @@ def _printDataLoad(indent, tr, ar):
         print("{}// No morphing of the base columns required.".format(indent))
     print()
     
-def _printProg(indent, tr, purpose, ar):
+def _printProg(indent, tr, purpose, ar, ps):
     """
     Prints the core program, i.e., the sequence of operators.
     """
@@ -402,6 +403,113 @@ def _printProg(indent, tr, purpose, ar):
             else:
                 print("{}{}".format(indent, el).replace("\n", "\n" + indent))
         print()
+    elif purpose == pp.PP_SIZE:
+        # Constants for the monitoring column names.
+        varColColName = "colColName"
+        varColFormat = "colFormat"
+        varColValueCount = "colValueCount"
+        varColValueCountCompr = "colValueCountCompr"
+        varColUsedBytes = "colUsedBytes"
+        varColComprBytes = "colComprBytes"
+        print("{}// Constants for the monitoring column names.".format(indent))
+        for varName, varVal in [
+            # (C++ constant name, CSV column name)
+            (varColColName, "colName"),
+            (varColFormat, "format"),
+            (varColValueCount, "valueCount"),
+            (varColValueCountCompr, "valueCountCompr"),
+            (varColUsedBytes, "sizeUsedByte"),
+            (varColComprBytes, "sizeComprByte"),
+        ]:
+            print('{}const std::string {} = "{}";'.format(
+                    indent, varName, varVal
+            ))
+        print()
+
+        # Creation of the monitors.
+        print("{}// Creation of the monitors.".format(indent))
+        varNames = set()
+        for el in tr.prog:
+            if isinstance(el, Op):
+                for key in el.__dict__:
+                    if key.endswith("Col"):
+                        varNames.add(getattr(el, key))
+        for varName in varNames:
+            for formatName in compr.COMPR_FORMATS:
+                print(
+                    '{}MONITORING_CREATE_MONITOR(MONITORING_MAKE_MONITOR("{}", "{}"), MONITORING_KEY_IDENTS({}, {}));'
+                    .format(
+                            indent,
+                            varName,
+                            formatName,
+                            varColColName,
+                            varColFormat,
+                    )
+                )
+        print()
+        
+        def _morphToAllFormats(varName):
+#            print(
+#                '{}std::cerr << "\\tmorphing column {} to all formats..." << '
+#                'std::endl;'.format(indent, varName)
+#            )
+            for formatName in compr.COMPR_FORMATS:
+                msFormatName = compr._getMorphStoreFormatByName(
+                    formatName, ps, ar.maxBwByCol[varName]
+                )
+                newVarName = "{}__m".format(varName.replace(".", "_"))
+                print("{}{{".format(indent))
+#                print('{}std::cerr << "\\t\\t{}... ";'.format(
+#                    2 * indent, msFormatName
+#                ))
+                print("{}{}".format(
+                    2 * indent, Morph(newVarName, varName, msFormatName)
+                ))
+#                print('{}std::cerr << "done." << std::endl;'.format(
+#                    2 * indent, msFormatName
+#                ))
+                for method, colName in [
+                    ("get_count_values"      , varColValueCount),
+                    ("get_count_values_compr", varColValueCountCompr),
+                    ("get_size_used_byte"    , varColUsedBytes),
+                    ("get_size_compr_byte"   , varColComprBytes),
+                ]:
+                    print('{}MONITORING_ADD_INT_FOR({}, {}->{}(), "{}", "{}");'.format(
+                            2 * indent,
+                            colName,
+                            newVarName,
+                            method,
+                            varName,
+                            formatName
+                    ))
+                if formatName != compr.FN_UNCOMPR:
+                    print("{}delete {};".format(2 * indent, newVarName))
+                print("{}}}".format(indent))
+#            print('{}std::cerr << "\\tdone." << std::endl;'.format(indent))
+
+        
+        # Morphing the base data to all formats.
+        print("{}// Morphing the base data to all formats.".format(indent))
+        for tblName in tr.colNamesByTblName:
+            for colName in tr.colNamesByTblName[tblName]:
+                _morphToAllFormats("{}.{}".format(tblName, colName))
+        print()
+        
+        # Query program.
+        print("{}// Query program.".format(indent))
+        print()
+        for el in tr.prog:
+            if isinstance(el, Op):
+                print("{}{}".format(indent, el).replace("\n", "\n" + indent))
+                _prepareOutColsForRandomAccess(indent, el, ar)
+                
+                for key in el.__dict__:
+                    if key.startswith("out") and key.endswith("Col"):
+                        varName = getattr(el, key)
+                        _morphToAllFormats(varName)
+            else:
+                print("{}{}".format(indent, el).replace("\n", "\n" + indent))
+        print()
     elif purpose in [pp.PP_CHECK, pp.PP_RESULTS]:
         for el in tr.prog:
             print("{}{}".format(indent, el).replace("\n", "\n" + indent))
@@ -416,7 +524,7 @@ def _printResultOutput(indent, tr, purpose):
     """
 
     # Print the monitoring data.
-    if purpose in [pp.PP_TIME, pp.PP_DATACH]:
+    if purpose in [pp.PP_TIME, pp.PP_DATACH, pp.PP_SIZE]:
         print("{}// Print the monitoring data.".format(indent))
         print('{}std::cout << "[MEA]" << std::endl;'.format(indent))
         print("{}MONITORING_PRINT_MONITORS(monitorCsvLog);".format(indent))
@@ -505,7 +613,9 @@ def generate(
     """
     
     with open(templateFilePath, "r") as templateFile:
-        ar = mal2morphstore.analysis.analyze(translationResult)
+        ar = mal2morphstore.analysis.analyze(
+                translationResult, analyzeCardsAndBws=True
+        )
         for line in templateFile:
             line = line.rstrip()
             mPlaceholder = _pPlaceholder.fullmatch(line)
@@ -542,7 +652,8 @@ def generate(
                             indent,
                             translationResult,
                             purpose,
-                            ar
+                            ar,
+                            processingStyle
                     )
                 elif ph == "result":
                     _printResultOutput(

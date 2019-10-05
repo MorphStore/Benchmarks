@@ -96,6 +96,14 @@ function print_help () {
     echo "      query will be generated, containing the data characteristics "
     echo "      for the respective query. Note that this directory is NOT "
     echo "      deleted in the cleaning step."
+    echo "  s, size"
+    echo "      Morph each base and intermediate column to each format and "
+    echo "      record the sizes. A directory 'size_sfN' is created in the "
+    echo "      current directory, whereby N is the specified scale factor. "
+    echo "      In this directory, one file per query will be generated, "
+    echo "      containing the physical sizes for the respective query. Note "
+    echo "      that this directory is NOT deleted in the cleaning step. "
+    echo "      This purpose requires '-c uncompr' and '-noSelfManaging'."
     echo ""
     echo "Vector Versions:"
     echo "  h, byhand"
@@ -463,7 +471,7 @@ function build () {
     if [[ $purpose = $purposeCheck || $purpose = $purposeResults ]]
     then
         local monitoringFlag=""
-    elif [[ $purpose = $purposeTime || $purpose = $purposeDataCh ]]
+    elif [[ $purpose = $purposeTime || $purpose = $purposeDataCh || $purpose = $purposeSize ]]
     then
         local monitoringFlag="-mon"
     else
@@ -514,6 +522,10 @@ function run () {
     then
         print_headline2 "Analyzing the data characteristics in MorphStore"
         mkdir --parents $pathDataCh
+    elif [[ $purpose = $purposeSize ]]
+    then
+        print_headline2 "Recording the data sizes in MorphStore"
+        mkdir --parents $pathSize
     else
         printf "unsupported purpose (in step run): $purpose\n"
         exit -1
@@ -653,6 +665,11 @@ function run () {
                     eval $pathExe/$targetName $pathDataColsDict > $pathDataCh/q$major.$minor.csv
                     printf "\n"
                     ;;
+                $purposeSize)
+                    printf "\n"
+                    eval $pathExe/$targetName $pathDataColsDict > $pathSize/q$major.$minor.csv
+                    printf "\n"
+                    ;;
             esac
         done
     done
@@ -729,6 +746,7 @@ purposeCheck="c"
 purposeResults="r"
 purposeTime="t"
 purposeDataCh="d"
+purposeSize="s"
 
 declare -A purposeMap=(
     [c]=$purposeCheck
@@ -739,6 +757,8 @@ declare -A purposeMap=(
     [time]=$purposeTime
     [d]=$purposeDataCh
     [datacharacteristics]=$purposeDataCh
+    [s]=$purposeSize
+    [size]=$purposeSize
 )
 
 # -----------------------------------------------------------------------------
@@ -898,6 +918,12 @@ then
     exit -1
 fi
 
+if [[ $purpose = $purposeSize ]] && [[ $noSelfManaging = "" ]]
+then
+    printf "you selected purpose '$purpose', which requires '-noSelfManaging'\n"
+    exit -1
+fi
+
 # Directories used for the data.
 # Keep the names of the sub-directories consistent with dbdict.py.
 pathData=data_sf$scaleFactor
@@ -914,6 +940,9 @@ pathTime=time_sf$scaleFactor
 
 # Directory for the data characteristics.
 pathDataCh=dc_sf$scaleFactor
+
+# Directory for the sizes.
+pathSize=size_sf$scaleFactor
 
 # Directory for the query results.
 pathRes=res_sf$scaleFactor

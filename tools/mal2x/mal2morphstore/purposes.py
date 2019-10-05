@@ -40,6 +40,9 @@ PP_TIME_LONG = "time"
 # characteristics.
 PP_DATACH = "d"
 PP_DATACH_LONG = "datacharacteristics"
+# Record the sizes of each base and intermediate column in all formats.
+PP_SIZE = "s"
+PP_SIZE_LONG = "size"
 
 
 # A list of all purposes.
@@ -47,11 +50,13 @@ PURPOSES = [
     PP_CHECK,
     PP_RESULTS,
     PP_TIME,
-    PP_DATACH
+    PP_DATACH,
+    PP_SIZE,
 ]
 PURPOSES_LONG = [
     PP_CHECK_LONG,
     PP_RESULTS_LONG,
     PP_TIME_LONG,
-    PP_DATACH_LONG
+    PP_DATACH_LONG,
+    PP_SIZE_LONG,
 ]

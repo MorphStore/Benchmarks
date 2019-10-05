@@ -196,6 +196,9 @@ if __name__ == "__main__":
     if args.inMalFilePath == FROM_STDIN:
         # 0 is the file descriptor of stdin, can be used with open().
         args.inMalFilePath = 0
+        
+    if args.purpose == pp.PP_SIZE and args.comprStrategy != compr.CS_UNCOMPR:
+        raise RuntimeError("purpose '{}' requires '-c {}'".format(pp.PP_SIZE, compr.CS_UNCOMPR))
 
     # -------------------------------------------------------------------------
     # Program translation and output
