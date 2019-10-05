@@ -174,6 +174,11 @@ if __name__ == "__main__":
             "sequential access. Only  allowed for the '{}' strategy. Defaults "
             "to the value of -csequ".format(compr.CS_RULEBASED)
     )
+    comprArgGr.add_argument(
+        "-ccbsl", "--ccascblocksizelog", dest="comprCascBlockSizeLog",
+        metavar="N", default=1024,
+        help="The block size of cascades. Defaults to 1024."
+    )
 
     args = parser.parse_args()
     
@@ -218,6 +223,8 @@ if __name__ == "__main__":
     )
     
     # Compression configuration.
+    compr.CASC_BLOCKSIZE_LOG = args.comprCascBlockSizeLog
+    compr.initShortNames()
     if args.comprStrategy == compr.CS_UNCOMPR:
         compr.configureUncompr(translationResult)
     elif args.comprStrategy == compr.CS_RULEBASED:

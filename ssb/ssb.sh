@@ -26,7 +26,7 @@ function print_help () {
     echo "Usage: ssb.sh [-h] [-s STEP] [-e STEP] [-sf N] [-p PURPOSE]"
     echo "              [-ps PROCESSING_STYLE] [-v vectorVersion]"
     echo "              [-c COMPRESSION_STRATEGY] [-crnd FORMAT]"
-    echo "              [-csequ FORMAT] [-cseqs FORMAT]"
+    echo "              [-csequ FORMAT] [-cseqs FORMAT] [-ccbsl N]"
     echo "              [-um WAY_TO_USE_MONETDB] [-noSelfManaging]"
     echo ""
     echo "Star Schema Benchmark (SSB) in MorphStore."
@@ -333,6 +333,10 @@ function translate () {
     if [[ $comprSeqSorted ]]
     then
         comprFlags="$comprFlags -cseqs $comprSeqSorted"
+    fi
+    if [[ $comprCascBlockSizeLog ]]
+    then
+        comprFlags="$comprFlags -ccbsl $comprCascBlockSizeLog"
     fi
 
     printf "if( BUILD_ALL OR BUILD_SSB )\n" >> $cmakeListsFile
@@ -816,6 +820,7 @@ comprStrategy=uncompr
 comprRnd=""
 comprSeqUnsorted=""
 comprSeqSorted=""
+comprCascBlockSizeLog=""
 useMonetDB=$umPipeline
 noSelfManaging=""
 
@@ -889,6 +894,10 @@ do
             ;;
         -cseqs)
             comprSeqSorted=$2
+            shift
+            ;;
+        -ccbsl)
+            comprCascBlockSizeLog=$2
             shift
             ;;
         -um|--useMonetDB)

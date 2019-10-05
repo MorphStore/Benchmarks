@@ -50,6 +50,15 @@ COMPR_STRATEGIES = [
 ]
 
 # -----------------------------------------------------------------------------
+# Block size of cascades
+# -----------------------------------------------------------------------------
+# There is only one global block size for the entire program, since we do not
+# consider using different cascade block sizes for different columns. Note that
+# this default can be set by a command line argument.
+
+CASC_BLOCKSIZE_LOG = 1024
+
+# -----------------------------------------------------------------------------
 # Format names
 # -----------------------------------------------------------------------------
 # We need to distinguish between the C++ identifiers (including template
@@ -102,15 +111,13 @@ def _getMorphStoreFormatByName(fn, ps, maxBw):
         innerName = fn[pos+1:]
         # TODO reduce the code duplication here
         if outerName == FN_DELTA:
-            blockSizeLog = 1024 # TODO dont hardcode
             step = pss.PS_INFOS[ps].vectorElementCount
             inner = _getMorphStoreFormatByName(innerName, ps, None)
-            return "delta_f<{}, {}, {} >".format(blockSizeLog, step, inner)
+            return "delta_f<{}, {}, {} >".format(CASC_BLOCKSIZE_LOG, step, inner)
         elif outerName == FN_FOR:
-            blockSizeLog = 1024 # TODO dont hardcode
             step = pss.PS_INFOS[ps].vectorElementCount
             inner = _getMorphStoreFormatByName(innerName, ps, None)
-            return "for_f<{}, {}, {} >".format(blockSizeLog, step, inner)
+            return "for_f<{}, {}, {} >".format(CASC_BLOCKSIZE_LOG, step, inner)
         else:
             raise RuntimeError(
                 "unsupported outer format of a cascade: '{}'".format(outerName)
@@ -125,24 +132,28 @@ _SHORT_NAMES = {
 }
 # We do not intend to use different vector extensions in one query at the
 # moment, so its ok if the short names are the same.
-for ps in [
-    pss.PS_SCALAR,
-    pss.PS_VEC128,
-    pss.PS_VEC128_NEON,
-    pss.PS_VEC256,
-    pss.PS_VEC512,
-]:
-    _SHORT_NAMES[_getMorphStoreFormatByName(FN_DYNAMICVBP, ps, None)] = "d"
-    _SHORT_NAMES[_getMorphStoreFormatByName(
-        _makeCascName(FN_DELTA, FN_DYNAMICVBP), ps, None
-    )] = "dd"
-    _SHORT_NAMES[_getMorphStoreFormatByName(
-        _makeCascName(FN_FOR, FN_DYNAMICVBP), ps, None
-    )] = "fd"
-    for bw in range(1, 64 + 1):
+# TODO This only need to be a function since the cascade block size can be
+# changed by a command line argument.
+def initShortNames():
+    for ps in [
+        pss.PS_SCALAR,
+        pss.PS_VEC128,
+        pss.PS_VEC128_NEON,
+        pss.PS_VEC256,
+        pss.PS_VEC512,
+    ]:
+        _SHORT_NAMES[_getMorphStoreFormatByName(FN_DYNAMICVBP, ps, None)] = "d"
         _SHORT_NAMES[_getMorphStoreFormatByName(
-            FN_STATICVBP, ps, bw
-        )] = "s{}".format(bw)
+            _makeCascName(FN_DELTA, FN_DYNAMICVBP), ps, None
+        )] = "dd"
+        _SHORT_NAMES[_getMorphStoreFormatByName(
+            _makeCascName(FN_FOR, FN_DYNAMICVBP), ps, None
+        )] = "fd"
+        for bw in range(1, 64 + 1):
+            _SHORT_NAMES[_getMorphStoreFormatByName(
+                FN_STATICVBP, ps, bw
+            )] = "s{}".format(bw)
+initShortNames()
 
 # -----------------------------------------------------------------------------
 # C++ headers required for the formats
