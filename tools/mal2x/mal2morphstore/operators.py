@@ -104,10 +104,10 @@ class Project(Op):
         self.inPosF = None
         
     def __str__(self):
-        return "auto {outDataCol} = {opName}<{ps}, {outDataF}, {inDataF}, {inPosF}>::apply({inDataCol}, {inPosCol});".format(
+        return "auto {outDataCol} = {opName}<{ps}, {outDataF}, {inDataF}, {inPosF} >::apply({inDataCol}, {inPosCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
-#        return "auto {outDataCol} = {opName}<{ps}, {outDataF}, {inDataF}, {inPosF}>({inDataCol}, {inPosCol});".format(
+#        return "auto {outDataCol} = {opName}<{ps}, {outDataF}, {inDataF}, {inPosF} >({inDataCol}, {inPosCol});".format(
 #            opName=self.opName, **self.__dict__, **_commonIdentifiers
 #        )
     
@@ -131,10 +131,10 @@ class Select(Op):
         
     def __str__(self):
         # TODO Don't hardcode this.
-#        return "auto {outPosCol} = {ns}::{opName}<{op}, {ps}, {outPosF}, {inDataF}>({inDataCol}, {val});".format(
+#        return "auto {outPosCol} = {ns}::{opName}<{op}, {ps}, {outPosF}, {inDataF} >({inDataCol}, {val});".format(
 #            opName=self.opName, **self.__dict__, **_commonIdentifiers
 #        )
-        return "auto {outPosCol} = my_select_wit_t<{op}, {ps}, {outPosF}, {inDataF}>::apply({inDataCol}, {val});".format(
+        return "auto {outPosCol} = my_select_wit_t<{op}, {ps}, {outPosF}, {inDataF} >::apply({inDataCol}, {val});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
@@ -155,7 +155,7 @@ class Intersect(Op):
         self.inPosRF = None
         
     def __str__(self):
-        return "auto {outPosCol} = {opName}<{ps}, {outPosF}, {inPosLF}, {inPosRF}>({inPosLCol}, {inPosRCol});".format(
+        return "auto {outPosCol} = {opName}<{ps}, {outPosF}, {inPosLF}, {inPosRF} >({inPosLCol}, {inPosRCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
@@ -176,7 +176,7 @@ class Merge(Op):
         self.inPosRF = None
         
     def __str__(self):
-        return "auto {outPosCol} = {opName}<{ps}, {outPosF}, {inPosLF}, {inPosRF}>({inPosLCol}, {inPosRCol});".format(
+        return "auto {outPosCol} = {opName}<{ps}, {outPosF}, {inPosLF}, {inPosRF} >({inPosLCol}, {inPosRCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
@@ -205,18 +205,18 @@ class Join(Op):
         if False:
             # No cardinality estimate.
             return \
-                "const {column}<{outPosLF}> * {outPosLCol};\n" \
-                "const {column}<{outPosRF}> * {outPosRCol};\n" \
-                "std::tie({outPosLCol}, {outPosRCol}) = {opName}<{ps}, {outPosLF}, {outPosRF}, {inDataLF}, {inDataRF}>({inDataLCol}, {inDataRCol});".format(
+                "const {column}<{outPosLF} > * {outPosLCol};\n" \
+                "const {column}<{outPosRF} > * {outPosRCol};\n" \
+                "std::tie({outPosLCol}, {outPosRCol}) = {opName}<{ps}, {outPosLF}, {outPosRF}, {inDataLF}, {inDataRF} >({inDataLCol}, {inDataRCol});".format(
                 opName=self.opName, **self.__dict__, **_commonIdentifiers
             )
         else:
             # Cardinality estimate for 1:N-join, assuming that the 1-side is
             # the larger column.
             return \
-                "const {column}<{outPosLF}> * {outPosLCol};\n" \
-                "const {column}<{outPosRF}> * {outPosRCol};\n" \
-                "std::tie({outPosLCol}, {outPosRCol}) = {opName}<{ps}, {outPosLF}, {outPosRF}, {inDataLF}, {inDataRF}>(\n" \
+                "const {column}<{outPosLF} > * {outPosLCol};\n" \
+                "const {column}<{outPosRF} > * {outPosRCol};\n" \
+                "std::tie({outPosLCol}, {outPosRCol}) = {opName}<{ps}, {outPosLF}, {outPosRF}, {inDataLF}, {inDataRF} >(\n" \
                 "    {inDataLCol},\n" \
                 "    {inDataRCol},\n" \
                 "    std::max({inDataLCol}->get_count_values(), {inDataRCol}->get_count_values())\n" \
@@ -246,8 +246,8 @@ class Nto1Join(Op):
         
     def __str__(self):
         return \
-            "const {column}<{outPosLF}> * {outPosLCol};\n" \
-            "const {column}<{outPosRF}> * {outPosRCol};\n" \
+            "const {column}<{outPosLF} > * {outPosLCol};\n" \
+            "const {column}<{outPosRF} > * {outPosRCol};\n" \
             "std::tie({outPosLCol}, {outPosRCol}) = {opName}<\n" \
             "    {ps},\n" \
             "    {outPosLF},\n" \
@@ -277,7 +277,7 @@ class Nto1Join(Op):
 #        
 #    def __str__(self):
 #        return \
-#            "auto {outPosLCol} = {opName}<{ps}, {format}>({inDataLCol}, {inDataRCol});".format(
+#            "auto {outPosLCol} = {opName}<{ps}, {format} >({inDataLCol}, {inDataRCol});".format(
 #            opName=self.opName, **self.__dict__, **_commonIdentifiers
 #        )
 
@@ -328,7 +328,7 @@ class CalcBinary(Op):
         self.inDataRF = None
         
     def __str__(self):
-        return "auto {outDataCol} = {ns}::{opName}<{op}, {ps}, {outDataF}, {inDataLF}, {inDataRF}>({inDataLCol}, {inDataRCol});".format(
+        return "auto {outDataCol} = {ns}::{opName}<{op}, {ps}, {outDataF}, {inDataLF}, {inDataRF} >({inDataLCol}, {inDataRCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
@@ -350,7 +350,7 @@ class SumWholeCol(Op):
         self.inDataF = None
         
     def __str__(self):
-        return "auto {outDataCol} = {opName}<{ps}, {inDataF}>({inDataCol});".format(
+        return "auto {outDataCol} = {opName}<{ps}, {inDataF} >({inDataCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
@@ -381,7 +381,7 @@ class SumGrBased(Op):
             "// in the query translation, because MorphStore still lacks a\n" \
             "// vectorized implementation. As soon as such an\n" \
             "// implementation exists, we should use it here.\n" \
-            "auto {outDataCol} = {opName}<scalar<v64<uint64_t>>, {outDataF}, {inGrF}, {inDataF}>({inGrCol}, {inDataCol}, {inExtCol}->{get_count_values}());".format(
+            "auto {outDataCol} = {opName}<scalar<v64<uint64_t>>, {outDataF}, {inGrF}, {inDataF} >({inGrCol}, {inDataCol}, {inExtCol}->{get_count_values}());".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
@@ -406,9 +406,9 @@ class GroupUnary(Op):
         
     def __str__(self):
         return \
-            "const {column}<{outGrF}> * {outGrCol};\n" \
-            "const {column}<{outExtF}> * {outExtCol};\n" \
-            "std::tie({outGrCol}, {outExtCol}) = {opName}<{ps}, {outGrF}, {outExtF}, {inDataF}>({inDataCol});".format(
+            "const {column}<{outGrF} > * {outGrCol};\n" \
+            "const {column}<{outExtF} > * {outExtCol};\n" \
+            "std::tie({outGrCol}, {outExtCol}) = {opName}<{ps}, {outGrF}, {outExtF}, {inDataF} >({inDataCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
@@ -433,9 +433,9 @@ class GroupBinary(Op):
         
     def __str__(self):
         return \
-            "const {column}<{outGrF}> * {outGrCol};\n" \
-            "const {column}<{outExtF}> * {outExtCol};\n" \
-            "std::tie({outGrCol}, {outExtCol}) = {opName}<{ps}, {outGrF}, {outExtF}, {inGrF}, {inDataF}>({inGrCol}, {inDataCol});".format(
+            "const {column}<{outGrF} > * {outGrCol};\n" \
+            "const {column}<{outExtF} > * {outExtCol};\n" \
+            "std::tie({outGrCol}, {outExtCol}) = {opName}<{ps}, {outGrF}, {outExtF}, {inGrF}, {inDataF} >({inGrCol}, {inDataCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
         
@@ -453,7 +453,7 @@ class Morph(Op):
         self.outF = outF
         
     def __str__(self):
-        return "auto {outCol} = {opName}<{ps}, {outF}>({inCol});".format(
+        return "auto {outCol} = {opName}<{ps}, {outF} >({inCol});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
             
