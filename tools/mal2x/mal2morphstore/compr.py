@@ -73,9 +73,9 @@ FN_DYNAMICVBP = "dynamic_vbp"
 FN_DELTA = "delta"
 FN_FOR = "for"
 
-_CASC_SEP = "/"
+_CASC_SEP = "+"
 def _makeCascName(logName, phyName):
-    return "{}/{}".format(logName, phyName)
+    return "{}{}{}".format(logName, _CASC_SEP, phyName)
 
 COMPR_FORMATS = [
     FN_UNCOMPR,
