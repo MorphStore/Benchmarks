@@ -553,6 +553,23 @@ def _printResultOutput(indent, tr, purpose):
             indent,
             ", ".join(tr.resultCols)
         ))
+    print()
+    
+    # Free all intermediate results.
+    # TODO This should happen as early as possible during query processing.
+    # TODO This should also work with MorphStore's own memory manager.
+    print("{}// Free all intermediate results.".format(indent))
+    print("#ifdef MSV_NO_SELFMANAGED_MEMORY")
+    freedVars = set()
+    for el in tr.prog:
+        if isinstance(el, Op):
+            for key in el.__dict__:
+                if key.endswith("Col"):
+                    varName = getattr(el, key)
+                    if "." not in varName and varName not in freedVars:
+                        print("{}delete {};".format(indent, varName))
+                        freedVars.add(varName)
+    print("#endif")
 
 def _printAnalysis(indent, ar):
     """
