@@ -341,7 +341,7 @@ function translate () {
 
     local statFlag="--statdir $pathDataStatsDict"
 
-    printf "if( BUILD_ALL OR BUILD_SSB )\n" >> $cmakeListsFile
+    printf "if( BUILD_ALL OR BUILD_SSB EQUAL $scaleFactor )\n" >> $cmakeListsFile
     for major in 1 2 3 4
     do
         for minor in 1 2 3
@@ -506,7 +506,7 @@ function build () {
         local vbpFlag=""
     fi
     # TODO Do not hard-code the arguments for build.sh.
-    ./build.sh -hi -j8 $monitoringFlag $extensionFlags -bSSB $noSelfManaging $vbpFlag
+    ./build.sh -hi -j8 $monitoringFlag $extensionFlags -bSSB $scaleFactor $noSelfManaging $vbpFlag
     cd $oldPwd
 
     set +e
