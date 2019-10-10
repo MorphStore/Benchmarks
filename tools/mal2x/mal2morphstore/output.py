@@ -605,7 +605,12 @@ def _printAnalysis(indent, ar):
 _pPlaceholder = re.compile(r"(\s*)\/\/ ##### mal2morphstore (.+?) #####\s*")
 
 def generate(
-        translationResult, templateFilePath, purpose, processingStyle, versionSelect
+        translationResult,
+        templateFilePath,
+        purpose,
+        processingStyle,
+        versionSelect,
+        statDirPath
 ):
     """
     Generates the C++ source code for the given abstract representation of a
@@ -631,7 +636,7 @@ def generate(
     
     with open(templateFilePath, "r") as templateFile:
         ar = mal2morphstore.analysis.analyze(
-                translationResult, analyzeCardsAndBws=True
+                translationResult, True, statDirPath
         )
         for line in templateFile:
             line = line.rstrip()

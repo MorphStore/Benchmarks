@@ -339,6 +339,8 @@ function translate () {
         comprFlags="$comprFlags -ccbsl $comprCascBlockSizeLog"
     fi
 
+    local statFlag="--statdir $pathDataStatsDict"
+
     printf "if( BUILD_ALL OR BUILD_SSB )\n" >> $cmakeListsFile
     for major in 1 2 3 4
     do
@@ -352,7 +354,7 @@ function translate () {
                         | cat - $pathQueries/q$major.$minor.sql \
                         | $qdict $pathDataDicts \
                         | $mclient -d $dbName -f raw \
-                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags  \
+                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 $umMaterialize)
@@ -362,12 +364,12 @@ function translate () {
                         | $mclient -d $dbName -f raw \
                         > $pathMal/q$major.$minor.mal
                     cat $pathMal/q$major.$minor.mal \
-                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags \
+                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 $umSaved)
                     cat $pathMal/q$major.$minor.mal \
-                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags \
+                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 *)
@@ -939,6 +941,7 @@ pathData=data_sf$scaleFactor
 pathDataTblsDict=$pathData/tbls_dict
 pathDataDicts=$pathData/dicts
 pathDataColsDict=$pathData/cols_dict
+pathDataStatsDict=$pathData/stats_dict
 
 # Directories for the generated source and executable files.
 pathSrc=$pathMorphStore/Engine/src/"$benchmark"_sf$scaleFactor

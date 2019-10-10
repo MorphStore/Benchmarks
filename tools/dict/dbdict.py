@@ -96,7 +96,8 @@ def _encodeTable(
     inTblFilePath,
     outTblFilePath,
     outDictDirPath,
-    outColDirPath
+    outColDirPath,
+    outStatFilePath
 ):
     """
     Applies order-preserving dictionary coding to all non-integer columns of
@@ -223,8 +224,8 @@ def _encodeTable(
                     if int(lineEntries[idx]) > maxVals[idx]:
                         maxVals[idx] = int(lineEntries[idx])
                 countRows += 1
-                
-        with open("{}_stats.json".format(outTblFilePath), "w") as outStatFile:
+        
+        with open(outStatFilePath, "w") as outStatFile:
             json.dump(
                 dict(
                     {colNames[idx]: maxVals[idx] for idx in range(countCols)},
@@ -292,10 +293,12 @@ if __name__ == "__main__":
     outTblDirPath  = os.path.join(args.outDirPath, "tbls_dict")
     outDictDirPath = os.path.join(args.outDirPath, "dicts")
     outColDirPath  = os.path.join(args.outDirPath, "cols_dict")
+    outStatDirPath = os.path.join(args.outDirPath, "stats_dict")
     
     _makeDirIf(outTblDirPath)
     _makeDirIf(outDictDirPath)
     _makeDirIf(outColDirPath)
+    _makeDirIf(outStatDirPath)
 
     with open(args.schemaFilePath, "r") as schemaFile:
         schema = json.load(schemaFile)
@@ -311,5 +314,6 @@ if __name__ == "__main__":
                 inTblFilePath,
                 os.path.join(outTblDirPath, inTblFileName),
                 outDictDirPath,
-                outColDirPath
+                outColDirPath,
+                os.path.join(outStatDirPath, "{}.json".format(tblName))
             )

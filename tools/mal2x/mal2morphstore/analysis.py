@@ -30,6 +30,7 @@ relevant information.
 import mal2morphstore.operators as ops
 
 import json
+import os
 
 
 class AnalysisResult:
@@ -88,7 +89,7 @@ class AnalysisResult:
         # operator which does not support compressed data.
         self.varsForcedUncompr = varsForcedUncompr
 
-def analyze(translationResult, analyzeCardsAndBws=False):
+def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
     """
     Analyzes the given abstract representation of a translated program to find
     out some interesting things about it. The result is an instance of class
@@ -143,10 +144,14 @@ def analyze(translationResult, analyzeCardsAndBws=False):
             return 64 - "{:0>64b}".format(val).find("1")
     
     if analyzeCardsAndBws:
+        if statDirPath is None:
+            raise RuntimeError(
+                "a directory containing statistics on the base data must be "
+                "specified to analyze cardinalities and bit widths"
+            )
         stats = {}
         for tblName in translationResult.colNamesByTblName:
-            # TODO Don't hardcode this path. It should be a command line argument.
-            with open("stats_sf1/{}_stats.json".format(tblName), "r") as inFile:
+            with open(os.path.join(statDirPath, "{}.json".format(tblName)), "r") as inFile:
                 stats[tblName] = json.load(inFile)
 
         maxCardByCol = {

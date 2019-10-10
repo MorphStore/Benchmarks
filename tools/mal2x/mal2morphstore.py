@@ -129,6 +129,12 @@ if __name__ == "__main__":
         help="Are the hand implemented operators used (1), "
             "or the operators using the vector library (2)?"
     )
+    parser.add_argument(
+        "--statdir", dest="statDirPath", default=None, metavar="DIR",
+        help="The path to the directory containing statistics on the base "
+            "columns as created by dbdict.py."
+        # TODO Validate existence.
+    )
     
     # Compression arguments
     comprArgGr = parser.add_argument_group(
@@ -234,6 +240,7 @@ if __name__ == "__main__":
             args.comprRndFormat,
             args.comprSeqUnsortedFormat,
             args.comprSeqSortedFormat,
+            args.statDirPath,
         )
     else:
         # This case should have been handled by the parser before.
@@ -254,5 +261,6 @@ if __name__ == "__main__":
         ),
         args.purpose,
         args.processingStyle,
-        args.versionSelect
+        args.versionSelect,
+        args.statDirPath
     )

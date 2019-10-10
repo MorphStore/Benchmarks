@@ -199,13 +199,15 @@ def configureUncompr(tr):
                     el.__dict__[key] = _MS_UNCOMPR
                     
 # Simple rule-based strategy.
-def configureRuleBased(tr, ps, fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted):
+def configureRuleBased(
+    tr, ps, fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted, statDirPath
+):
     _addHeaders(tr, FN_UNCOMPR)
     _addHeaders(tr, fnRndAcc)
     _addHeaders(tr, fnSeqAccUnsorted)
     _addHeaders(tr, fnSeqAccSorted)
     
-    ar = analysis.analyze(tr, analyzeCardsAndBws=True)
+    ar = analysis.analyze(tr, True, statDirPath)
     
     formatByCol = {}
     
