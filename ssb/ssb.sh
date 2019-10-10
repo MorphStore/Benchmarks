@@ -499,7 +499,7 @@ function build () {
     else
         local extensionFlags=""
     fi
-    if [[ $scaleFactor -eq 1 ]]
+    if [[ $scaleFactor -eq 1 || $scaleFactor -eq 10 ]]
     then
         local vbpFlag="--vbpLimitRoutinesForSSBSF1"
     else
