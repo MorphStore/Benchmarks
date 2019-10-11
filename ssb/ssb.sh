@@ -27,6 +27,7 @@ function print_help () {
     echo "              [-ps PROCESSING_STYLE] [-v vectorVersion]"
     echo "              [-c COMPRESSION_STRATEGY] [-crnd FORMAT]"
     echo "              [-csequ FORMAT] [-cseqs FORMAT] [-ccbsl N]"
+    echo "              [-cubase BOOL] [-cuinterm BOOL]"
     echo "              [-um WAY_TO_USE_MONETDB] [-noSelfManaging]"
     echo ""
     echo "Star Schema Benchmark (SSB) in MorphStore."
@@ -337,6 +338,14 @@ function translate () {
     if [[ $comprCascBlockSizeLog ]]
     then
         comprFlags="$comprFlags -ccbsl $comprCascBlockSizeLog"
+    fi
+    if [[ $comprUncomprBase ]]
+    then
+        comprFlags="$comprFlags -cubase $comprUncomprBase"
+    fi
+    if [[ $comprUncomprInterm ]]
+    then
+        comprFlags="$comprFlags -cuinterm $comprUncomprInterm"
     fi
 
     local statFlag="--statdir $pathDataStatsDict"
@@ -823,6 +832,8 @@ comprRnd=""
 comprSeqUnsorted=""
 comprSeqSorted=""
 comprCascBlockSizeLog=""
+comprUncomprBase=""
+comprUncomprInterm=""
 useMonetDB=$umPipeline
 noSelfManaging=""
 
@@ -900,6 +911,14 @@ do
             ;;
         -ccbsl)
             comprCascBlockSizeLog=$2
+            shift
+            ;;
+        -cubase)
+            comprUncomprBase=$2
+            shift
+            ;;
+        -cuinterm)
+            comprUncomprInterm=$2
             shift
             ;;
         -um|--useMonetDB)

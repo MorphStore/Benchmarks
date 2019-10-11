@@ -89,6 +89,15 @@ if __name__ == "__main__":
     # Parsing the command line arguments
     # -------------------------------------------------------------------------
     
+    trueVals = ["true", "t", "yes", "y", "1"]
+    falseVals = ["false", "f", "no", "n", "0"]
+    def parseBool(str):
+        if str in trueVals:
+            return True
+        if str in falseVals:
+            return False
+        raise RuntimeError("invalid bool")
+    
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter
@@ -185,6 +194,19 @@ if __name__ == "__main__":
         metavar="N", default=1024,
         help="The block size of cascades. Defaults to 1024."
     )
+    comprArgGr.add_argument(
+        "-cubase", dest="comprUncomprBase", metavar="BOOL",
+        choices=trueVals+falseVals, default=falseVals[0],
+        help="Whether all base columns shall be uncompressed irrespective of "
+            "the other compression parameters. Defaults to false."
+    )
+    comprArgGr.add_argument(
+        "-cuinterm", dest="comprUncomprInterm", metavar="BOOL",
+        choices=trueVals+falseVals, default=falseVals[0],
+        help="Whether all intermediate columns shall be uncompressed "
+            "irrespective of the other compression parameters. Defaults to "
+            "false."
+    )
 
     args = parser.parse_args()
     
@@ -237,10 +259,12 @@ if __name__ == "__main__":
         compr.configureRuleBased(
             translationResult,
             args.processingStyle,
+            args.statDirPath,
             args.comprRndFormat,
             args.comprSeqUnsortedFormat,
             args.comprSeqSortedFormat,
-            args.statDirPath,
+            parseBool(args.comprUncomprBase),
+            parseBool(args.comprUncomprInterm),
         )
     else:
         # This case should have been handled by the parser before.

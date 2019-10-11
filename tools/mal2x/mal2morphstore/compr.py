@@ -214,7 +214,8 @@ def configureUncompr(tr):
                     
 # Simple rule-based strategy.
 def configureRuleBased(
-    tr, ps, fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted, statDirPath
+    tr, ps, statDirPath,
+    fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted, uncomprBase, uncomprInterm,
 ):
     _addHeaders(tr, FN_UNCOMPR)
     _addHeaders(tr, fnRndAcc)
@@ -226,6 +227,9 @@ def configureRuleBased(
     formatByCol = {}
     
     def _decideFormat(varName):
+        if ("." in varName and uncomprBase) or ("." not in varName and uncomprInterm):
+            return _MS_UNCOMPR
+        
         if varName in ar.varsForcedUncompr or varName in tr.resultCols:
             return _MS_UNCOMPR
         elif varName in ar.varsRndAccess:
