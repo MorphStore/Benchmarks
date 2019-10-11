@@ -70,6 +70,7 @@ _MS_UNCOMPR = "uncompr_f"
 FN_UNCOMPR = "uncompr"
 FN_STATICVBP = "static_vbp"
 FN_DYNAMICVBP = "dynamic_vbp"
+FN_KWISENS = "k_wise_ns"
 FN_DELTA = "delta"
 FN_FOR = "for"
 
@@ -81,8 +82,11 @@ COMPR_FORMATS = [
     FN_UNCOMPR,
     FN_STATICVBP,
     FN_DYNAMICVBP,
+    FN_KWISENS,
     _makeCascName(FN_DELTA, FN_DYNAMICVBP),
     _makeCascName(FN_FOR, FN_DYNAMICVBP),
+    _makeCascName(FN_DELTA, FN_KWISENS),
+    _makeCascName(FN_FOR, FN_KWISENS),
 ]
 
 def _getMorphStoreFormatByName(fn, ps, maxBw):
@@ -104,6 +108,9 @@ def _getMorphStoreFormatByName(fn, ps, maxBw):
             return "dynamic_vbp_f<{}, {}, {}>".format(
                 blockSizeLog, pageSizeBlocks, step
             )
+        elif fn == FN_KWISENS:
+            blockSizeLog = pss.PS_INFOS[ps].vectorElementCount
+            return "k_wise_ns_f<{}>".format(blockSizeLog)
         else:
             raise RuntimeError("unsupported format: '{}'".format(fn))
     else:
@@ -143,12 +150,18 @@ def initShortNames():
         pss.PS_VEC512,
     ]:
         _SHORT_NAMES[_getMorphStoreFormatByName(FN_DYNAMICVBP, ps, None)] = "d"
-        _SHORT_NAMES[_getMorphStoreFormatByName(
-            _makeCascName(FN_DELTA, FN_DYNAMICVBP), ps, None
-        )] = "dd"
-        _SHORT_NAMES[_getMorphStoreFormatByName(
-            _makeCascName(FN_FOR, FN_DYNAMICVBP), ps, None
-        )] = "fd"
+        _SHORT_NAMES[_getMorphStoreFormatByName(FN_KWISENS, ps, None)] = "k"
+        for logName, logShort in [
+            (FN_DELTA, "d"),
+            (FN_FOR, "f"),
+        ]:
+            for phyName, phyShort in [
+                (FN_DYNAMICVBP, "d"),
+                (FN_KWISENS, "k"),
+            ]:
+                _SHORT_NAMES[_getMorphStoreFormatByName(
+                    _makeCascName(logName, phyName), ps, None
+                )] = logShort + phyShort
         for bw in range(1, 64 + 1):
             _SHORT_NAMES[_getMorphStoreFormatByName(
                 FN_STATICVBP, ps, bw
@@ -170,6 +183,7 @@ _HEADERS_BY_FN = {
         "core/morphing/vbp.h"
     ],
     FN_DYNAMICVBP: ["core/morphing/dynamic_vbp.h"],
+    FN_KWISENS: ["core/morphing/k_wise_ns.h"],
     FN_DELTA: ["core/morphing/delta.h"],
     FN_FOR: ["core/morphing/for.h"],
 }
