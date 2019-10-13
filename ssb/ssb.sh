@@ -402,7 +402,7 @@ function translate () {
             printf "done.\n"
         done
     done
-    printf "endif( BUILD_ALL OR BUILD_SSB )\n" >> $cmakeListsFile
+    printf "endif( BUILD_ALL OR BUILD_SSB EQUAL $scaleFactor )\n" >> $cmakeListsFile
 
     set +e
 
