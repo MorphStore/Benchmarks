@@ -107,8 +107,9 @@ def _printHeaders(indent, tr, purpose, processingStyle, versionSelect):
     if purpose in [pp.PP_TIME, pp.PP_DATACH, pp.PP_SIZE]:
         tr.headers.add("core/utils/monitoring.h")
     
-    tr.headers.add("core/utils/histogram.h")
-    tr.headers.add("core/utils/column_info.h")
+    # Add header for data analysis if required.
+    if purpose == pp.PP_DATACH:
+        tr.headers.add("core/utils/data_properties.h")
     
     # Print headers in lexicographical order.
     for header in sorted(tr.headers):
@@ -284,6 +285,9 @@ def _printProg(indent, tr, purpose, ar, ps):
         varColUsedBytes = "colUsedBytes"
         varColUnique = "colUnique"
         varColSorted = "colSorted"
+        varColMin = "colMin"
+        varColMax = "colMax"
+        varColDistinctCount = "colDistinctCount"
         print("{}// Constants for the monitoring column names.".format(indent))
         for varName, varVal in [
             # (C++ constant name, CSV column name)
@@ -296,6 +300,9 @@ def _printProg(indent, tr, purpose, ar, ps):
             (varColUsedBytes, "UsedBytes"),
             (varColUnique, "Unique"),
             (varColSorted, "Sorted"),
+            (varColMin, "Min"),
+            (varColMax, "Max"),
+            (varColDistinctCount, "DistinctCount"),
         ]:
             print('{}const std::string {} = "{}";'.format(
                     indent, varName, varVal
@@ -353,7 +360,6 @@ def _printProg(indent, tr, purpose, ar, ps):
 
         # Query program.
         print("{}// Query program.".format(indent))
-        print("{}unsigned * hist;".format(indent,))
         print()
         opIdx = 1
         for el in tr.prog:
@@ -363,28 +369,45 @@ def _printProg(indent, tr, purpose, ar, ps):
                 _prepareOutColsForRandomAccess(indent, el, ar)
                 for foo in sorted(el.__dict__):
                     if (foo.startswith("in") or foo.startswith("out")) and foo.endswith("Col"):
-                        print('{}hist = get_histogram({});'.format(indent,el.__dict__[foo]))
-                        for cnt in range(1, 65):
-                            print('{}MONITORING_ADD_INT_FOR("bwHist_{}", hist[{}], {}, {}, "{}", "{}");'.format(
-                                    indent, cnt, cnt-1, monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        print("{}{{".format(indent))
+                        print(
+                            "{}const data_properties dp({}, {});".format(
+                                2*indent,
+                                el.__dict__[foo],
+                                "true" if el.__dict__[foo] in ar.varsUnique else "false"
+                            )
+                        )
+                        for bw in range(1, 64+1):
+                            print('{}MONITORING_ADD_INT_FOR("bwHist_{}", dp.get_bw_hist({}), {}, {}, "{}", "{}");'.format(
+                                    2*indent, bw, bw, monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                             )
                         print('{}MONITORING_ADD_INT_FOR({}, {}->get_count_values(), {}, {}, "{}", "{}");'.format(
-                                indent, varColValueCount, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                                2*indent, varColValueCount, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
                         print('{}MONITORING_ADD_BOOL_FOR({}, {}, {}, {}, "{}", "{}");'.format(
-                                indent, varColIsResult,
+                                2*indent, varColIsResult,
                                 "true" if (el.__dict__[foo] in tr.resultCols) else "false",
                                 monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
                         print('{}MONITORING_ADD_INT_FOR({}, {}->get_size_used_byte(), {}, {}, "{}", "{}");'.format(
-                                indent, varColUsedBytes, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                                2*indent, varColUsedBytes, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
-                        print('{}MONITORING_ADD_INT_FOR({}, get_sorted({}), {}, {}, "{}", "{}");'.format(
-                                indent, varColSorted, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        print('{}MONITORING_ADD_BOOL_FOR({}, dp.is_sorted_asc(), {}, {}, "{}", "{}");'.format(
+                                2*indent, varColSorted, monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
-                        print('{}MONITORING_ADD_INT_FOR({}, get_unique_estimate({}), {}, {}, "{}", "{}");'.format(
-                                indent, varColUnique, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        print('{}MONITORING_ADD_BOOL_FOR({}, dp.is_unique(), {}, {}, "{}", "{}");'.format(
+                                2*indent, varColUnique, monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
+                        print('{}MONITORING_ADD_INT_FOR({}, dp.get_min(), {}, {}, "{}", "{}");'.format(
+                                2*indent, varColMin, monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        )
+                        print('{}MONITORING_ADD_INT_FOR({}, dp.get_max(), {}, {}, "{}", "{}");'.format(
+                                2*indent, varColMax, monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        )
+                        print('{}MONITORING_ADD_INT_FOR({}, dp.get_distinct_count(), {}, {}, "{}", "{}");'.format(
+                                2*indent, varColDistinctCount, monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        )
+                        print("{}}}".format(indent))
                 
                 for foo in sorted(el.__dict__):
                     if (foo.endswith("F")):
