@@ -144,6 +144,13 @@ if __name__ == "__main__":
             "columns as created by dbdict.py."
         # TODO Validate existence.
     )
+    parser.add_argument(
+        "--cifile", dest="colInfosFilePath", default=None, metavar="FILE",
+        help="The path to the CSV file containing information on all base "
+            "columns and intermediate results in the query as created by "
+            "'ssb.sh -p d'."
+        # TODO Validate existence.
+    )
     
     # Compression arguments
     comprArgGr = parser.add_argument_group(
@@ -253,28 +260,17 @@ if __name__ == "__main__":
     # Compression configuration.
     compr.CASC_BLOCKSIZE_LOG = args.comprCascBlockSizeLog
     compr.initShortNames()
-    if args.comprStrategy == compr.CS_UNCOMPR:
-        compr.configureUncompr(translationResult)
-    elif args.comprStrategy == compr.CS_RULEBASED:
-        compr.configureRuleBased(
-            translationResult,
-            args.processingStyle,
-            args.statDirPath,
-            args.comprRndFormat,
-            args.comprSeqUnsortedFormat,
-            args.comprSeqSortedFormat,
-            parseBool(args.comprUncomprBase),
-            parseBool(args.comprUncomprInterm),
-        )
-    else:
-        # This case should have been handled by the parser before.
-        raise RuntimeError(
-            "Unsupported compression strategy: '{}'".format(args.comprStrategy)
-        )
-    compr.checkAllFormatsSet(translationResult)
-    if args.comprStrategy != compr.CS_UNCOMPR:
-        compr.insertMorphs(translationResult)
-    compr.reorderMorphs(translationResult)
+    compr.configureProgram(
+        translationResult,
+        args.colInfosFilePath,
+        args.processingStyle,
+        args.comprStrategy,
+        parseBool(args.comprUncomprBase),
+        parseBool(args.comprUncomprInterm),
+        args.comprRndFormat,
+        args.comprSeqUnsortedFormat,
+        args.comprSeqSortedFormat
+    )
     
     # C++-code generation.
     mal2morphstore.output.generate(

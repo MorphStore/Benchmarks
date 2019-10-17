@@ -9,7 +9,7 @@
 #                                                                                            *
 # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;  *
 # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  *
-# See the GNDo this in a proper way.U General Public License for more details.                                       *
+# See the GNU General Public License for more details.                                       *
 #                                                                                            *
 # You should have received a copy of the GNU General Public License along with this program. *
 # If not, see <http://www.gnu.org/licenses/>.                                                *
@@ -31,6 +31,17 @@ with "F". See module mal2morphstore.operators.
 import mal2morphstore.analysis as analysis
 import mal2morphstore.operators as ops
 import mal2morphstore.processingstyles as pss
+
+import sys
+# TODO This is relative to ssb.sh.
+sys.path.append("../../LC-BaSe/cm")
+import data
+sys.path.append(".")
+import csvutils
+
+import pandas as pd
+
+import os
 
 
 # *****************************************************************************
@@ -203,70 +214,62 @@ def _addHeaders(tr, fn):
 # *****************************************************************************
 
 # All base and intermediate columns are uncompressed.
-def configureUncompr(tr):
-    _addHeaders(tr, FN_UNCOMPR)
-    
-    for el in tr.prog:
-        if isinstance(el, ops.Op):
-            for key in el.__dict__:
-                if key.endswith("F"):
-                    el.__dict__[key] = _MS_UNCOMPR
+def chooseUncompr(varNames):
+    return pd.Series([_MS_UNCOMPR] * len(varNames), index=varNames)
                     
 # Simple rule-based strategy.
-def configureRuleBased(
-    tr, ps, statDirPath,
-    fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted, uncomprBase, uncomprInterm,
+def chooseRuleBased(
+    dfColInfos, processingStyle, fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted
 ):
-    _addHeaders(tr, FN_UNCOMPR)
-    _addHeaders(tr, fnRndAcc)
-    _addHeaders(tr, fnSeqAccUnsorted)
-    _addHeaders(tr, fnSeqAccSorted)
-    
-    ar = analysis.analyze(tr, True, statDirPath)
-    
-    formatByCol = {}
-    
-    def _decideFormat(varName):
-        if ("." in varName and uncomprBase) or ("." not in varName and uncomprInterm):
-            return _MS_UNCOMPR
-        
-        if varName in ar.varsForcedUncompr or varName in tr.resultCols:
-            return _MS_UNCOMPR
-        elif varName in ar.varsRndAccess:
+    def _decideFormat(rColInfo):
+        if rColInfo[csvutils.ColInfoCols.hasRndAcc]:
             return _getMorphStoreFormatByName(
-                    fnRndAcc, ps, ar.maxBwByCol[varName]
+                    fnRndAcc,
+                    processingStyle,
+                    rColInfo[csvutils.ColInfoCols.maxBw]
             )
-        elif varName in ar.varsSorted:
+        elif rColInfo[data.COL_DA_SORTEDASC]:
             return _getMorphStoreFormatByName(
-                    fnSeqAccSorted, ps, ar.maxBwByCol[varName]
+                    fnSeqAccSorted,
+                    processingStyle,
+                    rColInfo[csvutils.ColInfoCols.maxBw]
             )
         else:
             return _getMorphStoreFormatByName(
-                    fnSeqAccUnsorted, ps, ar.maxBwByCol[varName]
+                    fnSeqAccUnsorted,
+                    processingStyle,
+                    rColInfo[csvutils.ColInfoCols.maxBw]
             )
+            
+    return dfColInfos.apply(_decideFormat, axis=1)
     
-    for tblName in tr.colNamesByTblName:
-        for colName in tr.colNamesByTblName[tblName]:
-            varName = "{}.{}".format(tblName, colName)
-            formatByCol[varName] = _decideFormat(varName)
-    
+                    
+# *****************************************************************************
+# Utilities after the formats were chosen
+# *****************************************************************************
+
+def _insertFormats(tr, sFormats):
     for el in tr.prog:
         if isinstance(el, ops.Op):
             for key in el.__dict__:
                 if key.endswith("F"):
                     varName = getattr(el, key[:-1] + "Col")
-                    if key.startswith("out"):
-                        formatByCol[varName] = _decideFormat(varName)
-                    el.__dict__[key] = formatByCol[varName]
-                    
-                    
-# *****************************************************************************
-# Utilities after the compression configuration
-# *****************************************************************************
+                    if varName not in sFormats:
+                        raise RuntimeError(
+                                "no format provided for column '{}'".format(
+                                        varName
+                                )
+                        )
+                    formatName = sFormats[varName]
+                    el.__dict__[key] = formatName
+                    #TODO This is ugly, maybe the strategies should return both
+                    # the nice name and the MorphStore C++ identifier of the
+                    # format.
+                    _addHeaders(tr, formatName[:formatName.index("_f")])
 
 # Checks if all input and output formats of all operators in the given
 # translated query have been set and raises an error otherwise.
-def checkAllFormatsSet(translationResult):
+def _checkAllFormatsSet(translationResult):
     opIdx = 0
     for el in translationResult.prog:
         if isinstance(el, ops.Op):
@@ -282,7 +285,7 @@ def checkAllFormatsSet(translationResult):
             
 # Inserts morph-operators before each operator, if necessary to ensure that its
 # input columns are available in the expected format.
-def insertMorphs(translationResult):
+def _insertMorphs(translationResult):
     def _ensureAvailable(varName, formatName):
         # If there is no column variable for this column in the given format
         # yet, then we add a full-column morph.
@@ -340,7 +343,7 @@ def insertMorphs(translationResult):
     translationResult.prog = newProg
     translationResult.resultCols = newResultCols
     
-def reorderMorphs(translationResult):
+def _reorderMorphs(translationResult):
     """
     Separates the morphs of the base and result columns (which might have been
     inserted by insertMorphs()) from the rest of the query program.
@@ -367,3 +370,102 @@ def reorderMorphs(translationResult):
     translationResult.prog = newProg
     translationResult.baseMorphs = baseMorphs
     translationResult.resultMorphs = resultMorphs
+    
+    
+# *****************************************************************************
+# Top-level functions
+# *****************************************************************************
+
+def choose(
+    dfColInfos, processingStyle,
+    strategy, uncomprBase, uncomprInterm,
+    fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
+):
+    """
+    Chooses a (un)compressed format for each base column or intermediate result
+    represented by a row in the given `pandas.DataFrame`.
+    
+    Note that this function can be used completely independent from the query
+    translation.
+    """
+    
+    if strategy == CS_UNCOMPR:
+        sFormats = chooseUncompr(dfColInfos.index)
+    else:
+        sMustBeUncompr = \
+            dfColInfos[csvutils.ColInfoCols.isForcedUncompr] | \
+            dfColInfos[csvutils.ColInfoCols.isResult] | \
+            (
+                dfColInfos[csvutils.ColInfoCols.isBaseCol] &
+                pd.Series(uncomprBase, index=dfColInfos.index)
+            ) | \
+            (
+                ~dfColInfos[csvutils.ColInfoCols.isBaseCol] &
+                pd.Series(uncomprInterm, index=dfColInfos.index)
+            )
+        dfColInfosCompr = dfColInfos[~sMustBeUncompr]
+        if len(dfColInfosCompr):
+            if strategy == CS_RULEBASED:
+                sFormats = chooseRuleBased(
+                    dfColInfosCompr,
+                    processingStyle,
+                    fnRndAcc,
+                    fnSeqAccUnsorted,
+                    fnSeqAccSorted,
+                )
+            else:
+                raise RuntimeError(
+                    "Unsupported compression strategy: '{}'".format(strategy)
+                )
+            sFormats = sFormats.append(
+                chooseUncompr(sMustBeUncompr[sMustBeUncompr].index),
+                verify_integrity=True
+            )
+        else:
+            sFormats = chooseUncompr(dfColInfos.index)
+    
+    return sFormats
+            
+def configureProgram(
+    translationResult, colInfosFilePath, processingStyle,
+    strategy, uncomprBase, uncomprInterm,
+    fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
+):
+    """
+    Modifies the given translated query program to use compression in the way
+    specified by the other parameters.
+    """
+    
+    # Choose the (un)compressed format for each base column and intermediate.
+    if strategy == CS_UNCOMPR:
+        # Uncompressed processing is possible without the CSV file containing
+        # information on the columns. This is important since that CSV file is
+        # created by an uncompressed execution.
+        varNames = []
+        for el in translationResult.prog:
+            if isinstance(el, ops.Op):
+                for key in el.__dict__:
+                    if key.endswith("Col"):
+                        varName = getattr(el, key)
+                        if varName not in varNames:
+                            varNames.append(varName)
+        sFormats = chooseUncompr(varNames)
+    else:
+        sFormats = choose(
+            csvutils.getColInfos(colInfosFilePath),
+            processingStyle,
+            strategy, uncomprBase, uncomprInterm,
+            fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
+        )
+        
+    # Insert the formats into the query program.
+    _insertFormats(translationResult, sFormats)
+    _checkAllFormatsSet(translationResult)
+    
+    # Insert full-column morph-operators if and where necessary.
+    if strategy != CS_UNCOMPR:
+        _insertMorphs(translationResult)
+        
+    # Move full-column morph-operators of base and result columns out of the
+    # query program.
+    _reorderMorphs(translationResult)

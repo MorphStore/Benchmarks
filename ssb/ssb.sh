@@ -129,6 +129,9 @@ function print_help () {
     echo "      specification of the arguments -crnd, -csequ, -cseqs, each of "
     echo "      which must be followed by a format name. See the help of "
     echo "      mal2morphstore for more details."
+    echo "      Assumes that the directories 'data_sfN/stats_dict' (as "
+    echo "      created by 'dbdict.py' and 'dc_sfN' (as created by "
+    echo "      'ssb.sh -p d') are present."
     echo ""
     echo "This script depends on MonetDB, since the 'translate'-step requires "
     echo "MAL programs from MonetDB and the 'run'-step (with the 'check'- or "
@@ -357,13 +360,15 @@ function translate () {
         do
             printf "$benchmark q$major.$minor: "
 
+            local ciFlag="--cifile $pathDataCh/q$major.$minor.csv"
+
             case $useMonetDB in
                 $umPipeline)
                     printf "SET SCHEMA $benchmark;\nEXPLAIN " \
                         | cat - $pathQueries/q$major.$minor.sql \
                         | $qdict $pathDataDicts \
                         | $mclient -d $dbName -f raw \
-                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag \
+                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 $umMaterialize)
@@ -373,12 +378,12 @@ function translate () {
                         | $mclient -d $dbName -f raw \
                         > $pathMal/q$major.$minor.mal
                     cat $pathMal/q$major.$minor.mal \
-                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag \
+                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 $umSaved)
                     cat $pathMal/q$major.$minor.mal \
-                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag \
+                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 *)
