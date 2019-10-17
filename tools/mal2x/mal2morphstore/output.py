@@ -288,6 +288,8 @@ def _printProg(indent, tr, purpose, ar, ps):
         varColMin = "colMin"
         varColMax = "colMax"
         varColDistinctCount = "colDistinctCount"
+        varColHasRndAcc = "colHasRndAccess"
+        varColIsForcedUncompr = "colIsForcedUncompr"
         print("{}// Constants for the monitoring column names.".format(indent))
         for varName, varVal in [
             # (C++ constant name, CSV column name)
@@ -303,6 +305,8 @@ def _printProg(indent, tr, purpose, ar, ps):
             (varColMin, "Min"),
             (varColMax, "Max"),
             (varColDistinctCount, "DistinctCount"),
+            (varColHasRndAcc, "hasRndAccess"),
+            (varColIsForcedUncompr, "isForcedUncompr"),
         ]:
             print('{}const std::string {} = "{}";'.format(
                     indent, varName, varVal
@@ -406,6 +410,16 @@ def _printProg(indent, tr, purpose, ar, ps):
                         )
                         print('{}MONITORING_ADD_INT_FOR({}, dp.get_distinct_count(), {}, {}, "{}", "{}");'.format(
                                 2*indent, varColDistinctCount, monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        )
+                        print('{}MONITORING_ADD_BOOL_FOR({}, {}, {}, {}, "{}", "{}");'.format(
+                                2*indent, varColHasRndAcc,
+                                "true" if (el.__dict__[foo] in ar.varsRndAccess) else "false",
+                                monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        )
+                        print('{}MONITORING_ADD_BOOL_FOR({}, {}, {}, {}, "{}", "{}");'.format(
+                                2*indent, varColIsForcedUncompr,
+                                "true" if (el.__dict__[foo] in ar.varsForcedUncompr) else "false",
+                                monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
                         print("{}}}".format(indent))
                 
