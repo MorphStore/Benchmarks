@@ -148,44 +148,6 @@ def _getMorphStoreFormatByName(fn, ps, maxBw):
             )
         
 # -----------------------------------------------------------------------------
-# Short names of the formats
-# -----------------------------------------------------------------------------
-
-_SHORT_NAMES = {
-    _MS_UNCOMPR: "u",
-}
-# We do not intend to use different vector extensions in one query at the
-# moment, so its ok if the short names are the same.
-# TODO This only need to be a function since the cascade block size can be
-# changed by a command line argument.
-def initShortNames():
-    for ps in [
-        pss.PS_SCALAR,
-        pss.PS_VEC128,
-        pss.PS_VEC128_NEON,
-        pss.PS_VEC256,
-        pss.PS_VEC512,
-    ]:
-        _SHORT_NAMES[_getMorphStoreFormatByName(FN_DYNAMICVBP, ps, None)] = "d"
-        _SHORT_NAMES[_getMorphStoreFormatByName(FN_KWISENS, ps, None)] = "k"
-        for logName, logShort in [
-            (FN_DELTA, "d"),
-            (FN_FOR, "f"),
-        ]:
-            for phyName, phyShort in [
-                (FN_DYNAMICVBP, "d"),
-                (FN_KWISENS, "k"),
-            ]:
-                _SHORT_NAMES[_getMorphStoreFormatByName(
-                    _makeCascName(logName, phyName), ps, None
-                )] = logShort + phyShort
-        for bw in range(1, 64 + 1):
-            _SHORT_NAMES[_getMorphStoreFormatByName(
-                FN_STATICVBP, ps, bw
-            )] = "s{}".format(bw)
-initShortNames()
-
-# -----------------------------------------------------------------------------
 # C++ headers required for the formats
 # -----------------------------------------------------------------------------
 
@@ -387,8 +349,8 @@ def _insertMorphs(translationResult):
         # If there is no column variable for this column in the given format
         # yet, then we add a full-column morph.
         if formatName not in actualNames[varName]:
-            newVarName = "{}__{}".format(
-                varName.replace(".", "_"), _SHORT_NAMES[formatName]
+            newVarName = "{}_m{}".format(
+                varName.replace(".", "_"), len(actualNames[varName])
             )
             newProg.append(ops.Morph(newVarName, varName, formatName))
             actualNames[varName][formatName] = newVarName

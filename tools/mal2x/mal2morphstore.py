@@ -271,7 +271,6 @@ if __name__ == "__main__":
     
     # Compression configuration.
     compr.CASC_BLOCKSIZE_LOG = args.comprCascBlockSizeLog
-    compr.initShortNames()
     compr.configureProgram(
         translationResult,
         args.colInfosFilePath,
