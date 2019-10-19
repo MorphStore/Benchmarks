@@ -19,6 +19,8 @@
 
 #include <core/memory/mm_glob.h>
 #include <core/morphing/format.h>
+#include <core/morphing/dynamic_vbp.h> // @todo Only when required!
+#include <core/morphing/k_wise_ns.h> // @todo Only when required!
 #include <core/persistence/binary_io.h>
 #include <core/storage/column.h>
 #include <core/utils/basic_types.h>

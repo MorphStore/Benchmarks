@@ -132,6 +132,10 @@ function print_help () {
     echo "      Assumes that the directories 'data_sfN/stats_dict' (as "
     echo "      created by 'dbdict.py' and 'dc_sfN' (as created by "
     echo "      'ssb.sh -p d') are present."
+    echo "  costbased"
+    echo "      Applies our cost model for lightweight integer compression "
+    echo "      algorithms to minimize the size of all base columns and "
+    echo "      intermediates involved in the query."
     echo ""
     echo "This script depends on MonetDB, since the 'translate'-step requires "
     echo "MAL programs from MonetDB and the 'run'-step (with the 'check'- or "
@@ -326,6 +330,10 @@ function translate () {
     rm -f $cmakeListsFile
 
     local comprFlags="-c $comprStrategy"
+    if [[ $comprStrategy = "costbased" ]]
+    then
+        comprFlags="$comprFlags --cprofdir compr_profiles"
+    fi
     if [[ $comprRnd ]]
     then
         comprFlags="$comprFlags -crnd $comprRnd"

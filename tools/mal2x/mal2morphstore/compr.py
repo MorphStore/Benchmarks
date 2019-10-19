@@ -35,13 +35,17 @@ import mal2morphstore.processingstyles as pss
 import sys
 # TODO This is relative to ssb.sh.
 sys.path.append("../../LC-BaSe/cm")
+import algo
 import data
+import est
 sys.path.append(".")
 import csvutils
 
 import pandas as pd
 
+import math
 import os
+from functools import partial
 
 
 # *****************************************************************************
@@ -54,10 +58,12 @@ import os
 
 CS_UNCOMPR = "uncompr"
 CS_RULEBASED = "rulebased"
+CS_COSTBASED = "costbased"
 
 COMPR_STRATEGIES = [
     CS_UNCOMPR,
     CS_RULEBASED,
+    CS_COSTBASED,
 ]
 
 # -----------------------------------------------------------------------------
@@ -242,6 +248,97 @@ def chooseRuleBased(
             )
             
     return dfColInfos.apply(_decideFormat, axis=1)
+
+def _configureCostModel(processingStyle, profileDirPath):
+    algo.CascadeAlgo._fsInternalNameFormat = "{log}+{phy}"
+    
+    data.MAX_BW = 64 # MorphStore is 64-bit.
+    
+    class BwProfCols:
+        ve = "vector_extension"
+        fmt = "format"
+        bw = "bitwidth"
+        count = "countValues"
+        rtc = "runtime compr [µs]"
+        rtd = "runtime decompr [µs]"
+        sizeUsed = "size used [byte]"
+        sizeCompr = "size compr [byte]"
+        check = "check"
+    dfBwProfs = pd.read_csv(
+            os.path.join(profileDirPath, "bwprof.csv"),
+            delimiter="\t",
+            skiprows=2
+    )
+    
+    #TODO This does not belong here.
+    BITS_PER_BYTE = 8
+    
+    for cmInternal, msInternal in [
+        ("dynamic_vbp", "dynamic_vbp_f<>"),
+        ("static_vbp", "static_vbp_f<vbp_l<>>"),
+        ("k_wise_ns", "k_wise_ns_f<>"), # Gets omitted if not SSE.
+    ][:(None if processingStyle == "sse<v128<uint64_t>>" else -1)]:
+        df = dfBwProfs[
+            (dfBwProfs[BwProfCols.ve] == processingStyle) &
+            (dfBwProfs[BwProfCols.fmt] == msInternal)
+        ]
+        df.index = range(1, data.MAX_BW + 1)
+        sBwProf = df[BwProfCols.sizeUsed] / \
+                (df[BwProfCols.count] * BITS_PER_BYTE) * data.MAX_BW
+        est._bwProfs_Alone[algo.StandAloneAlgo(cmInternal, algo.MODE_FORMAT)] = \
+                sBwProf
+        
+    est._constProfs_Alone[algo.StandAloneAlgo("delta", algo.MODE_FORMAT)] = \
+            data.MAX_BW
+    # TODO Take the reference values (meta data) into account. The precise
+    # value depends on the cascade's block size.
+    est._constProfs_Alone[algo.StandAloneAlgo("for", algo.MODE_FORMAT)] = \
+            data.MAX_BW
+    
+    est._costFuncs[algo.StandAloneAlgo("dynamic_vbp")] = est._costPhy
+    est._adaptFuncs[algo.StandAloneAlgo("dynamic_vbp")] = partial(
+            est._adaptFixed,
+            blockSize=pss.PS_INFOS[processingStyle].vectorSizeBit
+    )
+    est._costFuncs[algo.StandAloneAlgo("k_wise_ns")] = est._costPhy
+    est._adaptFuncs[algo.StandAloneAlgo("k_wise_ns")] = est._adaptId
+    est._costFuncs[algo.StandAloneAlgo("static_vbp")] = est._costPhy
+    est._adaptFuncs[algo.StandAloneAlgo("static_vbp")] = est._adaptMax
+
+    est._costFuncs[algo.StandAloneAlgo("delta")] = est._costLogConst
+    est._changeFuncs[algo.StandAloneAlgo("delta")] = est._changeDC_Delta
+    est._costFuncs[algo.StandAloneAlgo("for")] = est._costLogConst
+    est._changeFuncs[algo.StandAloneAlgo("for")] = est._changeDC_For
+
+# Our cost-based strategy.
+def chooseCostBased(
+    dfColInfos, processingStyle, choice, profileDirPath
+):
+    # TODO Don't reconfigure every time.
+    _configureCostModel(processingStyle, profileDirPath)
+    res = est.select(
+            choice,
+            partial(est.estimate, dfColInfos),
+            algo.MODE_FORMAT,
+            data.COL_F_COMPRRATE_BITSPERINT,
+            True,
+            math.inf,
+            None
+    )
+    # Map algo.Algo objects to MorphStore C++ format names.
+    return pd.DataFrame(
+            {
+                "algo": res[0],
+                csvutils.ColInfoCols.maxBw: dfColInfos[csvutils.ColInfoCols.maxBw]
+            }
+    ).apply(
+            lambda row: _getMorphStoreFormatByName(
+                    row["algo"].getInternalName(),
+                    processingStyle,
+                    row[csvutils.ColInfoCols.maxBw]
+            ),
+            axis=1
+    )
     
                     
 # *****************************************************************************
@@ -380,6 +477,7 @@ def choose(
     dfColInfos, processingStyle,
     strategy, uncomprBase, uncomprInterm,
     fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
+    profileDirPath,
 ):
     """
     Chooses a (un)compressed format for each base column or intermediate result
@@ -413,6 +511,43 @@ def choose(
                     fnSeqAccUnsorted,
                     fnSeqAccSorted,
                 )
+            elif strategy == CS_COSTBASED:
+                sHasRndAcc = dfColInfosCompr[csvutils.ColInfoCols.hasRndAcc]
+                dfColInfosComprHasRndAcc = dfColInfosCompr[sHasRndAcc]
+                dfColInfosComprHasNoRndAcc = dfColInfosCompr[~sHasRndAcc]
+                sFormats = pd.Series()
+                if len(dfColInfosComprHasRndAcc):
+                    sFormats = sFormats.append(chooseCostBased(
+                            dfColInfosComprHasRndAcc,
+                            processingStyle,
+                            [
+                                # TODO Uncompressed should be an option, too.
+                                algo.StandAloneAlgo(FN_STATICVBP),
+                            ],
+                            profileDirPath
+                    ))
+                if len(dfColInfosComprHasNoRndAcc):
+                    sFormats = sFormats.append(chooseCostBased(
+                            dfColInfosComprHasNoRndAcc,
+                            processingStyle,
+                            [
+                                # TODO Uncompressed should be an option, too.
+                                algo.StandAloneAlgo(FN_DYNAMICVBP),
+                                algo.StandAloneAlgo(FN_STATICVBP),
+                                algo.CascadeAlgo(FN_DELTA, FN_DYNAMICVBP, 123),
+                                algo.CascadeAlgo(FN_FOR, FN_DYNAMICVBP, 123),
+                                # The following are ignored if the processing
+                                # style is not SSE.
+                                algo.StandAloneAlgo(FN_KWISENS),
+                                algo.CascadeAlgo(FN_DELTA, FN_KWISENS, 123),
+                                algo.CascadeAlgo(FN_FOR, FN_KWISENS, 123),
+                            ][:(
+                                None
+                                if processingStyle == "sse<v128<uint64_t>>"
+                                else -3
+                            )],
+                            profileDirPath
+                    ))
             else:
                 raise RuntimeError(
                     "Unsupported compression strategy: '{}'".format(strategy)
@@ -430,6 +565,7 @@ def configureProgram(
     translationResult, colInfosFilePath, processingStyle,
     strategy, uncomprBase, uncomprInterm,
     fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
+    profileDirPath,
 ):
     """
     Modifies the given translated query program to use compression in the way
@@ -456,6 +592,7 @@ def configureProgram(
             processingStyle,
             strategy, uncomprBase, uncomprInterm,
             fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
+            profileDirPath,
         )
         
     # Insert the formats into the query program.

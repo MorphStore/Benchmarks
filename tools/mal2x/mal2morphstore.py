@@ -138,6 +138,7 @@ if __name__ == "__main__":
         help="Are the hand implemented operators used (1), "
             "or the operators using the vector library (2)?"
     )
+    #TODO The next two are also compression arguments.
     parser.add_argument(
         "--statdir", dest="statDirPath", default=None, metavar="DIR",
         help="The path to the directory containing statistics on the base "
@@ -214,6 +215,13 @@ if __name__ == "__main__":
             "irrespective of the other compression parameters. Defaults to "
             "false."
     )
+    comprArgGr.add_argument(
+        "--cprofdir", dest="comprProfileDirPath", default=None, metavar="DIR",
+        help="The path to the directory containing the CSV files for creating "
+            "the profiles required by our cost model for lightweight integer "
+            "compression algorithms."
+        # TODO Validate existence.
+    )
 
     args = parser.parse_args()
     
@@ -222,7 +230,8 @@ if __name__ == "__main__":
         if (
             args.comprRndFormat is not None or
             args.comprSeqUnsortedFormat is not None or
-            args.comprSeqSortedFormat is not None
+            args.comprSeqSortedFormat is not None or
+            args.comprProfileDirPath is not None
         ):
             parser.error("Illegal combination of the compression arguments.")
     elif args.comprStrategy == compr.CS_RULEBASED:
@@ -232,6 +241,9 @@ if __name__ == "__main__":
             args.comprSeqUnsortedFormat = args.comprRndFormat
         if args.comprSeqSortedFormat is None:
             args.comprSeqSortedFormat = args.comprSeqUnsortedFormat
+    elif args.comprStrategy == compr.CS_COSTBASED:
+        if args.comprProfileDirPath is None:
+            raise RuntimeError("the directory containing the profiles for the cost-based compression strategy must be specified")
 
     if args.inMalFilePath == FROM_STDIN:
         # 0 is the file descriptor of stdin, can be used with open().
@@ -269,7 +281,8 @@ if __name__ == "__main__":
         parseBool(args.comprUncomprInterm),
         args.comprRndFormat,
         args.comprSeqUnsortedFormat,
-        args.comprSeqSortedFormat
+        args.comprSeqSortedFormat,
+        args.comprProfileDirPath,
     )
     
     # C++-code generation.
