@@ -46,6 +46,7 @@ of an abstract representation of the translated program.
 
 import mal2morphstore.analysis
 import mal2morphstore.compr as compr
+import mal2morphstore.formats as formats
 from mal2morphstore.operators import Op, Morph
 import mal2morphstore.processingstyles as ps
 import mal2morphstore.purposes as pp
@@ -110,6 +111,11 @@ def _printHeaders(indent, tr, purpose, processingStyle, versionSelect):
     # Add header for data analysis if required.
     if purpose == pp.PP_DATACH:
         tr.headers.add("core/utils/data_properties.h")
+        
+    # Add headers for all formats if required.
+    if purpose == pp.PP_SIZE:
+        for fmt in formats.getAllFormats(processingStyle):
+            compr._addHeaders(tr, fmt)
     
     # Print headers in lexicographical order.
     for header in sorted(tr.headers):
@@ -462,6 +468,10 @@ def _printProg(indent, tr, purpose, ar, ps):
                     indent, varName, varVal
             ))
         print()
+        
+        # Regarding (un)compressed formats.
+        allFormats = formats.getAllFormats(ps)
+        uncompr = formats.UncomprFormat()
 
         # Creation of the monitors.
         print("{}// Creation of the monitors.".format(indent))
@@ -472,13 +482,13 @@ def _printProg(indent, tr, purpose, ar, ps):
                     if key.endswith("Col"):
                         varNames.add(getattr(el, key))
         for varName in varNames:
-            for formatName in compr.COMPR_FORMATS:
+            for fmt in allFormats:
                 print(
                     '{}MONITORING_CREATE_MONITOR(MONITORING_MAKE_MONITOR("{}", "{}"), MONITORING_KEY_IDENTS({}, {}));'
                     .format(
                             indent,
                             varName,
-                            formatName,
+                            fmt.getInternalName(),
                             varColColName,
                             varColFormat,
                     )
@@ -486,24 +496,28 @@ def _printProg(indent, tr, purpose, ar, ps):
         print()
         
         def _morphToAllFormats(varName):
+            def _setBitwidthIf(fmt):
+                #TODO Use actually measured maxBw.
+                return fmt.changeBw(ar.maxBwByCol[varName]) \
+                        if isinstance(fmt, formats.StaticVBPFormat) \
+                        else fmt
 #            print(
 #                '{}std::cerr << "\\tmorphing column {} to all formats..." << '
 #                'std::endl;'.format(indent, varName)
 #            )
-            for formatName in compr.COMPR_FORMATS:
-                msFormatName = compr._getMorphStoreFormatByName(
-                    formatName, ps, ar.maxBwByCol[varName]
-                )
+            for fmt in allFormats:
+                msFormatNameWithoutBw = fmt.getInternalName()
+                msFormatNameWithBw = _setBitwidthIf(fmt).getInternalName()
                 newVarName = "{}__m".format(varName.replace(".", "_"))
                 print("{}{{".format(indent))
 #                print('{}std::cerr << "\\t\\t{}... ";'.format(
-#                    2 * indent, msFormatName
+#                    2 * indent, msFormatNameWithoutBw
 #                ))
                 print("{}{}".format(
-                    2 * indent, Morph(newVarName, varName, msFormatName)
+                    2 * indent, Morph(newVarName, varName, msFormatNameWithBw)
                 ))
 #                print('{}std::cerr << "done." << std::endl;'.format(
-#                    2 * indent, msFormatName
+#                    2 * indent, msFormatNameWithoutBw
 #                ))
                 for method, colName in [
                     ("get_count_values"      , varColValueCount),
@@ -517,9 +531,9 @@ def _printProg(indent, tr, purpose, ar, ps):
                             newVarName,
                             method,
                             varName,
-                            formatName
+                            msFormatNameWithoutBw
                     ))
-                if formatName != compr.FN_UNCOMPR:
+                if fmt != uncompr:
                     print("{}delete {};".format(2 * indent, newVarName))
                 print("{}}}".format(indent))
 #            print('{}std::cerr << "\\tdone." << std::endl;'.format(indent))
