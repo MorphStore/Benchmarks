@@ -57,6 +57,7 @@ details.
 
 
 import mal2morphstore.compr as compr
+import mal2morphstore.formats as formats
 import mal2morphstore.operators as ops
 import mal2morphstore.output
 import mal2morphstore.processingstyles as ps
@@ -162,7 +163,7 @@ if __name__ == "__main__":
         "basic approch how to do this. Depending on the strategy, additional "
         "arguments may be allowed. "
         "The following FORMATs are supported: {}".format(
-            ", ".join(map(quote, compr.COMPR_FORMATS))
+            ", ".join(map(quote, formats.getAllSimpleNames()))
         )
     );
     comprArgGr.add_argument(
@@ -175,24 +176,25 @@ if __name__ == "__main__":
                 ", ".join(map(quote, compr.COMPR_STRATEGIES)),
             )
     )
+    allSimpleNames = formats.getAllSimpleNames()
     comprArgGr.add_argument(
         "-crnd", dest="comprRndFormat", metavar="FORMAT",
-        choices=compr.COMPR_FORMATS, default=None,
+        choices=allSimpleNames, default=None,
         help="The format to use for columns requiring random access. Only "
             "allowed for the '{}' strategy. Defaults to '{}'".format(
-                compr.CS_RULEBASED, compr.FN_UNCOMPR
+                compr.CS_RULEBASED, formats.UncomprFormat().getSimpleName()
             )
     )
     comprArgGr.add_argument(
         "-csequ", dest="comprSeqUnsortedFormat", metavar="FORMAT",
-        choices=compr.COMPR_FORMATS, default=None,
+        choices=allSimpleNames, default=None,
         help="The format to use for unsorted columns requiring only "
             "sequential access. Only  allowed for the '{}' strategy. Defaults "
             "to the value of -crnd".format(compr.CS_RULEBASED)
     )
     comprArgGr.add_argument(
         "-cseqs", dest="comprSeqSortedFormat", metavar="FORMAT",
-        choices=compr.COMPR_FORMATS, default=None,
+        choices=allSimpleNames, default=None,
         help="The format to use for sorted columns requiring only "
             "sequential access. Only  allowed for the '{}' strategy. Defaults "
             "to the value of -csequ".format(compr.CS_RULEBASED)
@@ -235,12 +237,16 @@ if __name__ == "__main__":
         ):
             parser.error("Illegal combination of the compression arguments.")
     elif args.comprStrategy == compr.CS_RULEBASED:
-        if args.comprRndFormat is None:
-            args.comprRndFormat = compr.FN_UNCOMPR
-        if args.comprSeqUnsortedFormat is None:
-            args.comprSeqUnsortedFormat = args.comprRndFormat
-        if args.comprSeqSortedFormat is None:
-            args.comprSeqSortedFormat = args.comprSeqUnsortedFormat
+        args.comprRndFormat = formats.UncomprFormat() \
+            if args.comprRndFormat is None \
+            else formats.byName(args.comprRndFormat, args.processingStyle)
+        args.comprSeqUnsortedFormat = args.comprRndFormat \
+            if args.comprSeqUnsortedFormat is None \
+            else formats.byName(args.comprSeqUnsortedFormat, args.processingStyle)
+        args.comprSeqSortedFormat = args.comprSeqUnsortedFormat \
+            if args.comprSeqSortedFormat is None \
+            else formats.byName(args.comprSeqSortedFormat, args.processingStyle)
+            
     elif args.comprStrategy == compr.CS_COSTBASED:
         if args.comprProfileDirPath is None:
             raise RuntimeError("the directory containing the profiles for the cost-based compression strategy must be specified")
@@ -270,7 +276,7 @@ if __name__ == "__main__":
     )
     
     # Compression configuration.
-    compr.CASC_BLOCKSIZE_LOG = args.comprCascBlockSizeLog
+    formats.CASC_BLOCKSIZE_LOG = args.comprCascBlockSizeLog
     compr.configureProgram(
         translationResult,
         args.colInfosFilePath,

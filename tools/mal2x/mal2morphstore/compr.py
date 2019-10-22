@@ -16,7 +16,8 @@
 #*********************************************************************************************
 
 """
-This module contains everything related to compression.
+This module contains everything related to assigning (un)compressed formats to
+columns.
 
 The basic idea of employing compression in the translated queries is to select
 one of the compression strategies defined in this module. A compression
@@ -29,6 +30,7 @@ with "F". See module mal2morphstore.operators.
 
 
 import mal2morphstore.analysis as analysis
+import mal2morphstore.formats as formats
 import mal2morphstore.operators as ops
 import mal2morphstore.processingstyles as pss
 
@@ -66,154 +68,40 @@ COMPR_STRATEGIES = [
     CS_COSTBASED,
 ]
 
-# -----------------------------------------------------------------------------
-# Block size of cascades
-# -----------------------------------------------------------------------------
-# There is only one global block size for the entire program, since we do not
-# consider using different cascade block sizes for different columns. Note that
-# this default can be set by a command line argument.
-
-CASC_BLOCKSIZE_LOG = 1024
-
-# -----------------------------------------------------------------------------
-# Format names
-# -----------------------------------------------------------------------------
-# We need to distinguish between the C++ identifiers (including template
-# parameters) in the MorphStore code and the simpler format names in this
-# script.
-
-_MS_UNCOMPR = "uncompr_f"
-
-FN_UNCOMPR = "uncompr"
-FN_STATICVBP = "static_vbp"
-FN_DYNAMICVBP = "dynamic_vbp"
-FN_KWISENS = "k_wise_ns"
-FN_DELTA = "delta"
-FN_FOR = "for"
-
-_CASC_SEP = "+"
-def _makeCascName(logName, phyName):
-    return "{}{}{}".format(logName, _CASC_SEP, phyName)
-
-COMPR_FORMATS = [
-    FN_UNCOMPR,
-    FN_STATICVBP,
-    FN_DYNAMICVBP,
-    FN_KWISENS,
-    _makeCascName(FN_DELTA, FN_DYNAMICVBP),
-    _makeCascName(FN_FOR, FN_DYNAMICVBP),
-    _makeCascName(FN_DELTA, FN_KWISENS),
-    _makeCascName(FN_FOR, FN_KWISENS),
-]
-
-def _getMorphStoreFormatByName(fn, ps, maxBw):
-    pos = fn.find(_CASC_SEP)
-    if pos == -1:
-        if fn == FN_UNCOMPR:
-            return _MS_UNCOMPR
-        elif fn == FN_STATICVBP:
-            if maxBw is None:
-                raise RuntimeError(
-                    "static bit-packing needs to know the maximum bit width"
-                )
-            step = pss.PS_INFOS[ps].vectorElementCount
-            return "static_vbp_f<vbp_l<{}, {}> >".format(maxBw, step)
-        elif fn == FN_DYNAMICVBP:
-            blockSizeLog = pss.PS_INFOS[ps].vectorSizeBit
-            pageSizeBlocks = pss.PS_INFOS[ps].vectorSizeByte
-            step = pss.PS_INFOS[ps].vectorElementCount
-            return "dynamic_vbp_f<{}, {}, {}>".format(
-                blockSizeLog, pageSizeBlocks, step
-            )
-        elif fn == FN_KWISENS:
-            blockSizeLog = pss.PS_INFOS[ps].vectorElementCount
-            return "k_wise_ns_f<{}>".format(blockSizeLog)
-        else:
-            raise RuntimeError("unsupported format: '{}'".format(fn))
-    else:
-        outerName = fn[:pos]
-        innerName = fn[pos+1:]
-        # TODO reduce the code duplication here
-        if outerName == FN_DELTA:
-            step = pss.PS_INFOS[ps].vectorElementCount
-            inner = _getMorphStoreFormatByName(innerName, ps, None)
-            return "delta_f<{}, {}, {} >".format(CASC_BLOCKSIZE_LOG, step, inner)
-        elif outerName == FN_FOR:
-            step = pss.PS_INFOS[ps].vectorElementCount
-            inner = _getMorphStoreFormatByName(innerName, ps, None)
-            return "for_f<{}, {}, {} >".format(CASC_BLOCKSIZE_LOG, step, inner)
-        else:
-            raise RuntimeError(
-                "unsupported outer format of a cascade: '{}'".format(outerName)
-            )
-        
-# -----------------------------------------------------------------------------
-# C++ headers required for the formats
-# -----------------------------------------------------------------------------
-
-_HEADERS_BY_FN = {
-    FN_UNCOMPR: [
-        # TODO format.h is only required, sinec uncompr_f is still defined there.
-        "core/morphing/format.h",
-        "core/morphing/uncompr.h"
-    ],
-    FN_STATICVBP: [
-        "core/morphing/static_vbp.h",
-        "core/morphing/vbp.h"
-    ],
-    FN_DYNAMICVBP: ["core/morphing/dynamic_vbp.h"],
-    FN_KWISENS: ["core/morphing/k_wise_ns.h"],
-    FN_DELTA: ["core/morphing/delta.h"],
-    FN_FOR: ["core/morphing/for.h"],
-}
-
-def _addHeaders(tr, fn):
-    pos = fn.find(_CASC_SEP)
-    if pos == -1:
-        for header in _HEADERS_BY_FN[fn]:
-            tr.headers.add(header)
-    else:
-        _addHeaders(tr, fn[:pos])
-        _addHeaders(tr, fn[pos+1:])
-        
         
 # *****************************************************************************
 # Compression strategies
 # *****************************************************************************
 
+def _setStaticBitwidth(sFormat, dfColInfos):
+    return sFormat.combine(
+            dfColInfos[csvutils.ColInfoCols.maxBw],
+            lambda fmt, maxBw:
+                    fmt.changeBw(maxBw) \
+                    if isinstance(fmt, formats.StaticVBPFormat) \
+                    else fmt
+    )
+
 # All base and intermediate columns are uncompressed.
 def chooseUncompr(varNames):
-    return pd.Series([_MS_UNCOMPR] * len(varNames), index=varNames)
+    return pd.Series([formats.UncomprFormat()] * len(varNames), index=varNames)
                     
 # Simple rule-based strategy.
-def chooseRuleBased(
-    dfColInfos, processingStyle, fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted
-):
+def chooseRuleBased(dfColInfos, fRndAcc, fSeqAccUnsorted, fSeqAccSorted):
     def _decideFormat(rColInfo):
         if rColInfo[csvutils.ColInfoCols.hasRndAcc]:
-            return _getMorphStoreFormatByName(
-                    fnRndAcc,
-                    processingStyle,
-                    rColInfo[csvutils.ColInfoCols.maxBw]
-            )
+            return fRndAcc
         elif rColInfo[data.COL_DA_SORTEDASC]:
-            return _getMorphStoreFormatByName(
-                    fnSeqAccSorted,
-                    processingStyle,
-                    rColInfo[csvutils.ColInfoCols.maxBw]
-            )
+            return fSeqAccSorted
         else:
-            return _getMorphStoreFormatByName(
-                    fnSeqAccUnsorted,
-                    processingStyle,
-                    rColInfo[csvutils.ColInfoCols.maxBw]
-            )
+            return fSeqAccUnsorted
             
-    return dfColInfos.apply(_decideFormat, axis=1)
+    return _setStaticBitwidth(
+            dfColInfos.apply(_decideFormat, axis=1),
+            dfColInfos
+    )
 
-def _configureCostModel(processingStyle, profileDirPath):
-    algo.CascadeAlgo._fsInternalNameFormat = "{log}+{phy}"
-    
+def _configureCostModel(ps, profileDirPath):
     data.MAX_BW = 64 # MorphStore is 64-bit.
     
     class BwProfCols:
@@ -235,42 +123,48 @@ def _configureCostModel(processingStyle, profileDirPath):
     #TODO This does not belong here.
     BITS_PER_BYTE = 8
     
-    for cmInternal, msInternal in [
-        ("dynamic_vbp", "dynamic_vbp_f<>"),
-        ("static_vbp", "static_vbp_f<vbp_l<>>"),
-        ("k_wise_ns", "k_wise_ns_f<>"), # Gets omitted if not SSE.
-    ][:(None if processingStyle == "sse<v128<uint64_t>>" else -1)]:
+    phyFormats = [
+        formats.StaticVBPFormat(ps),
+        formats.DynamicVBPFormat(ps),
+    ]
+    if ps == pss.PS_VEC128:
+        phyFormats.append(formats.KWiseNSFormat(ps))
+        
+    for fmt in phyFormats:
         df = dfBwProfs[
-            (dfBwProfs[BwProfCols.ve] == processingStyle) &
-            (dfBwProfs[BwProfCols.fmt] == msInternal)
+            (dfBwProfs[BwProfCols.ve] == ps) &
+            (dfBwProfs[BwProfCols.fmt] == fmt.getInternalName())
         ]
         df.index = range(1, data.MAX_BW + 1)
         sBwProf = df[BwProfCols.sizeUsed] / \
                 (df[BwProfCols.count] * BITS_PER_BYTE) * data.MAX_BW
-        est._bwProfs_Alone[algo.StandAloneAlgo(cmInternal, algo.MODE_FORMAT)] = \
-                sBwProf
-        
-    est._constProfs_Alone[algo.StandAloneAlgo("delta", algo.MODE_FORMAT)] = \
-            data.MAX_BW
+        est._bwProfs_Alone[fmt.changeMode(algo.MODE_FORMAT)] = sBwProf
+
+    est._constProfs_Alone[formats.UncomprFormat(algo.MODE_FORMAT)] = data.MAX_BW
+    
+    est._constProfs_Alone[formats._DeltaFormat(ps, algo.MODE_FORMAT)] = data.MAX_BW
     # TODO Take the reference values (meta data) into account. The precise
     # value depends on the cascade's block size.
-    est._constProfs_Alone[algo.StandAloneAlgo("for", algo.MODE_FORMAT)] = \
-            data.MAX_BW
+    est._constProfs_Alone[formats._ForFormat(ps, algo.MODE_FORMAT)] = data.MAX_BW
+        
     
-    est._costFuncs[algo.StandAloneAlgo("dynamic_vbp")] = est._costPhy
-    est._adaptFuncs[algo.StandAloneAlgo("dynamic_vbp")] = partial(
+    est._costFuncs[formats.DynamicVBPFormat(ps)] = est._costPhy
+    est._adaptFuncs[formats.DynamicVBPFormat(ps)] = partial(
             est._adaptFixed,
-            blockSize=pss.PS_INFOS[processingStyle].vectorSizeBit
+            blockSize=pss.PS_INFOS[ps].vectorSizeBit
     )
-    est._costFuncs[algo.StandAloneAlgo("k_wise_ns")] = est._costPhy
-    est._adaptFuncs[algo.StandAloneAlgo("k_wise_ns")] = est._adaptId
-    est._costFuncs[algo.StandAloneAlgo("static_vbp")] = est._costPhy
-    est._adaptFuncs[algo.StandAloneAlgo("static_vbp")] = est._adaptMax
-
-    est._costFuncs[algo.StandAloneAlgo("delta")] = est._costLogConst
-    est._changeFuncs[algo.StandAloneAlgo("delta")] = est._changeDC_Delta
-    est._costFuncs[algo.StandAloneAlgo("for")] = est._costLogConst
-    est._changeFuncs[algo.StandAloneAlgo("for")] = est._changeDC_For
+    if ps == pss.PS_VEC128:
+        est._costFuncs[formats.KWiseNSFormat(ps)] = est._costPhy
+        est._adaptFuncs[formats.KWiseNSFormat(ps)] = est._adaptId
+    est._costFuncs[formats.StaticVBPFormat(ps)] = est._costPhy
+    est._adaptFuncs[formats.StaticVBPFormat(ps)] = est._adaptMax
+    
+    est._costFuncs[formats.UncomprFormat()] = est._costLogConst
+    
+    est._costFuncs[formats._DeltaFormat(ps)] = est._costLogConst
+    est._changeFuncs[formats._DeltaFormat(ps)] = est._changeDC_Delta
+    est._costFuncs[formats._ForFormat(ps)] = est._costLogConst
+    est._changeFuncs[formats._ForFormat(ps)] = est._changeDC_For
 
 # Our cost-based strategy.
 def chooseCostBased(
@@ -286,26 +180,24 @@ def chooseCostBased(
             True,
             math.inf,
             None
-    )
-    # Map algo.Algo objects to MorphStore C++ format names.
-    return pd.DataFrame(
-            {
-                "algo": res[0],
-                csvutils.ColInfoCols.maxBw: dfColInfos[csvutils.ColInfoCols.maxBw]
-            }
-    ).apply(
-            lambda row: _getMorphStoreFormatByName(
-                    row["algo"].getInternalName(),
-                    processingStyle,
-                    row[csvutils.ColInfoCols.maxBw]
-            ),
-            axis=1
-    )
+    )[0]
+    res = _setStaticBitwidth(res, dfColInfos)
+    return res
     
                     
 # *****************************************************************************
 # Utilities after the formats were chosen
 # *****************************************************************************
+
+def _addHeaders(tr, fmt):
+    if isinstance(fmt, algo.StandAloneAlgo):
+        for header in fmt.headers:
+            tr.headers.add(header)
+    elif isinstance(fmt, algo.CascadeAlgo):
+        _addHeaders(tr, fmt.getLogAlgo())
+        _addHeaders(tr, fmt.getPhyAlgo())
+    else:
+        raise RuntimeError("unsupported format: '{}'".format(fmt))
 
 def _insertFormats(tr, sFormats):
     for el in tr.prog:
@@ -319,12 +211,9 @@ def _insertFormats(tr, sFormats):
                                         varName
                                 )
                         )
-                    formatName = sFormats[varName]
-                    el.__dict__[key] = formatName
-                    #TODO This is ugly, maybe the strategies should return both
-                    # the nice name and the MorphStore C++ identifier of the
-                    # format.
-                    _addHeaders(tr, formatName[:formatName.index("_f")])
+                    fmt = sFormats[varName]
+                    el.__dict__[key] = fmt.getInternalName()
+                    _addHeaders(tr, fmt)
 
 # Checks if all input and output formats of all operators in the given
 # translated query have been set and raises an error otherwise.
@@ -362,11 +251,12 @@ def _insertMorphs(translationResult):
     # A mapping from original column variable names to a mapping from
     # MorphStore format names to original or newly introduced column variable
     # names.
+    nameUncompr = formats.UncomprFormat().getInternalName()
     actualNames = {}
     for tblName in translationResult.colNamesByTblName:
         for colName in translationResult.colNamesByTblName[tblName]:
             varName = "{}.{}".format(tblName, colName)
-            actualNames[varName] = {_MS_UNCOMPR: varName}
+            actualNames[varName] = {nameUncompr: varName}
     
     # Add full-column morphs for the operators' input columns, if necessary.
     for el in translationResult.prog:
@@ -395,8 +285,8 @@ def _insertMorphs(translationResult):
     
     # Morphs for the query's result columns.
     for varName in translationResult.resultCols:
-        _ensureAvailable(varName, _MS_UNCOMPR)
-        newResultCols.append(actualNames[varName][_MS_UNCOMPR])
+        _ensureAvailable(varName, nameUncompr)
+        newResultCols.append(actualNames[varName][nameUncompr])
         
     # Overwriting the old program and result column names with the new ones.
     translationResult.prog = newProg
@@ -468,7 +358,6 @@ def choose(
             if strategy == CS_RULEBASED:
                 sFormats = chooseRuleBased(
                     dfColInfosCompr,
-                    processingStyle,
                     fnRndAcc,
                     fnSeqAccUnsorted,
                     fnSeqAccSorted,
@@ -483,31 +372,45 @@ def choose(
                             dfColInfosComprHasRndAcc,
                             processingStyle,
                             [
-                                # TODO Uncompressed should be an option, too.
-                                algo.StandAloneAlgo(FN_STATICVBP),
+                                formats.UncomprFormat(),
+                                formats.StaticVBPFormat(processingStyle),
                             ],
                             profileDirPath
                     ))
                 if len(dfColInfosComprHasNoRndAcc):
+                    choice = [
+                        formats.UncomprFormat(),
+                        formats.DynamicVBPFormat(processingStyle),
+                        formats.StaticVBPFormat(processingStyle),
+                        formats.DeltaCascFormat(
+                                formats.CASC_BLOCKSIZE_LOG,
+                                processingStyle,
+                                formats.DynamicVBPFormat(processingStyle)
+                        ),
+                        formats.ForCascFormat(
+                                formats.CASC_BLOCKSIZE_LOG,
+                                processingStyle,
+                                formats.DynamicVBPFormat(processingStyle)
+                        ),
+                    ]
+                    if processingStyle == pss.PS_VEC128:
+                        choice.extend([
+                            formats.KWiseNSFormat(processingStyle),
+                            formats.DeltaCascFormat(
+                                    formats.CASC_BLOCKSIZE_LOG,
+                                    processingStyle,
+                                    formats.KWiseNSFormat(processingStyle)
+                            ),
+                            formats.ForCascFormat(
+                                    formats.CASC_BLOCKSIZE_LOG,
+                                    processingStyle,
+                                    formats.KWiseNSFormat(processingStyle)
+                            ),
+                        ])
                     sFormats = sFormats.append(chooseCostBased(
                             dfColInfosComprHasNoRndAcc,
                             processingStyle,
-                            [
-                                # TODO Uncompressed should be an option, too.
-                                algo.StandAloneAlgo(FN_DYNAMICVBP),
-                                algo.StandAloneAlgo(FN_STATICVBP),
-                                algo.CascadeAlgo(FN_DELTA, FN_DYNAMICVBP, 123),
-                                algo.CascadeAlgo(FN_FOR, FN_DYNAMICVBP, 123),
-                                # The following are ignored if the processing
-                                # style is not SSE.
-                                algo.StandAloneAlgo(FN_KWISENS),
-                                algo.CascadeAlgo(FN_DELTA, FN_KWISENS, 123),
-                                algo.CascadeAlgo(FN_FOR, FN_KWISENS, 123),
-                            ][:(
-                                None
-                                if processingStyle == "sse<v128<uint64_t>>"
-                                else -3
-                            )],
+                            choice,
                             profileDirPath
                     ))
             else:
