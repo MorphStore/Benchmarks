@@ -102,3 +102,27 @@ def getColInfos(colInfosFilePath):
     
     df.index = dfInDedup["colName"]
     return df
+
+
+# *****************************************************************************
+# Extracting size measurements
+# *****************************************************************************
+
+class SizesCols:
+    fmt = "format"
+    sizeUsedByte = data.COL_F_COMPRRATE_BITSPERINT
+    comprRateBitsPerInt = data.COL_F_COMPRRATE_BITSPERINT
+
+def getSizes(sizesFilePath):
+    dfIn = readMorphStoreCsv(sizesFilePath)
+
+    bitsPerByte = 8 # TODO This does not belong here.
+    df = pd.DataFrame({
+        SizesCols.fmt: dfIn["format"],
+        SizesCols.sizeUsedByte: dfIn["sizeUsedByte"],
+        SizesCols.comprRateBitsPerInt: dfIn["sizeUsedByte"] / (
+                dfIn["valueCount"] * (data.MAX_BW / bitsPerByte)
+        ),
+    })
+    df.index=dfIn["colName"]
+    return df

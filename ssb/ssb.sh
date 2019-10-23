@@ -369,6 +369,12 @@ function translate () {
             printf "$benchmark q$major.$minor: "
 
             local ciFlag="--cifile $pathDataCh/q$major.$minor.csv"
+            if [[ $comprStrategy = "realbest" || $comprStrategy = "realworst" ]]
+            then
+                local sizesFileFlag="--csizesfile $pathSize/q$major.$minor.csv"
+            else
+                local sizesFileFlag=""
+            fi
 
             case $useMonetDB in
                 $umPipeline)
@@ -376,7 +382,7 @@ function translate () {
                         | cat - $pathQueries/q$major.$minor.sql \
                         | $qdict $pathDataDicts \
                         | $mclient -d $dbName -f raw \
-                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag \
+                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag $sizesFileFlag \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 $umMaterialize)
@@ -386,12 +392,12 @@ function translate () {
                         | $mclient -d $dbName -f raw \
                         > $pathMal/q$major.$minor.mal
                     cat $pathMal/q$major.$minor.mal \
-                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag \
+                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag $sizesFileFlag \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 $umSaved)
                     cat $pathMal/q$major.$minor.mal \
-                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag \
+                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag $sizesFileFlag \
                         > $pathSrc/q$major.$minor.cpp
                     ;;
                 *)

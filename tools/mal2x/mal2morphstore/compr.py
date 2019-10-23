@@ -61,11 +61,15 @@ from functools import partial
 CS_UNCOMPR = "uncompr"
 CS_RULEBASED = "rulebased"
 CS_COSTBASED = "costbased"
+CS_REALBEST = "realbest"
+CS_REALWORST = "realworst"
 
 COMPR_STRATEGIES = [
     CS_UNCOMPR,
     CS_RULEBASED,
     CS_COSTBASED,
+    CS_REALBEST,
+    CS_REALWORST,
 ]
 
         
@@ -166,23 +170,45 @@ def _configureCostModel(ps, profileDirPath):
     est._costFuncs[formats._ForFormat(ps)] = est._costLogConst
     est._changeFuncs[formats._ForFormat(ps)] = est._changeDC_For
 
-# Our cost-based strategy.
-def chooseCostBased(
-    dfColInfos, processingStyle, choice, profileDirPath
-):
-    # TODO Don't reconfigure every time.
-    _configureCostModel(processingStyle, profileDirPath)
+def _chooseFuncBased(costFunc, betterWins, dfColInfos, choice):
     res = est.select(
             choice,
-            partial(est.estimate, dfColInfos),
+            costFunc,
             algo.MODE_FORMAT,
             data.COL_F_COMPRRATE_BITSPERINT,
-            True,
+            betterWins,
             math.inf,
             None
     )[0]
     res = _setStaticBitwidth(res, dfColInfos)
     return res
+
+# Our cost-based strategy.
+def chooseCostBased(dfColInfos, choice, processingStyle, profileDirPath):
+    # TODO Don't reconfigure every time.
+    _configureCostModel(processingStyle, profileDirPath)
+    return _chooseFuncBased(
+            partial(est.estimate, dfColInfos),
+            True,
+            dfColInfos,
+            choice
+    )
+
+def _measure(dfMea, al, dataColName):
+    if al._mode == algo.MODE_FORMAT:
+        return dfMea[
+                dfMea[csvutils.SizesCols.fmt] == al.getInternalName()
+        ][dataColName]
+    else:
+        raise NotImplemented()
+
+def chooseRealBased(dfColInfos, choice, sizesFilePath, betterWins=True):
+    return _chooseFuncBased(
+            partial(_measure, csvutils.getSizes(sizesFilePath)),
+            betterWins,
+            dfColInfos,
+            choice
+    ).reindex(dfColInfos.index)
     
                     
 # *****************************************************************************
@@ -330,6 +356,7 @@ def choose(
     strategy, uncomprBase, uncomprInterm,
     fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
     profileDirPath,
+    sizesFilePath,
 ):
     """
     Chooses a (un)compressed format for each base column or intermediate result
@@ -362,20 +389,31 @@ def choose(
                     fnSeqAccUnsorted,
                     fnSeqAccSorted,
                 )
-            elif strategy == CS_COSTBASED:
+            elif strategy in [CS_COSTBASED, CS_REALBEST, CS_REALWORST]:
+                if strategy == CS_COSTBASED:
+                    chooseFunc = partial(
+                            chooseCostBased,
+                            processingStyle=processingStyle,
+                            profileDirPath=profileDirPath
+                    )
+                else:
+                    chooseFunc = partial(
+                            chooseRealBased,
+                            sizesFilePath=sizesFilePath,
+                            betterWins=strategy == CS_REALBEST
+                    )
+                
                 sHasRndAcc = dfColInfosCompr[csvutils.ColInfoCols.hasRndAcc]
                 dfColInfosComprHasRndAcc = dfColInfosCompr[sHasRndAcc]
                 dfColInfosComprHasNoRndAcc = dfColInfosCompr[~sHasRndAcc]
                 sFormats = pd.Series()
                 if len(dfColInfosComprHasRndAcc):
-                    sFormats = sFormats.append(chooseCostBased(
-                            dfColInfosComprHasRndAcc,
-                            processingStyle,
-                            [
-                                formats.UncomprFormat(),
-                                formats.StaticVBPFormat(processingStyle),
-                            ],
-                            profileDirPath
+                    choice = [
+                        formats.UncomprFormat(),
+                        formats.StaticVBPFormat(processingStyle),
+                    ]
+                    sFormats = sFormats.append(chooseFunc(
+                            dfColInfosComprHasRndAcc, choice
                     ))
                 if len(dfColInfosComprHasNoRndAcc):
                     choice = [
@@ -407,11 +445,8 @@ def choose(
                                     formats.KWiseNSFormat(processingStyle)
                             ),
                         ])
-                    sFormats = sFormats.append(chooseCostBased(
-                            dfColInfosComprHasNoRndAcc,
-                            processingStyle,
-                            choice,
-                            profileDirPath
+                    sFormats = sFormats.append(chooseFunc(
+                            dfColInfosComprHasNoRndAcc, choice
                     ))
             else:
                 raise RuntimeError(
@@ -431,6 +466,7 @@ def configureProgram(
     strategy, uncomprBase, uncomprInterm,
     fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
     profileDirPath,
+    sizesFilePath,
 ):
     """
     Modifies the given translated query program to use compression in the way
@@ -458,6 +494,7 @@ def configureProgram(
             strategy, uncomprBase, uncomprInterm,
             fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
             profileDirPath,
+            sizesFilePath,
         )
         
     # Insert the formats into the query program.

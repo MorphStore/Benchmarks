@@ -224,6 +224,13 @@ if __name__ == "__main__":
             "compression algorithms."
         # TODO Validate existence.
     )
+    comprArgGr.add_argument(
+        "--csizesfile", dest="comprSizesFilePath", default=None, metavar="FILE",
+        help="The path to the CSV file containing the physical size "
+            "measurements of all base columns and intermediates as created by "
+            "'ssb.sh -p s'"
+        # TODO Validate existence.
+    )
 
     args = parser.parse_args()
     
@@ -246,10 +253,12 @@ if __name__ == "__main__":
         args.comprSeqSortedFormat = args.comprSeqUnsortedFormat \
             if args.comprSeqSortedFormat is None \
             else formats.byName(args.comprSeqSortedFormat, args.processingStyle)
-            
     elif args.comprStrategy == compr.CS_COSTBASED:
         if args.comprProfileDirPath is None:
             raise RuntimeError("the directory containing the profiles for the cost-based compression strategy must be specified")
+    elif args.comprStrategy in [compr.CS_REALBEST, compr.CS_REALWORST]:
+        if args.comprSizesFilePath is None:
+            raise RuntimeError("the file containing the measured physical sizes of each column in each format must be specified")
 
     if args.inMalFilePath == FROM_STDIN:
         # 0 is the file descriptor of stdin, can be used with open().
@@ -288,6 +297,7 @@ if __name__ == "__main__":
         args.comprSeqUnsortedFormat,
         args.comprSeqSortedFormat,
         args.comprProfileDirPath,
+        args.comprSizesFilePath,
     )
     
     # C++-code generation.
