@@ -110,7 +110,7 @@ def getColInfos(colInfosFilePath):
 
 class SizesCols:
     fmt = "format"
-    sizeUsedByte = data.COL_F_COMPRRATE_BITSPERINT
+    sizeUsedByte = data.COL_F_WRITTEN_BYTE
     comprRateBitsPerInt = data.COL_F_COMPRRATE_BITSPERINT
 
 def getSizes(sizesFilePath):
