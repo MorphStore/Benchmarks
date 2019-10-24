@@ -55,6 +55,9 @@ import os.path
 import re
 import sys
 
+# TODO This is relative to ssb.sh.
+sys.path.append(".")
+import csvutils
 
 # *****************************************************************************
 # * Functions producing the insertable code snippets
@@ -185,7 +188,7 @@ def _printDataLoad(indent, tr, ar):
         print("{}// No morphing of the base columns required.".format(indent))
     print()
     
-def _printProg(indent, tr, purpose, ar, ps):
+def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath):
     """
     Prints the core program, i.e., the sequence of operators.
     """
@@ -449,7 +452,8 @@ def _printProg(indent, tr, purpose, ar, ps):
     elif purpose == pp.PP_SIZE:
         # Constants for the monitoring column names.
         varColColName = "colColName"
-        varColFormat = "colFormat"
+        varColFormatWithBw = "colFormatWithBw"
+        varColFormatWithoutBw = "colFormatWithoutBw"
         varColValueCount = "colValueCount"
         varColValueCountCompr = "colValueCountCompr"
         varColUsedBytes = "colUsedBytes"
@@ -458,7 +462,8 @@ def _printProg(indent, tr, purpose, ar, ps):
         for varName, varVal in [
             # (C++ constant name, CSV column name)
             (varColColName, "colName"),
-            (varColFormat, "format"),
+            (varColFormatWithBw, "formatWithBw"),
+            (varColFormatWithoutBw, "formatWithoutBw"),
             (varColValueCount, "valueCount"),
             (varColValueCountCompr, "valueCountCompr"),
             (varColUsedBytes, "sizeUsedByte"),
@@ -472,6 +477,11 @@ def _printProg(indent, tr, purpose, ar, ps):
         # Regarding (un)compressed formats.
         allFormats = formats.getAllFormats(ps)
         uncompr = formats.UncomprFormat()
+        sMaxBw = csvutils.getColInfos(colInfosFilePath)[csvutils.ColInfoCols.maxBw]
+        def _setBitwidthIf(fmt, varName):
+            return fmt.changeBw(sMaxBw[varName]) \
+                    if isinstance(fmt, formats.StaticVBPFormat) \
+                    else fmt
 
         # Creation of the monitors.
         print("{}// Creation of the monitors.".format(indent))
@@ -484,30 +494,27 @@ def _printProg(indent, tr, purpose, ar, ps):
         for varName in varNames:
             for fmt in allFormats:
                 print(
-                    '{}MONITORING_CREATE_MONITOR(MONITORING_MAKE_MONITOR("{}", "{}"), MONITORING_KEY_IDENTS({}, {}));'
+                    '{}MONITORING_CREATE_MONITOR(MONITORING_MAKE_MONITOR("{}", "{}", "{}"), MONITORING_KEY_IDENTS({}, {}, {}));'
                     .format(
                             indent,
                             varName,
+                            _setBitwidthIf(fmt, varName).getInternalName(),
                             fmt.getInternalName(),
                             varColColName,
-                            varColFormat,
+                            varColFormatWithBw,
+                            varColFormatWithoutBw,
                     )
                 )
         print()
         
         def _morphToAllFormats(varName):
-            def _setBitwidthIf(fmt):
-                #TODO Use actually measured maxBw.
-                return fmt.changeBw(ar.maxBwByCol[varName]) \
-                        if isinstance(fmt, formats.StaticVBPFormat) \
-                        else fmt
 #            print(
 #                '{}std::cerr << "\\tmorphing column {} to all formats..." << '
 #                'std::endl;'.format(indent, varName)
 #            )
             for fmt in allFormats:
+                msFormatNameWithBw = _setBitwidthIf(fmt, varName).getInternalName()
                 msFormatNameWithoutBw = fmt.getInternalName()
-                msFormatNameWithBw = _setBitwidthIf(fmt).getInternalName()
                 newVarName = "{}__m".format(varName.replace(".", "_"))
                 print("{}{{".format(indent))
 #                print('{}std::cerr << "\\t\\t{}... ";'.format(
@@ -525,12 +532,13 @@ def _printProg(indent, tr, purpose, ar, ps):
                     ("get_size_used_byte"    , varColUsedBytes),
                     ("get_size_compr_byte"   , varColComprBytes),
                 ]:
-                    print('{}MONITORING_ADD_INT_FOR({}, {}->{}(), "{}", "{}");'.format(
+                    print('{}MONITORING_ADD_INT_FOR({}, {}->{}(), "{}", "{}", "{}");'.format(
                             2 * indent,
                             colName,
                             newVarName,
                             method,
                             varName,
+                            msFormatNameWithBw,
                             msFormatNameWithoutBw
                     ))
                 if fmt != uncompr:
@@ -661,7 +669,8 @@ def generate(
         purpose,
         processingStyle,
         versionSelect,
-        statDirPath
+        statDirPath,
+        colInfosFilePath,
 ):
     """
     Generates the C++ source code for the given abstract representation of a
@@ -726,7 +735,8 @@ def generate(
                             translationResult,
                             purpose,
                             ar,
-                            processingStyle
+                            processingStyle,
+                            colInfosFilePath,
                     )
                 elif ph == "result":
                     _printResultOutput(

@@ -109,7 +109,8 @@ def getColInfos(colInfosFilePath):
 # *****************************************************************************
 
 class SizesCols:
-    fmt = "format"
+    formatWithBw = "formatWithBw"
+    formatWithoutBw = "formatWithoutBw"
     sizeUsedByte = data.COL_F_WRITTEN_BYTE
     comprRateBitsPerInt = data.COL_F_COMPRRATE_BITSPERINT
 
@@ -118,7 +119,8 @@ def getSizes(sizesFilePath):
 
     bitsPerByte = 8 # TODO This does not belong here.
     df = pd.DataFrame({
-        SizesCols.fmt: dfIn["format"],
+        SizesCols.formatWithBw: dfIn["formatWithBw"],
+        SizesCols.formatWithoutBw: dfIn["formatWithoutBw"],
         SizesCols.sizeUsedByte: dfIn["sizeUsedByte"],
         SizesCols.comprRateBitsPerInt: dfIn["sizeUsedByte"] / (
                 dfIn["valueCount"] * (data.MAX_BW / bitsPerByte)

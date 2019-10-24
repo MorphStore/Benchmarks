@@ -310,5 +310,6 @@ if __name__ == "__main__":
         args.purpose,
         args.processingStyle,
         args.versionSelect,
-        args.statDirPath
+        args.statDirPath,
+        args.colInfosFilePath,
     )

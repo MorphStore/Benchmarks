@@ -40,6 +40,7 @@ sys.path.append("../../LC-BaSe/cm")
 import algo
 import data
 import est
+# TODO This is relative to ssb.sh.
 sys.path.append(".")
 import csvutils
 
@@ -197,7 +198,7 @@ def chooseCostBased(dfColInfos, choice, processingStyle, profileDirPath):
 def _measure(dfMea, al, dataColName):
     if al._mode == algo.MODE_FORMAT:
         return dfMea[
-                dfMea[csvutils.SizesCols.fmt] == al.getInternalName()
+                dfMea[csvutils.SizesCols.formatWithoutBw] == al.getInternalName()
         ][dataColName]
     else:
         raise NotImplemented()
@@ -353,10 +354,10 @@ def _reorderMorphs(translationResult):
 
 def choose(
     dfColInfos, processingStyle,
-    strategy, uncomprBase, uncomprInterm,
-    fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
-    profileDirPath,
-    sizesFilePath,
+    strategy, uncomprBase=False, uncomprInterm=False,
+    fnRndAcc=None, fnSeqAccUnsorted=None, fnSeqAccSorted=None,
+    profileDirPath=None,
+    sizesFilePath=None,
 ):
     """
     Chooses a (un)compressed format for each base column or intermediate result
