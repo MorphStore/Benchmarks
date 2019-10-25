@@ -352,7 +352,7 @@ class ForCascFormat(MorphStoreCascFormat):
         return 0
         
     def __eq__(self, other):
-        if isinstance(other, DeltaCascFormat):
+        if isinstance(other, ForCascFormat):
             return (
                     other._bs == self._bs and
                     other._log == self._log and
