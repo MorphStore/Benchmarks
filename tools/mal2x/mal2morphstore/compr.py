@@ -170,6 +170,12 @@ def _configureCostModel(ps, profileDirPath):
     est._changeFuncs[formats._DeltaFormat(ps)] = est._changeDC_Delta
     est._costFuncs[formats._ForFormat(ps)] = est._costLogConst
     est._changeFuncs[formats._ForFormat(ps)] = est._changeDC_For
+    
+    est._comprGrans[formats.UncomprFormat()] = 1
+    est._comprGrans[formats.StaticVBPFormat(ps)] = pss.PS_INFOS[ps].vectorSizeBit
+    est._comprGrans[formats.DynamicVBPFormat(ps)] = pss.PS_INFOS[ps].vectorSizeBit
+    if ps == pss.PS_VEC128:
+        est._comprGrans[formats.KWiseNSFormat(ps)] = pss.PS_INFOS[ps].vectorElementCount
 
 def _chooseFuncBased(costFunc, betterWins, dfColInfos, choice):
     res = est.select(
