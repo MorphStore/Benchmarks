@@ -292,11 +292,6 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath):
         varColValueCount = "colValueCount"
         varColIsResult = "colIsResult"
         varColUsedBytes = "colUsedBytes"
-        varColUnique = "colUnique"
-        varColSorted = "colSorted"
-        varColMin = "colMin"
-        varColMax = "colMax"
-        varColDistinctCount = "colDistinctCount"
         varColHasRndAcc = "colHasRndAccess"
         varColIsForcedUncompr = "colIsForcedUncompr"
         print("{}// Constants for the monitoring column names.".format(indent))
@@ -309,11 +304,6 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath):
             (varColValueCount, "valueCount"),
             (varColIsResult, "isResult"),
             (varColUsedBytes, "UsedBytes"),
-            (varColUnique, "Unique"),
-            (varColSorted, "Sorted"),
-            (varColMin, "Min"),
-            (varColMax, "Max"),
-            (varColDistinctCount, "DistinctCount"),
             (varColHasRndAcc, "hasRndAccess"),
             (varColIsForcedUncompr, "isForcedUncompr"),
         ]:
@@ -383,17 +373,12 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath):
                 for foo in sorted(el.__dict__):
                     if (foo.startswith("in") or foo.startswith("out")) and foo.endswith("Col"):
                         print("{}{{".format(indent))
-                        print(
-                            "{}const data_properties dp({}, {});".format(
+                        print('{}MONITORING_ADD_DATAPROPERTIES_FOR(data_properties({}, {}), {}, {}, "{}", "{}");'.format(
                                 2*indent,
                                 el.__dict__[foo],
-                                "true" if el.__dict__[foo] in ar.varsUnique else "false"
-                            )
-                        )
-                        for bw in range(1, 64+1):
-                            print('{}MONITORING_ADD_INT_FOR("bwHist_{}", dp.get_bw_hist({}), {}, {}, "{}", "{}");'.format(
-                                    2*indent, bw, bw, monVarOpNameOp, opIdx, foo, el.__dict__[foo])
-                            )
+                                "true" if el.__dict__[foo] in ar.varsUnique else "false",
+                                monVarOpNameOp, opIdx, foo, el.__dict__[foo]
+                        ))
                         print('{}MONITORING_ADD_INT_FOR({}, {}->get_count_values(), {}, {}, "{}", "{}");'.format(
                                 2*indent, varColValueCount, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
@@ -404,21 +389,6 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath):
                         )
                         print('{}MONITORING_ADD_INT_FOR({}, {}->get_size_used_byte(), {}, {}, "{}", "{}");'.format(
                                 2*indent, varColUsedBytes, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
-                        )
-                        print('{}MONITORING_ADD_BOOL_FOR({}, dp.is_sorted_asc(), {}, {}, "{}", "{}");'.format(
-                                2*indent, varColSorted, monVarOpNameOp, opIdx, foo, el.__dict__[foo])
-                        )
-                        print('{}MONITORING_ADD_BOOL_FOR({}, dp.is_unique(), {}, {}, "{}", "{}");'.format(
-                                2*indent, varColUnique, monVarOpNameOp, opIdx, foo, el.__dict__[foo])
-                        )
-                        print('{}MONITORING_ADD_INT_FOR({}, dp.get_min(), {}, {}, "{}", "{}");'.format(
-                                2*indent, varColMin, monVarOpNameOp, opIdx, foo, el.__dict__[foo])
-                        )
-                        print('{}MONITORING_ADD_INT_FOR({}, dp.get_max(), {}, {}, "{}", "{}");'.format(
-                                2*indent, varColMax, monVarOpNameOp, opIdx, foo, el.__dict__[foo])
-                        )
-                        print('{}MONITORING_ADD_INT_FOR({}, dp.get_distinct_count(), {}, {}, "{}", "{}");'.format(
-                                2*indent, varColDistinctCount, monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
                         print('{}MONITORING_ADD_BOOL_FOR({}, {}, {}, {}, "{}", "{}");'.format(
                                 2*indent, varColHasRndAcc,
