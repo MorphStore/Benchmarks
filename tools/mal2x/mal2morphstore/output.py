@@ -373,7 +373,7 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath):
                 for foo in sorted(el.__dict__):
                     if (foo.startswith("in") or foo.startswith("out")) and foo.endswith("Col"):
                         print("{}{{".format(indent))
-                        print('{}MONITORING_ADD_DATAPROPERTIES_FOR(data_properties({}, {}), {}, {}, "{}", "{}");'.format(
+                        print('{}MONITORING_ADD_DATAPROPERTIES_FOR("", data_properties({}, {}), {}, {}, "{}", "{}");'.format(
                                 2*indent,
                                 el.__dict__[foo],
                                 "true" if el.__dict__[foo] in ar.varsUnique else "false",
