@@ -362,64 +362,61 @@ function translate () {
     local statFlag="--statdir $pathDataStatsDict"
 
     printf "if( BUILD_ALL OR BUILD_SSB EQUAL $scaleFactor )\n" >> $cmakeListsFile
-    for major in 1 2 3 4
+    for query in $queries
     do
-        for minor in 1 2 3
-        do
-            printf "$benchmark q$major.$minor: "
+        printf "$benchmark q$query: "
 
-            local ciFlag="--cifile $pathDataCh/q$major.$minor.csv"
-            if [[ $comprStrategy = "realbest" || $comprStrategy = "realworst" ]]
-            then
-                local sizesFileFlag="--csizesfile $pathSize/q$major.$minor.csv"
-            else
-                local sizesFileFlag=""
-            fi
+        local ciFlag="--cifile $pathDataCh/q$query.csv"
+        if [[ $comprStrategy = "realbest" || $comprStrategy = "realworst" ]]
+        then
+            local sizesFileFlag="--csizesfile $pathSize/q$query.csv"
+        else
+            local sizesFileFlag=""
+        fi
 
-            case $useMonetDB in
-                $umPipeline)
-                    printf "SET SCHEMA $benchmark;\nEXPLAIN " \
-                        | cat - $pathQueries/q$major.$minor.sql \
-                        | $qdict $pathDataDicts \
-                        | $mclient -d $dbName -f raw \
-                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag $sizesFileFlag \
-                        > $pathSrc/q$major.$minor.cpp
-                    ;;
-                $umMaterialize)
-                    printf "SET SCHEMA $benchmark;\nEXPLAIN " \
-                        | cat - $pathQueries/q$major.$minor.sql \
-                        | $qdict $pathDataDicts \
-                        | $mclient -d $dbName -f raw \
-                        > $pathMal/q$major.$minor.mal
-                    cat $pathMal/q$major.$minor.mal \
-                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag $sizesFileFlag \
-                        > $pathSrc/q$major.$minor.cpp
-                    ;;
-                $umSaved)
-                    cat $pathMal/q$major.$minor.mal \
-                        | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag $sizesFileFlag \
-                        > $pathSrc/q$major.$minor.cpp
-                    ;;
-                *)
-                    printf "unknown way to use MonetDB (in translate step): $useMonetDB\n"
-                    exit -1
-                    ;;
-            esac
+        case $useMonetDB in
+            $umPipeline)
+                printf "SET SCHEMA $benchmark;\nEXPLAIN " \
+                    | cat - $pathQueries/q$query.sql \
+                    | $qdict $pathDataDicts \
+                    | $mclient -d $dbName -f raw \
+                    | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag $sizesFileFlag \
+                    > $pathSrc/q$query.cpp
+                ;;
+            $umMaterialize)
+                printf "SET SCHEMA $benchmark;\nEXPLAIN " \
+                    | cat - $pathQueries/q$query.sql \
+                    | $qdict $pathDataDicts \
+                    | $mclient -d $dbName -f raw \
+                    > $pathMal/q$query.mal
+                cat $pathMal/q$query.mal \
+                    | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag $sizesFileFlag \
+                    > $pathSrc/q$query.cpp
+                ;;
+            $umSaved)
+                cat $pathMal/q$query.mal \
+                    | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag $sizesFileFlag \
+                    > $pathSrc/q$query.cpp
+                ;;
+            *)
+                printf "unknown way to use MonetDB (in translate step): $useMonetDB\n"
+                exit -1
+                ;;
+        esac
 
-            local targetName=q$major.$minor"_sf"$scaleFactor
+        local targetName=q$query"_sf"$scaleFactor
 
-            # TODO Maybe we should outsource this snippet to a file.
-            printf "\tadd_executable( $targetName q$major.$minor.cpp )\n"      >> $cmakeListsFile
-            printf "\ttarget_compile_options( $targetName PRIVATE\n"           >> $cmakeListsFile
-            # TODO Remove -Wno-ignored-attributes as soon as we have it at a
-            #      higher-level in the build script.
-            printf "\t                        -Wno-unused-parameter\n"         >> $cmakeListsFile
-            printf "\t                        $<$<CONFIG:DEBUG>:-DDEBUG> )\n"  >> $cmakeListsFile
-            printf "\ttarget_link_libraries( $targetName PRIVATE \"-ldl\" )\n" >> $cmakeListsFile
-            printf "\n"                                                        >> $cmakeListsFile
+        # TODO Maybe we should outsource this snippet to a file.
+        printf "\tadd_executable( $targetName q$query.cpp )\n"      >> $cmakeListsFile
+        printf "\ttarget_compile_options( $targetName PRIVATE\n"           >> $cmakeListsFile
+        # TODO Remove -Wno-ignored-attributes as soon as we have it at a
+        #      higher-level in the build script.
+        printf "\t                        -Wno-unused-parameter\n"         >> $cmakeListsFile
+        printf "\t                        $<$<CONFIG:DEBUG>:-DDEBUG> )\n"  >> $cmakeListsFile
+        printf "\ttarget_link_libraries( $targetName PRIVATE \"-ldl\" )\n" >> $cmakeListsFile
+        printf "\n"                                                        >> $cmakeListsFile
 
-            printf "done.\n"
-        done
+        printf "done.\n"
     done
     printf "endif( BUILD_ALL OR BUILD_SSB EQUAL $scaleFactor )\n" >> $cmakeListsFile
 
@@ -446,50 +443,47 @@ function translateToDot () {
             ;;
     esac
 
-    for major in 1 2 3 4
+    for query in $queries
     do
-        for minor in 1 2 3
-        do
-            printf "$benchmark q$major.$minor: "
-            filename=$pathSrc/q$major.$minor
-            case $useMonetDB in
-                $umPipeline)
-                    printf "SET SCHEMA $benchmark;\nEXPLAIN " \
-                        | cat - $pathQueries/q$major.$minor.sql \
-                        | $qdict $pathDataDicts \
-                        | $mclient -d $dbName -f raw \
-                        | $dotvisualize $major $minor\
-                        > $pathSrc/q$major.$minor.dot
-                    dot -Tsvg -o $filename.svg $filename.dot
-                    sed -i '/^<title/ d' $filename.svg
-                    ;;
-                $umMaterialize)
-                    printf "SET SCHEMA $benchmark;\nEXPLAIN " \
-                        | cat - $pathQueries/q$major.$minor.sql \
-                        | $qdict $pathDataDicts \
-                        | $mclient -d $dbName -f raw \
-                        > $pathMal/q$major.$minor.mal
-                    cat $pathMal/q$major.$minor.mal \
-                        | $dotvisualize $major $minor\
-                        > $pathSrc/q$major.$minor.dot
-                    dot -Tsvg -o $filename.svg $filename.dot
-                    sed -i '/^<title/ d' $filename.svg
-                    ;;
-                $umSaved)
-                    cat $pathMal/q$major.$minor.mal \
-                        | $dotvisualize $major $minor \
-                        > $pathSrc/q$major.$minor.dot
-                    dot -Tsvg -o $filename.svg $filename.dot
-                    sed -i '/^<title/ d' $filename.svg
-                    ;;
-                *)
-                    printf "unknown way to use MonetDB (in translate step): $useMonetDB\n"
-                    exit -1
-                    ;;
-            esac
+        printf "$benchmark q$query: "
+        filename=$pathSrc/q$query
+        case $useMonetDB in
+            $umPipeline)
+                printf "SET SCHEMA $benchmark;\nEXPLAIN " \
+                    | cat - $pathQueries/q$query.sql \
+                    | $qdict $pathDataDicts \
+                    | $mclient -d $dbName -f raw \
+                    | $dotvisualize $major $minor\
+                    > $pathSrc/q$query.dot
+                dot -Tsvg -o $filename.svg $filename.dot
+                sed -i '/^<title/ d' $filename.svg
+                ;;
+            $umMaterialize)
+                printf "SET SCHEMA $benchmark;\nEXPLAIN " \
+                    | cat - $pathQueries/q$query.sql \
+                    | $qdict $pathDataDicts \
+                    | $mclient -d $dbName -f raw \
+                    > $pathMal/q$query.mal
+                cat $pathMal/q$query.mal \
+                    | $dotvisualize $major $minor\
+                    > $pathSrc/q$query.dot
+                dot -Tsvg -o $filename.svg $filename.dot
+                sed -i '/^<title/ d' $filename.svg
+                ;;
+            $umSaved)
+                cat $pathMal/q$query.mal \
+                    | $dotvisualize $major $minor \
+                    > $pathSrc/q$query.dot
+                dot -Tsvg -o $filename.svg $filename.dot
+                sed -i '/^<title/ d' $filename.svg
+                ;;
+            *)
+                printf "unknown way to use MonetDB (in translate step): $useMonetDB\n"
+                exit -1
+                ;;
+        esac
 
-            printf "done q$major.$minor .\n"
-        done
+        printf "done q$query .\n"
     done
 
     set +e
@@ -582,130 +576,127 @@ function run () {
             fi
     esac
 
-    for major in 1 2 3 4
+    for query in $queries
     do
-        for minor in 1 2 3
-        do
-            printf "$benchmark q$major.$minor: "
+        printf "$benchmark q$query: "
 
-            local targetName=q$major.$minor"_sf"$scaleFactor
+        local targetName=q$query"_sf"$scaleFactor
 
-            # TODO Reduce the code duplication between the check and results
-            #      purposes.
-            case $purpose in
-                $purposeCheck)
-                    # TODO Remove the sort in the pipe once MorphStore supports
-                    #      sorting.
-                    case $useMonetDB in
-                        $umPipeline)
-                            cmp --silent \
-                                <( \
-                                    printf "SET SCHEMA $benchmark;\n" \
-                                        | cat - $pathQueries/q$major.$minor.sql \
-                                        | $qdict $pathDataDicts \
-                                        | $mclient -d $dbName -f csv \
-                                        | sort \
-                                ) \
-                                <( \
-                                    $pathExe/$targetName $pathDataColsDict 2> /dev/null \
-                                        | sort \
-                                )
-                            ;;
-                        $umMaterialize)
-                            printf "SET SCHEMA $benchmark;\n" \
-                                | cat - $pathQueries/q$major.$minor.sql \
-                                | $qdict $pathDataDicts \
-                                | $mclient -d $dbName -f csv \
-                                | sort \
-                                > $pathRefRes/q$major.$minor.csv
-                            cmp --silent \
-                                $pathRefRes/q$major.$minor.csv \
-                                <( \
-                                    $pathExe/$targetName $pathDataColsDict 2> /dev/null \
-                                        | sort \
-                                )
-                            ;;
-                        $umSaved)
-                            cmp --silent \
-                                $pathRefRes/q$major.$minor.csv \
-                                <( \
-                                    $pathExe/$targetName $pathDataColsDict 2> /dev/null \
-                                        | sort \
-                                )
-                            ;;
-                    esac
-                    if [[ $? -eq 0 ]]
-                    then
-                        printf "good\n"
-                    else
-                        printf "BAD\n"
-                    fi
-                    ;;
-                $purposeResults)
-                    # TODO Remove the sort in the pipe once MorphStore supports
-                    #      sorting.
-                    case $useMonetDB in
-                        $umPipeline)
-                            local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
-                            local resFileMonetDB=$pathRes/q$major."$minor"_MonetDB.csv
-                            printf "SET SCHEMA $benchmark;\n" \
-                                | cat - $pathQueries/q$major.$minor.sql \
-                                | $qdict $pathDataDicts \
-                                | $mclient -d $dbName -f csv \
-                                | sort \
-                                > $resFileMonetDB
-                            eval $pathExe/$targetName $pathDataColsDict 2> /dev/null \
-                                | sort \
-                                > $resFileMorphSt
-                            cmp --silent $resFileMonetDB $resFileMorphSt
-                            ;;
-                        $umMaterialize)
-                            local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
-                            local resFileMonetDB=$pathRes/q$major."$minor"_MonetDB.csv
-                            printf "SET SCHEMA $benchmark;\n" \
-                                | cat - $pathQueries/q$major.$minor.sql \
-                                | $qdict $pathDataDicts \
-                                | $mclient -d $dbName -f csv \
-                                | sort \
-                                > $resFileMonetDB
-                            cp $resFileMonetDB $pathRefRes/q$major.$minor.csv
-                            eval $pathExe/$targetName $pathDataColsDict 2> /dev/null \
-                                | sort \
-                                > $resFileMorphSt
-                            cmp --silent $resFileMonetDB $resFileMorphSt
-                            ;;
-                        $umSaved)
-                            local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
-                            eval $pathExe/$targetName $pathDataColsDict 2> /dev/null \
-                                | sort \
-                                > $resFileMorphSt
-                            cmp --silent $pathRefRes/q$major.$minor.csv $resFileMorphSt
-                            ;;
-                    esac
-                    if [[ $? -eq 0 ]]
-                    then
-                        printf "good\n"
-                    else
-                        printf "BAD\n"
-                    fi
-                    ;;
-                $purposeTime)
-                    printf "\n"
-                    eval $pathExe/$targetName $pathDataColsDict > $pathTime/q$major.$minor.csv
-                    printf "\n"
-                    ;;
-                $purposeDataCh)
-                    printf "\n"
-                    eval $pathExe/$targetName $pathDataColsDict > $pathDataCh/q$major.$minor.csv
-                    printf "\n"
-                    ;;
-                $purposeSize)
-                    printf "\n"
-                    eval $pathExe/$targetName $pathDataColsDict > $pathSize/q$major.$minor.csv
-                    printf "\n"
-                    ;;
-            esac
-        done
+        # TODO Reduce the code duplication between the check and results
+        #      purposes.
+        case $purpose in
+            $purposeCheck)
+                # TODO Remove the sort in the pipe once MorphStore supports
+                #      sorting.
+                case $useMonetDB in
+                    $umPipeline)
+                        cmp --silent \
+                            <( \
+                                printf "SET SCHEMA $benchmark;\n" \
+                                    | cat - $pathQueries/q$query.sql \
+                                    | $qdict $pathDataDicts \
+                                    | $mclient -d $dbName -f csv \
+                                    | sort \
+                            ) \
+                            <( \
+                                $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                                    | sort \
+                            )
+                        ;;
+                    $umMaterialize)
+                        printf "SET SCHEMA $benchmark;\n" \
+                            | cat - $pathQueries/q$query.sql \
+                            | $qdict $pathDataDicts \
+                            | $mclient -d $dbName -f csv \
+                            | sort \
+                            > $pathRefRes/q$query.csv
+                        cmp --silent \
+                            $pathRefRes/q$query.csv \
+                            <( \
+                                $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                                    | sort \
+                            )
+                        ;;
+                    $umSaved)
+                        cmp --silent \
+                            $pathRefRes/q$query.csv \
+                            <( \
+                                $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                                    | sort \
+                            )
+                        ;;
+                esac
+                if [[ $? -eq 0 ]]
+                then
+                    printf "good\n"
+                else
+                    printf "BAD\n"
+                fi
+                ;;
+            $purposeResults)
+                # TODO Remove the sort in the pipe once MorphStore supports
+                #      sorting.
+                case $useMonetDB in
+                    $umPipeline)
+                        local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
+                        local resFileMonetDB=$pathRes/q$major."$minor"_MonetDB.csv
+                        printf "SET SCHEMA $benchmark;\n" \
+                            | cat - $pathQueries/q$query.sql \
+                            | $qdict $pathDataDicts \
+                            | $mclient -d $dbName -f csv \
+                            | sort \
+                            > $resFileMonetDB
+                        eval $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                            | sort \
+                            > $resFileMorphSt
+                        cmp --silent $resFileMonetDB $resFileMorphSt
+                        ;;
+                    $umMaterialize)
+                        local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
+                        local resFileMonetDB=$pathRes/q$major."$minor"_MonetDB.csv
+                        printf "SET SCHEMA $benchmark;\n" \
+                            | cat - $pathQueries/q$query.sql \
+                            | $qdict $pathDataDicts \
+                            | $mclient -d $dbName -f csv \
+                            | sort \
+                            > $resFileMonetDB
+                        cp $resFileMonetDB $pathRefRes/q$query.csv
+                        eval $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                            | sort \
+                            > $resFileMorphSt
+                        cmp --silent $resFileMonetDB $resFileMorphSt
+                        ;;
+                    $umSaved)
+                        local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
+                        eval $pathExe/$targetName $pathDataColsDict 2> /dev/null \
+                            | sort \
+                            > $resFileMorphSt
+                        cmp --silent $pathRefRes/q$query.csv $resFileMorphSt
+                        ;;
+                esac
+                if [[ $? -eq 0 ]]
+                then
+                    printf "good\n"
+                else
+                    printf "BAD\n"
+                fi
+                ;;
+            $purposeTime)
+                printf "\n"
+                eval $pathExe/$targetName $pathDataColsDict > $pathTime/q$query.csv
+                printf "\n"
+                ;;
+            $purposeDataCh)
+                printf "\n"
+                eval $pathExe/$targetName $pathDataColsDict > $pathDataCh/q$query.csv
+                printf "\n"
+                ;;
+            $purposeSize)
+                printf "\n"
+                eval $pathExe/$targetName $pathDataColsDict > $pathSize/q$query.csv
+                printf "\n"
+                ;;
+        esac
     done
 
     print_headline1 "Done"
@@ -855,6 +846,7 @@ comprUncomprBase=""
 comprUncomprInterm=""
 useMonetDB=$umPipeline
 noSelfManaging=""
+queries="1.1 1.2 1.3 2.1 2.2 2.3 3.1 3.2 3.3 3.4 4.1 4.2 4.3"
 
 while [[ $# -gt 0 ]]
 do

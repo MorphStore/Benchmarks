@@ -1,0 +1,107 @@
+% .explain # table_name
+% mal # name
+% clob # type
+% 427 # length
+function user.s4_1():void;
+    X_6:void := querylog.define("explain select c_city, s_city, d_year, sum(lo_revenue) as revenue\nfrom customer, lineorder, supplier, date\nwhere lo_custkey = c_custkey\n and lo_suppkey = s_suppkey\n and lo_orderdate = d_datekey\n and (c_city=221 or c_city=225 )\n and (s_city=221 or s_city=225 )\n and d_yearmonth = 19 \ngroup by c_city, s_city, d_year\norder by d_year asc, revenue desc;":str, "default_pipe":str, 154:int);
+    X_196:bat[:str] := bat.new(nil:str);
+    X_202:bat[:int] := bat.new(nil:int);
+    X_200:bat[:int] := bat.new(nil:int);
+    X_199:bat[:str] := bat.new(nil:str);
+    X_198:bat[:str] := bat.new(nil:str);
+    X_9:int := sql.mvc();
+    C_10:bat[:oid] := sql.tid(X_9:int, "ssb":str, "lineorder":str);
+    X_13:bat[:int] := sql.bind(X_9:int, "ssb":str, "lineorder":str, "lo_custkey":str, 0:int);
+    X_22:bat[:int] := algebra.projection(C_10:bat[:oid], X_13:bat[:int]);
+    C_44:bat[:oid] := sql.tid(X_9:int, "ssb":str, "customer":str);
+    X_53:bat[:int] := sql.bind(X_9:int, "ssb":str, "customer":str, "c_city":str, 0:int);
+    X_59:bat[:int] := algebra.projection(C_44:bat[:oid], X_53:bat[:int]);
+    C_62:bat[:oid] := algebra.thetaselect(X_59:bat[:int], 221:int, "==":str);
+    C_66:bat[:oid] := algebra.thetaselect(X_59:bat[:int], 225:int, "==":str);
+    C_67:bat[:oid] := bat.mergecand(C_62:bat[:oid], C_66:bat[:oid]);
+    X_46:bat[:int] := sql.bind(X_9:int, "ssb":str, "customer":str, "c_custkey":str, 0:int);
+    X_68:bat[:int] := algebra.projectionpath(C_67:bat[:oid], C_44:bat[:oid], X_46:bat[:int]);
+    (X_70:bat[:oid], X_71:bat[:oid]) := algebra.join(X_22:bat[:int], X_68:bat[:int], nil:BAT, nil:BAT, false:bit, nil:lng);
+    X_23:bat[:int] := sql.bind(X_9:int, "ssb":str, "lineorder":str, "lo_suppkey":str, 0:int);
+    X_77:bat[:int] := algebra.projectionpath(X_70:bat[:oid], C_10:bat[:oid], X_23:bat[:int]);
+    C_82:bat[:oid] := sql.tid(X_9:int, "ssb":str, "supplier":str);
+    X_91:bat[:int] := sql.bind(X_9:int, "ssb":str, "supplier":str, "s_city":str, 0:int);
+    X_97:bat[:int] := algebra.projection(C_82:bat[:oid], X_91:bat[:int]);
+    C_100:bat[:oid] := algebra.thetaselect(X_97:bat[:int], 221:int, "==":str);
+    C_104:bat[:oid] := algebra.thetaselect(X_97:bat[:int], 225:int, "==":str);
+    C_105:bat[:oid] := bat.mergecand(C_100:bat[:oid], C_104:bat[:oid]);
+    X_84:bat[:int] := sql.bind(X_9:int, "ssb":str, "supplier":str, "s_suppkey":str, 0:int);
+    X_106:bat[:int] := algebra.projectionpath(C_105:bat[:oid], C_82:bat[:oid], X_84:bat[:int]);
+    (X_108:bat[:oid], X_109:bat[:oid]) := algebra.join(X_77:bat[:int], X_106:bat[:int], nil:BAT, nil:BAT, false:bit, nil:lng);
+    X_30:bat[:int] := sql.bind(X_9:int, "ssb":str, "lineorder":str, "lo_orderdate":str, 0:int);
+    X_116:bat[:int] := algebra.projectionpath(X_108:bat[:oid], X_70:bat[:oid], C_10:bat[:oid], X_30:bat[:int]);
+    C_122:bat[:oid] := sql.tid(X_9:int, "ssb":str, "date":str);
+    X_138:bat[:int] := sql.bind(X_9:int, "ssb":str, "date":str, "d_yearmonth":str, 0:int);
+    X_144:bat[:int] := algebra.projection(C_122:bat[:oid], X_138:bat[:int]);
+    C_147:bat[:oid] := algebra.thetaselect(X_144:bat[:int], 19:int, "==":str);
+    X_124:bat[:int] := sql.bind(X_9:int, "ssb":str, "date":str, "d_datekey":str, 0:int);
+    X_149:bat[:int] := algebra.projectionpath(C_147:bat[:oid], C_122:bat[:oid], X_124:bat[:int]);
+    (X_152:bat[:oid], X_153:bat[:oid]) := algebra.join(X_116:bat[:int], X_149:bat[:int], nil:BAT, nil:BAT, false:bit, nil:lng);
+    X_37:bat[:int] := sql.bind(X_9:int, "ssb":str, "lineorder":str, "lo_revenue":str, 0:int);
+    X_161:bat[:int] := algebra.projectionpath(X_152:bat[:oid], X_108:bat[:oid], X_70:bat[:oid], C_10:bat[:oid], X_37:bat[:int]);
+    X_165:bat[:int] := algebra.projectionpath(X_152:bat[:oid], X_109:bat[:oid], C_105:bat[:oid], X_97:bat[:int]);
+    X_163:bat[:int] := algebra.projectionpath(X_152:bat[:oid], X_108:bat[:oid], X_71:bat[:oid], C_67:bat[:oid], X_59:bat[:int]);
+    X_131:bat[:int] := sql.bind(X_9:int, "ssb":str, "date":str, "d_year":str, 0:int);
+    X_167:bat[:int] := algebra.projectionpath(X_153:bat[:oid], C_147:bat[:oid], C_122:bat[:oid], X_131:bat[:int]);
+    (X_169:bat[:oid], C_170:bat[:oid], X_171:bat[:lng]) := group.group(X_167:bat[:int]);
+    (X_172:bat[:oid], C_173:bat[:oid], X_174:bat[:lng]) := group.subgroup(X_163:bat[:int], X_169:bat[:oid]);
+    (X_175:bat[:oid], C_176:bat[:oid], X_177:bat[:lng]) := group.subgroupdone(X_165:bat[:int], X_172:bat[:oid]);
+    X_180:bat[:int] := algebra.projection(C_176:bat[:oid], X_167:bat[:int]);
+    X_181:bat[:hge] := aggr.subsum(X_161:bat[:int], X_175:bat[:oid], C_176:bat[:oid], true:bit, true:bit);
+    (X_184:bat[:int], X_185:bat[:oid], X_186:bat[:oid]) := algebra.sort(X_180:bat[:int], false:bit, false:bit);
+    (X_187:bat[:hge], X_188:bat[:oid], X_189:bat[:oid]) := algebra.sort(X_181:bat[:hge], X_185:bat[:oid], X_186:bat[:oid], true:bit, false:bit);
+    X_191:bat[:int] := algebra.projectionpath(X_188:bat[:oid], C_176:bat[:oid], X_163:bat[:int]);
+    X_192:bat[:int] := algebra.projectionpath(X_188:bat[:oid], C_176:bat[:oid], X_165:bat[:int]);
+    X_194:bat[:hge] := algebra.projection(X_188:bat[:oid], X_181:bat[:hge]);
+    X_193:bat[:int] := algebra.projection(X_188:bat[:oid], X_180:bat[:int]);
+    X_203:bat[:str] := bat.append(X_196:bat[:str], "ssb.customer":str);
+    X_205:bat[:str] := bat.append(X_198:bat[:str], "c_city":str);
+    X_207:bat[:str] := bat.append(X_199:bat[:str], "int":str);
+    X_209:bat[:int] := bat.append(X_200:bat[:int], 32:int);
+    X_211:bat[:int] := bat.append(X_202:bat[:int], 0:int);
+    X_213:bat[:str] := bat.append(X_203:bat[:str], "ssb.supplier":str);
+    X_215:bat[:str] := bat.append(X_205:bat[:str], "s_city":str);
+    X_217:bat[:str] := bat.append(X_207:bat[:str], "int":str);
+    X_218:bat[:int] := bat.append(X_209:bat[:int], 32:int);
+    X_219:bat[:int] := bat.append(X_211:bat[:int], 0:int);
+    X_220:bat[:str] := bat.append(X_213:bat[:str], "ssb.date":str);
+    X_222:bat[:str] := bat.append(X_215:bat[:str], "d_year":str);
+    X_224:bat[:str] := bat.append(X_217:bat[:str], "int":str);
+    X_225:bat[:int] := bat.append(X_218:bat[:int], 32:int);
+    X_226:bat[:int] := bat.append(X_219:bat[:int], 0:int);
+    X_227:bat[:str] := bat.append(X_220:bat[:str], "ssb.L6":str);
+    X_229:bat[:str] := bat.append(X_222:bat[:str], "revenue":str);
+    X_231:bat[:str] := bat.append(X_224:bat[:str], "hugeint":str);
+    X_233:bat[:int] := bat.append(X_225:bat[:int], 128:int);
+    X_235:bat[:int] := bat.append(X_226:bat[:int], 0:int);
+    sql.resultSet(X_227:bat[:str], X_229:bat[:str], X_231:bat[:str], X_233:bat[:int], X_235:bat[:int], X_191:bat[:int], X_192:bat[:int], X_193:bat[:int], X_194:bat[:hge]);
+end user.s4_1;
+#inline               actions= 0 time=1 usec 
+#remap                actions= 0 time=2 usec 
+#costmodel            actions= 1 time=2 usec 
+#coercion             actions= 0 time=1 usec 
+#evaluate             actions=10 time=28 usec 
+#emptybind            actions=11 time=11 usec 
+#pushselect           actions= 0 time=2 usec 
+#aliases              actions=21 time=9 usec 
+#mergetable           actions= 0 time=38 usec 
+#deadcode             actions=36 time=12 usec 
+#aliases              actions= 0 time=1 usec 
+#constants            actions=23 time=12 usec 
+#commonTerms          actions= 0 time=7 usec 
+#projectionpath       actions=18 time=13 usec 
+#deadcode             actions=18 time=9 usec 
+#reorder              actions= 1 time=27 usec 
+#matpack              actions= 0 time=1 usec 
+#multiplex            actions= 0 time=1 usec 
+#profiler             actions=1 time=1 usec 
+#candidates           actions=1 time=1 usec 
+#deadcode             actions= 0 time=7 usec 
+#wlc                  actions= 0 time=0 usec 
+#garbagecollector     actions= 1 time=86 usec 
+#total                actions=28 time=353 usec 
