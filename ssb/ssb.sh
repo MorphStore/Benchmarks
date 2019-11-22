@@ -23,8 +23,8 @@
 #******************************************************************************
 
 function print_help () {
-    echo "Usage: ssb.sh [-h] [-s STEP] [-e STEP] [-sf N] [-p PURPOSE]"
-    echo "              [-ps PROCESSING_STYLE] [-v vectorVersion]"
+    echo "Usage: ssb.sh [-h] [-s STEP] [-e STEP] [-sf N] [-q {N.N}]"
+    echo "              [-p PURPOSE] [-ps PROCESSING_STYLE] [-v vectorVersion]"
     echo "              [-c COMPRESSION_STRATEGY] [-crnd FORMAT]"
     echo "              [-csequ FORMAT] [-cseqs FORMAT] [-ccbsl N]"
     echo "              [-cubase BOOL] [-cuinterm BOOL]"
@@ -171,6 +171,13 @@ function print_help () {
     echo "                          (the final step)."
     echo "  -sf N, --scaleFactor N  The scale factor to use for the SSB data "
     echo "                          generation. Defaults to 1."
+    echo "  -q {N.N}, --query {N.N}, --queries {N.N}"
+    echo "                          The numbers of the queries to execute. "
+    echo "                          Multiple queries can be specified by "
+    echo "                          passing a space-separated list enclosed "
+    echo "                          in quotation marks. Defaults to \"1.1 1.2 "
+    echo "                          1.3 2.1 2.2 2.3 3.1 3.2 3.3 3.4 4.1 4.2 "
+    echo "                          4.3\", i.e., all queries."
     echo "  -p PURPOSE, --purpose PURPOSE"
     echo "                          The purpose of the query execution. "
     echo "                          Defaults to check."
@@ -834,6 +841,7 @@ declare -A umMap=(
 startStep=$stepClean
 endStep=$stepRun
 scaleFactor=1
+queries="1.1 1.2 1.3 2.1 2.2 2.3 3.1 3.2 3.3 3.4 4.1 4.2 4.3"
 purpose=$purposeCheck
 versionSelect=$usingLib
 processingStyle=$psScalar
@@ -846,7 +854,6 @@ comprUncomprBase=""
 comprUncomprInterm=""
 useMonetDB=$umPipeline
 noSelfManaging=""
-queries="1.1 1.2 1.3 2.1 2.2 2.3 3.1 3.2 3.3 3.4 4.1 4.2 4.3"
 
 while [[ $# -gt 0 ]]
 do
@@ -878,6 +885,10 @@ do
             ;;
         -sf|--scaleFactor)
             scaleFactor=$2
+            shift
+            ;;
+        -q|--query|--queries)
+            queries=$2
             shift
             ;;
         -p|--purpose)
@@ -962,6 +973,23 @@ fi
 if [[ $purpose = $purposeSize ]] && [[ $noSelfManaging = "" ]]
 then
     printf "you selected purpose '$purpose', which requires '-noSelfManaging'\n"
+    exit -1
+fi
+
+# Check if all specified query numbers are valid.
+regexQuery="^([1-4]\.[1-3]|3\.4)$"
+for query in $queries
+do
+    if ! [[ $query =~ $regexQuery ]]
+    then
+        printf "invalid query number '$query'\n"
+        exit -1
+    fi
+done
+# Check if there are duplicate query numbers.
+if [[ $(echo $queries | tr " " "\n" | sort | uniq --repeated) != "" ]]
+then
+    printf "the specified query numbers must not contain duplicates\n"
     exit -1
 fi
 
