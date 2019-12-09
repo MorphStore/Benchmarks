@@ -91,6 +91,7 @@ pathQueries=queries
 # Related to MonetDB.
 pathMonetDB=../../monetdb
 monetdbd=$pathMonetDB/bin/monetdbd
+monetdb=$pathMonetDB/bin/monetdb
 mclient=$pathMonetDB/bin/mclient
 pathMonetDBFarm=../../monetdbfarm
 
@@ -113,6 +114,11 @@ dbName=${benchmark}_sf$scaleFactor
 printf "Starting MonetDB daemon... " >&2
 eval $monetdbd start $pathMonetDBFarm
 printf "done.\n" >&2
+
+# Set MonetDB to single-threaded execution, just like MorphStore.
+eval $monetdb set nthreads=1 $dbName
+# Set MonetDB to read-only execution, just like MorphStore.
+eval $monetdb set readonly=yes $dbName
 
 printf "query\trepetition\truntime [ms]\n"
 
