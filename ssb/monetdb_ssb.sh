@@ -24,7 +24,7 @@ function print_help () {
     echo ""
     echo "Assumptions:"
     echo "  - the SSB database has already been set up in MonetDB using ssb.sh"
-    echo "  - MonetDB and out tools are reachable at the same relative paths "
+    echo "  - MonetDB and our tools are reachable at the same relative paths "
     echo "    where ssb.sh expects them (see 'ssb.sh -h')."
     echo ""
     echo "In general, this script is rather an extension to ssb.sh, not a "
@@ -114,29 +114,26 @@ printf "Starting MonetDB daemon... " >&2
 eval $monetdbd start $pathMonetDBFarm
 printf "done.\n" >&2
 
-printf "major\tminor\trepetition\truntime [ms]\n"
+printf "query\trepetition\truntime [ms]\n"
 
-for major in 1 2 3 4
+for query in 1.1 1.2 1.3 2.1 2.2 2.3 3.1 3.2 3.3 3.4 4.1 4.2 4.3
 do
-    for minor in 1 2 3
+    for rep in $(seq $repetitions)
     do
-        for rep in $(seq $repetitions)
-        do
-            printf $major"\t"$minor"\t"$rep"\t"
+        printf "${query}\t${rep}\t"
 
-            runtime=$( \
-                printf "SET SCHEMA $benchmark;\n" \
-                | cat - $pathQueries/q$major.$minor.sql \
-                | $qdict $pathDataDicts \
-                | $mclient -d $dbName -f raw -t performance \
-                2>&1 > /dev/null \
-                | tail -n 2 \
-                | head -n 1 \
-                | grep -P "(?<=run:)\d+\.\d+(?= ms)" -o \
-            )
+        runtime=$( \
+            printf "SET SCHEMA $benchmark;\n" \
+            | cat - $pathQueries/q$query.sql \
+            | $qdict $pathDataDicts \
+            | $mclient -d $dbName -f raw -t performance \
+            2>&1 > /dev/null \
+            | tail -n 2 \
+            | head -n 1 \
+            | grep -P "(?<=run:)\d+\.\d+(?= ms)" -o \
+        )
 
-            printf $runtime"\n"
-        done
+        printf $runtime"\n"
     done
 done
 
