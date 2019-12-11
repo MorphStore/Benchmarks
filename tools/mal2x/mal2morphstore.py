@@ -139,6 +139,12 @@ if __name__ == "__main__":
         help="Are the hand implemented operators used (1), "
             "or the operators using the vector library (2)?"
     )
+    parser.add_argument(
+        # TODO Enforce a positive integer.
+        "--rep", dest="repetitionCount", default=1, metavar="N", type=int,
+        help="The number of times to execute the query. Values greater than 1 "
+            "are only allowed for the timing purpose. Defaults to 1."
+    )
     #TODO The next two are also compression arguments.
     parser.add_argument(
         "--statdir", dest="statDirPath", default=None, metavar="DIR",
@@ -234,6 +240,16 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     
+    # -------------------------------------------------------------------------
+    # Validation of the command line arguments
+    # -------------------------------------------------------------------------
+    
+    if args.repetitionCount > 1 and args.purpose != pp.PP_TIME:
+        raise RuntimeError(
+                "executing the query more than once is only supported for the "
+                "time purpose"
+        )
+    
     # Validation of the combination of the compression arguments.
     if args.comprStrategy == compr.CS_UNCOMPR:
         if (
@@ -312,4 +328,5 @@ if __name__ == "__main__":
         args.versionSelect,
         args.statDirPath,
         args.colInfosFilePath,
+        args.repetitionCount,
     )

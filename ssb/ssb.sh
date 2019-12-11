@@ -24,10 +24,10 @@
 
 function print_help () {
     echo "Usage: ssb.sh [-h] [-s STEP] [-e STEP] [-sf N] [-q {N.N}]"
-    echo "              [-p PURPOSE] [-ps PROCESSING_STYLE] [-v vectorVersion]"
-    echo "              [-c COMPRESSION_STRATEGY] [-crnd FORMAT]"
-    echo "              [-csequ FORMAT] [-cseqs FORMAT] [-ccbsl N]"
-    echo "              [-cubase BOOL] [-cuinterm BOOL]"
+    echo "              [-p PURPOSE] [-r N] [-ps PROCESSING_STYLE]"
+    echo "              [-v vectorVersion] [-c COMPRESSION_STRATEGY]"
+    echo "              [-crnd FORMAT] [-csequ FORMAT] [-cseqs FORMAT]"
+    echo "              [-ccbsl N] [-cubase BOOL] [-cuinterm BOOL]"
     echo "              [-um WAY_TO_USE_MONETDB] [-noSelfManaging]"
     echo ""
     echo "Star Schema Benchmark (SSB) in MorphStore."
@@ -106,6 +106,9 @@ function print_help () {
     echo "      that this directory is NOT deleted in the cleaning step. "
     echo "      This purpose requires '-c uncompr' and '-noSelfManaging'."
     echo ""
+    echo "For the time purpose, the number of query executions can be "
+    echo "specified."
+    echo ""
     echo "Vector Versions:"
     echo "  h, byhand"
     echo "      Hand implemented scalar and vectorized operators"
@@ -181,6 +184,11 @@ function print_help () {
     echo "  -p PURPOSE, --purpose PURPOSE"
     echo "                          The purpose of the query execution. "
     echo "                          Defaults to check."
+    echo "  -r N, --rep N, --repetitions N"
+    echo "                          The number of times each query is "
+    echo "                          executed. Values greater than 1 are only "
+    echo "                          supported for the time purpose. Defaults "
+    echo "                          to 1."
     echo "  -ps PROCESSING_STYLE, --processingStyle PROCESSING_STYLE"
     echo "                          The processing style to use in MorphStore."
     echo "                          Supported values are scalar, vec128, and "
@@ -368,6 +376,8 @@ function translate () {
 
     local statFlag="--statdir $pathDataStatsDict"
 
+    local queryIndependentFlags="$processingStyle $purpose $versionSelect --rep $repetitionCount $comprFlags $statFlag"
+
     printf "if( BUILD_ALL OR BUILD_SSB EQUAL $scaleFactor )\n" >> $cmakeListsFile
     for query in $queries
     do
@@ -381,13 +391,15 @@ function translate () {
             local sizesFileFlag=""
         fi
 
+        local queryDependentFlags="$ciFlag $sizesFileFlag"
+
         case $useMonetDB in
             $umPipeline)
                 printf "SET SCHEMA $benchmark;\nEXPLAIN " \
                     | cat - $pathQueries/q$query.sql \
                     | $qdict $pathDataDicts \
                     | $mclient -d $dbName -f raw \
-                    | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag $sizesFileFlag \
+                    | $mal2morphstore $queryIndependentFlags $queryDependentFlags \
                     > $pathSrc/q$query.cpp
                 ;;
             $umMaterialize)
@@ -397,12 +409,12 @@ function translate () {
                     | $mclient -d $dbName -f raw \
                     > $pathMal/q$query.mal
                 cat $pathMal/q$query.mal \
-                    | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag $sizesFileFlag \
+                    | $mal2morphstore $queryIndependentFlags $queryDependentFlags \
                     > $pathSrc/q$query.cpp
                 ;;
             $umSaved)
                 cat $pathMal/q$query.mal \
-                    | $mal2morphstore $processingStyle $purpose $versionSelect $comprFlags $statFlag $ciFlag $sizesFileFlag \
+                    | $mal2morphstore $queryIndependentFlags $queryDependentFlags \
                     > $pathSrc/q$query.cpp
                 ;;
             *)
@@ -843,6 +855,7 @@ endStep=$stepRun
 scaleFactor=1
 queries="1.1 1.2 1.3 2.1 2.2 2.3 3.1 3.2 3.3 3.4 4.1 4.2 4.3"
 purpose=$purposeCheck
+repetitionCount=1
 versionSelect=$usingLib
 processingStyle=$psScalar
 comprStrategy=uncompr
@@ -900,6 +913,10 @@ do
                 printf "unknown purpose: $2\n"
                 exit -1
             fi
+            ;;
+        -r|--rep|--repetitions)
+            repetitionCount=$2
+            shift
             ;;
         -v|--versionSelect)
             if [[ ${versionMap[$2]+_} ]]

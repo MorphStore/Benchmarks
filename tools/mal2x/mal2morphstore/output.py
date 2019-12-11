@@ -34,7 +34,7 @@ of an abstract representation of the translated program.
 # TODO Output line numbers in error messages.
 # TODO The format in which the C++ program outputs its result should be a
 #      parameter -- either here or in the generated C++ program.
-# TODO Automaticall break generated C++ source code lines in a nice way.
+# TODO Automatically break generated C++ source code lines in a nice way.
 # TODO This module is not independent from the C++ template file. For instance,
 #      it relies on the existence of certain header includes and variables in
 #      the template. They should be completely independent.
@@ -58,6 +58,13 @@ import sys
 # TODO This is relative to ssb.sh.
 sys.path.append(".")
 import csvutils
+
+# *****************************************************************************
+# Constants
+# *****************************************************************************
+
+RES_SUFFIX = "__res"
+
 
 # *****************************************************************************
 # * Functions producing the insertable code snippets
@@ -188,7 +195,35 @@ def _printDataLoad(indent, tr, ar):
         print("{}// No morphing of the base columns required.".format(indent))
     print()
     
-def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath):
+def _printFreeIntermediates(
+    indent, tr, freeMorphedBaseCols, freeQueryResultCols
+):
+    # TODO This should also work with MorphStore's own memory manager.
+    print("#ifdef MSV_NO_SELFMANAGED_MEMORY")
+    freedVars = set()
+    morphedBaseCols = [morphOp.outCol for morphOp in tr.baseMorphs]
+    for el in tr.prog:
+        if isinstance(el, Op):
+            for key in el.__dict__:
+                if key.endswith("Col"):
+                    varName = getattr(el, key)
+                    if (
+                        "." not in varName
+                        and varName not in freedVars
+                        and (freeMorphedBaseCols or varName not in morphedBaseCols)
+                        and (freeQueryResultCols or varName not in tr.resultCols)
+                    ):
+                        print("{}delete {};".format(indent, varName))
+                        freedVars.add(varName)
+    print("#endif")
+
+def _printFreeQueryResults(indent, tr, suffix=""):
+    print("#ifdef MSV_NO_SELFMANAGED_MEMORY")
+    for colName in tr.resultCols:
+        print("{}delete {}{};".format(indent, colName, suffix))
+    print("#endif")
+    
+def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath, repetitionCount):
     """
     Prints the core program, i.e., the sequence of operators.
     """
@@ -256,11 +291,30 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath):
             )
         print()
         
+        # Variables for the query result columns.
+        print("{}// Variables for the query result columns.".format(indent))
+        for colName in tr.resultCols:
+            # TODO Don't hardcode the format.
+            print("{}const column<uncompr_f> * {}{};".format(
+                    indent, colName, RES_SUFFIX
+            ))
+        print()
+        
         # Query program.
-        print("{}// Query program.".format(indent))
+        print("{}std::cerr << std::endl;".format(indent))
+        print()
+        print("{}for(unsigned repIdx = 1; repIdx <= {}; repIdx++) {{".format(
+                indent, repetitionCount
+        ))
+        indentMore = "{}    ".format(indent)
+        print('{}std::cerr << "\\tRepetition " << repIdx << " started... ";'.format(
+                indentMore
+        ))
+        print()
+        print("{}// Query program.".format(indentMore))
         print(
                 '{}MONITORING_START_INTERVAL_FOR({}, {}, {});'
-                .format(indent, varColRuntime, varOpNameQuery, 0)
+                .format(indentMore, varColRuntime, varOpNameQuery, 0)
         )
         print()
         opIdx = 1
@@ -268,21 +322,50 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath):
             if isinstance(el, Op):
                 monVarOpNameOp = varOpNameFs.format(el.opName)
                 print('{}MONITORING_START_INTERVAL_FOR({}, {}, {});'.format(
-                        indent, varColRuntime, monVarOpNameOp, opIdx)
+                        indentMore, varColRuntime, monVarOpNameOp, opIdx)
                 )
-                print("{}{}".format(indent, el).replace("\n", "\n" + indent))
+                print("{}{}".format(indentMore, el).replace("\n", "\n" + indentMore))
                 print('{}MONITORING_END_INTERVAL_FOR  ({}, {}, {});'.format(
-                        indent, varColRuntime, monVarOpNameOp, opIdx)
+                        indentMore, varColRuntime, monVarOpNameOp, opIdx)
                 )
-                _prepareOutColsForRandomAccess(indent, el, ar)
+                _prepareOutColsForRandomAccess(indentMore, el, ar)
                 opIdx += 1
             else:
-                print("{}{}".format(indent, el).replace("\n", "\n" + indent))
+                print("{}{}".format(indentMore, el).replace("\n", "\n" + indentMore))
         print()
         print(
                 '{}MONITORING_END_INTERVAL_FOR  ({}, {}, {});'
-                .format(indent, varColRuntime, varOpNameQuery, 0)
+                .format(indentMore, varColRuntime, varOpNameQuery, 0)
         )
+        print()
+        
+        # Free all intermediate results which are not morphed base columns or
+        # query results.
+        # TODO This should happen as early as possible during query processing.
+        print(
+                "{}// Free all intermediate results which are not morphed "
+                "base columns or query results.".format(indentMore)
+        )
+        _printFreeIntermediates(indentMore, tr, False, False)
+        print()
+        print("{}// Handle query results.".format(indentMore))
+        print("{}if(repIdx < {}) {{".format(indentMore, repetitionCount))
+        print("{}    // This is not the last query repetition.".format(indentMore))
+        _printFreeQueryResults(indentMore + "    ", tr, "")
+        print("{}}}".format(indentMore))
+        print("{}else {{".format(indentMore))
+        print("{}    // This is the last query repetition.".format(indentMore))
+        for colName in tr.resultCols:
+            print("{}    {}{} = {};".format(indentMore, colName, RES_SUFFIX, colName))
+        print("{}}}".format(indentMore))
+        
+        print()
+        print('{}std::cerr << "done." << std::endl;'.format(indentMore))
+        
+        print("{}}}".format(indent))
+        
+        print()
+        print('{}std::cerr << "Query execution ";'.format(indent))
     elif purpose == pp.PP_DATACH:
         # Constants for the monitoring column names.
         varColOpName = "colOpName"
@@ -569,36 +652,40 @@ def _printResultOutput(indent, tr, purpose):
         print("{}// No morphing of the result columns required.".format(indent))
     print()
     
+    # TODO For the time purpose, the handling of the result columns is
+    # probably not correct, if they are not directly created in the
+    # uncompressed format. However, at the moment this is not a problem.
+    
     # Print the result columns.
+    if purpose == pp.PP_TIME:
+        outputCols = map(
+                lambda colName: "{}{}".format(colName, RES_SUFFIX),
+                tr.resultCols
+        )
+    else:
+        outputCols = tr.resultCols
     print("{}// Print the result columns.".format(indent))
     if True:
         # Output in the same CSV dialect MonetDB uses.
         print("{}print_columns_csv({{{}}});".format(
             indent,
-            ", ".join(tr.resultCols)
+            ", ".join(outputCols)
         ))
     else:
         print("{}print_columns(print_buffer_base::decimal, {});".format(
             indent,
-            ", ".join(tr.resultCols)
+            ", ".join(outputCols)
         ))
     print()
     
-    # Free all intermediate results.
-    # TODO This should happen as early as possible during query processing.
-    # TODO This should also work with MorphStore's own memory manager.
-    print("{}// Free all intermediate results.".format(indent))
-    print("#ifdef MSV_NO_SELFMANAGED_MEMORY")
-    freedVars = set()
-    for el in tr.prog:
-        if isinstance(el, Op):
-            for key in el.__dict__:
-                if key.endswith("Col"):
-                    varName = getattr(el, key)
-                    if "." not in varName and varName not in freedVars:
-                        print("{}delete {};".format(indent, varName))
-                        freedVars.add(varName)
-    print("#endif")
+    # Free all intermediate and/or query results.
+    if purpose == pp.PP_TIME:
+        print("{}// Free all query results.".format(indent))
+        _printFreeQueryResults(indent, tr, RES_SUFFIX)
+    else:
+        # TODO This should happen as early as possible during query processing.
+        print("{}// Free all intermediate results.".format(indent))
+        _printFreeIntermediates(indent, tr, True, True)
 
 def _printAnalysis(indent, ar):
     """
@@ -641,6 +728,7 @@ def generate(
         versionSelect,
         statDirPath,
         colInfosFilePath,
+        repetitionCount,
 ):
     """
     Generates the C++ source code for the given abstract representation of a
@@ -707,6 +795,7 @@ def generate(
                             ar,
                             processingStyle,
                             colInfosFilePath,
+                            repetitionCount,
                     )
                 elif ph == "result":
                     _printResultOutput(
