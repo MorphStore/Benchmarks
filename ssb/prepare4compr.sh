@@ -161,6 +161,8 @@ done
 cd ../../Engine
 ./build.sh -noSelfManaging -hi $psFlag -mon -bCa
 mkdir --parents ../Benchmarks/ssb/compr_profiles
-build/src/calibration/bw_prof > ../Benchmarks/ssb/compr_profiles/bwprof.csv
+build/src/calibration/bw_prof > ../Benchmarks/ssb/compr_profiles/bw_prof_alone.csv
+build/src/calibration/bw_prof_casc > ../Benchmarks/ssb/compr_profiles/bw_prof_casc.csv
+build/src/calibration/const_prof > ../Benchmarks/ssb/compr_profiles/const_prof_casc.csv
 
 set +e

@@ -109,73 +109,203 @@ def chooseRuleBased(dfColInfos, fRndAcc, fSeqAccUnsorted, fSeqAccSorted):
 def _configureCostModel(ps, profileDirPath):
     data.MAX_BW = 64 # MorphStore is 64-bit.
     
-    class BwProfCols:
+    #TODO This does not belong here.
+    BITS_PER_BYTE = 8
+    
+    # Clear.
+    # TODO maybe this should be a function in est!
+    est._constProfs_Alone = {}
+    est._constProfs_Casc = {}
+    est._varProfs_Alone = {}
+    est._varProfs_Casc = {}
+    est._bwProfs_Alone = {}
+    est._bwProfs_Casc = {}
+    est._penaltyFactors_Alone = {}
+    est._penaltyFactors_Casc = {}
+    
+    # -------------------------------------------------------------------------
+    # Column names in the CSV files containing the profiles
+    # -------------------------------------------------------------------------
+    
+    class GeneralCols:
         ve = "vector_extension"
         fmt = "format"
-        bw = "bitwidth"
-        count = "countValues"
         rtc = "runtime compr [µs]"
         rtd = "runtime decompr [µs]"
+        check = "check"
+    class BwProfCols:
+        bw = "bitwidth"
+    class BwProfAloneCols:
         sizeUsed = "size used [byte]"
         sizeCompr = "size compr [byte]"
-        check = "check"
-    dfBwProfs = pd.read_csv(
-            os.path.join(profileDirPath, "bwprof.csv"),
+        count = "countValues"
+    
+    # -------------------------------------------------------------------------
+    # Loading the CSV files containing the profiles
+    # -------------------------------------------------------------------------
+
+    # Has GeneralCols + BwProfCols + BwProfColsAlone
+    dfBwProfsAlone = pd.read_csv(
+            os.path.join(profileDirPath, "bw_prof_alone.csv"),
+            delimiter="\t",
+            skiprows=2
+    )
+    # Has GeneralCols + BwProfCols
+    dfBwProfsCasc = pd.read_csv(
+            os.path.join(profileDirPath, "bw_prof_casc.csv"),
+            delimiter="\t",
+            skiprows=2
+    )
+    # Has GeneralCols
+    dfConstProfsCasc = pd.read_csv(
+            os.path.join(profileDirPath, "const_prof_casc.csv"),
             delimiter="\t",
             skiprows=2
     )
     
-    #TODO This does not belong here.
-    BITS_PER_BYTE = 8
+    if any(dfBwProfsAlone[GeneralCols.check] == 0):
+        raise RuntimeError(
+                "some check in the calibration of stand-alone bit width "
+                "profiles failed"
+        )
+    if any(dfBwProfsCasc[GeneralCols.check] == 0):
+        raise RuntimeError(
+                "some check in the calibration of cascade bit width "
+                "profiles failed"
+        )
+    # The checks for cascade constant profiles cannot be checked, because they
+    # are all false-positives by construction.
     
-    phyFormats = [
-        formats.StaticVBPFormat(ps),
-        formats.DynamicVBPFormat(ps),
+    # TODO Check and set est._countValuesCalib.
+    
+    # -------------------------------------------------------------------------
+    # Cost model configuration for the uncompressed format
+    # -------------------------------------------------------------------------
+    
+    fmt = formats.UncomprFormat()
+    est._costFuncs[fmt] = est._costLogConst
+    est._comprGrans[fmt] = 1
+    est._constProfs_Alone[fmt.changeMode(algo.MODE_FORMAT)] = data.MAX_BW
+    # TODO Add runtime profiles.
+    
+    # -------------------------------------------------------------------------
+    # Cost model configuration for physical-level algorithms
+    # -------------------------------------------------------------------------
+    
+    # TODO Always check if the obtained profile has the expected size (e.g., is
+    # not empty).
+    
+    phyInfo = [
+        (
+            formats.StaticVBPFormat(ps),
+            est._adaptMax,
+            pss.PS_INFOS[ps].vectorSizeBit,
+            False,
+        ),
+        (
+            formats.DynamicVBPFormat(ps),
+            partial(
+                    est._adaptFixed,
+                    blockSize=pss.PS_INFOS[ps].vectorSizeBit
+            ),
+            pss.PS_INFOS[ps].vectorSizeBit,
+            True,
+        ),
     ]
     if ps == pss.PS_VEC128:
-        phyFormats.append(formats.KWiseNSFormat(ps))
+        phyInfo.append((
+            formats.KWiseNSFormat(ps),
+            est._adaptId,
+            pss.PS_INFOS[ps].vectorElementCount,
+            True,
+        ))
         
-    for fmt in phyFormats:
-        df = dfBwProfs[
-            (dfBwProfs[BwProfCols.ve] == ps) &
-            (dfBwProfs[BwProfCols.fmt] == fmt.getInternalName())
+    for fmt, adaptFunc, comprGran, supportCasc in phyInfo:
+        # --------------
+        # White-box part
+        # --------------
+        
+        est._costFuncs[fmt] = est._costPhy
+        est._adaptFuncs[fmt] = adaptFunc
+        est._comprGrans[fmt] = comprGran
+        
+        # --------------
+        # Black-box part
+        # --------------
+        
+        dfBwProfsAlone_PsFmt = dfBwProfsAlone[
+            (dfBwProfsAlone[GeneralCols.ve] == ps) &
+            (dfBwProfsAlone[GeneralCols.fmt] == fmt.getInternalName())
         ]
-        df.index = range(1, data.MAX_BW + 1)
-        sBwProf = df[BwProfCols.sizeUsed] / \
-                (df[BwProfCols.count] * BITS_PER_BYTE) * data.MAX_BW
-        est._bwProfs_Alone[fmt.changeMode(algo.MODE_FORMAT)] = sBwProf
-
-    est._constProfs_Alone[formats.UncomprFormat(algo.MODE_FORMAT)] = data.MAX_BW
-    
-    est._constProfs_Alone[formats._DeltaFormat(ps, algo.MODE_FORMAT)] = data.MAX_BW
-    # TODO Take the reference values (meta data) into account. The precise
-    # value depends on the cascade's block size.
-    est._constProfs_Alone[formats._ForFormat(ps, algo.MODE_FORMAT)] = data.MAX_BW
+        dfBwProfsAlone_PsFmt.index = dfBwProfsAlone_PsFmt[BwProfCols.bw]
+        if supportCasc:
+            dfBwProfsCasc_PsFmt = dfBwProfsCasc[
+                (dfBwProfsCasc[GeneralCols.ve] == ps) &
+                (dfBwProfsCasc[GeneralCols.fmt] == fmt.getInternalName())
+            ]
+            dfBwProfsCasc_PsFmt.index = dfBwProfsCasc_PsFmt[BwProfCols.bw]
         
+        # Compression rate.
+        est._bwProfs_Alone[fmt.changeMode(algo.MODE_FORMAT)] = \
+                dfBwProfsAlone_PsFmt[BwProfAloneCols.sizeUsed] / \
+                dfBwProfsAlone_PsFmt[BwProfAloneCols.count] * BITS_PER_BYTE
+        
+        # Runtimes.
+        for colName, mode in [
+            (GeneralCols.rtc, algo.MODE_COMPR),
+            (GeneralCols.rtd, algo.MODE_DECOMPR),
+        ]:
+            fmtMode = fmt.changeMode(mode)
+            est._bwProfs_Alone[fmtMode] = dfBwProfsAlone_PsFmt[colName]
+            if supportCasc:
+                est._bwProfs_Casc[fmtMode] = dfBwProfsCasc_PsFmt[colName]
+
+    # -------------------------------------------------------------------------
+    # Cost model configuration for logical-level algorithms
+    # -------------------------------------------------------------------------
     
-    est._costFuncs[formats.DynamicVBPFormat(ps)] = est._costPhy
-    est._adaptFuncs[formats.DynamicVBPFormat(ps)] = partial(
-            est._adaptFixed,
-            blockSize=pss.PS_INFOS[ps].vectorSizeBit
-    )
-    if ps == pss.PS_VEC128:
-        est._costFuncs[formats.KWiseNSFormat(ps)] = est._costPhy
-        est._adaptFuncs[formats.KWiseNSFormat(ps)] = est._adaptId
-    est._costFuncs[formats.StaticVBPFormat(ps)] = est._costPhy
-    est._adaptFuncs[formats.StaticVBPFormat(ps)] = est._adaptMax
+    logInfos = [
+        (
+            formats._DeltaFormat(ps),
+            est._changeDC_Delta,
+            None, # TODO
+        ),
+        (
+            formats._ForFormat(ps),
+            est._changeDC_For,
+            None, # TODO
+        ),
+    ]
     
-    est._costFuncs[formats.UncomprFormat()] = est._costLogConst
-    
-    est._costFuncs[formats._DeltaFormat(ps)] = est._costLogConst
-    est._changeFuncs[formats._DeltaFormat(ps)] = est._changeDC_Delta
-    est._costFuncs[formats._ForFormat(ps)] = est._costLogConst
-    est._changeFuncs[formats._ForFormat(ps)] = est._changeDC_For
-    
-    est._comprGrans[formats.UncomprFormat()] = 1
-    est._comprGrans[formats.StaticVBPFormat(ps)] = pss.PS_INFOS[ps].vectorSizeBit
-    est._comprGrans[formats.DynamicVBPFormat(ps)] = pss.PS_INFOS[ps].vectorSizeBit
-    if ps == pss.PS_VEC128:
-        est._comprGrans[formats.KWiseNSFormat(ps)] = pss.PS_INFOS[ps].vectorElementCount
+    for fmt, changeFunc, comprGran in logInfos:
+        # --------------
+        # White-box part
+        # --------------
+        
+        est._costFuncs[fmt] = est._costLogConst
+        est._changeFuncs[fmt] = changeFunc
+        est._comprGrans[fmt] = comprGran
+        
+        # --------------
+        # Black-box part
+        # --------------
+        
+        dfConstProfsCasc_PsFmt = dfConstProfsCasc[
+            (dfConstProfsCasc[GeneralCols.ve] == ps) &
+            (dfConstProfsCasc[GeneralCols.fmt] == fmt.getInternalName())
+        ]
+        
+        # Compression rate.
+        # TODO This is inaccurate for FOR.
+        est._constProfs_Alone[fmt.changeMode(algo.MODE_FORMAT)] = data.MAX_BW
+        
+        # Runtimes.
+        for colName, mode in [
+            (GeneralCols.rtc, algo.MODE_COMPR),
+            (GeneralCols.rtd, algo.MODE_DECOMPR),
+        ]:
+            est._constProfs_Casc[fmt.changeMode(mode)] = \
+                    dfConstProfsCasc_PsFmt[colName].values[0]
 
 def _chooseFuncBased(costFunc, betterWins, dfColInfos, choice):
     res = est.select(
