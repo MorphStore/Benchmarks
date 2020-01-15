@@ -28,7 +28,7 @@ function print_help () {
     echo "              [-v vectorVersion] [-c COMPRESSION_STRATEGY]"
     echo "              [-crnd FORMAT] [-csequ FORMAT] [-cseqs FORMAT]"
     echo "              [-ccbsl N] [-cubase BOOL] [-cuinterm BOOL]"
-    echo "              [-um WAY_TO_USE_MONETDB] [-noSelfManaging]"
+    echo "              [-um WAY_TO_USE_MONETDB] [-mem MEMORY_MANAGEMENT]"
     echo ""
     echo "Star Schema Benchmark (SSB) in MorphStore."
     echo ""
@@ -104,7 +104,7 @@ function print_help () {
     echo "      In this directory, one file per query will be generated, "
     echo "      containing the physical sizes for the respective query. Note "
     echo "      that this directory is NOT deleted in the cleaning step. "
-    echo "      This purpose requires '-c uncompr' and '-noSelfManaging'."
+    echo "      This purpose requires '-c uncompr' and '-mem n'."
     echo ""
     echo "For the time purpose, the number of query executions can be "
     echo "specified."
@@ -166,6 +166,14 @@ function print_help () {
     echo "      required outputs of MonetDB from files that were previously "
     echo "      created using the 'materialize'-option above."
     echo ""
+    echo "Memory Management"
+    echo "  n, noSelfManaging"
+    echo "      Use standard C malloc."
+    echo "  s, selfManaging"
+    echo "      Use MorphStore's own memory manager."
+    echo "  si, selfManagingInit"
+    echo "      Use MorphStore's own memory manager and initialize buffers."
+    echo ""
     echo "Optional arguments:"
     echo "  -h, --help              Show this help message and exit."
     echo "  -s STEP, --start STEP   The step to start with. Defaults to clean "
@@ -199,9 +207,7 @@ function print_help () {
     echo "                          alluncompr."
     echo "  -um WAY_TO_USE_MONETDB, --useMonetDB WAY_TO_USE_MONETDB"
     echo "                          The way to use MonetDB."
-    echo "  -noSelfManaging         The query executables will use standard "
-    echo "                          C++ memory management instead of "
-    echo "                          MorphStore's own memory manager."
+    echo "  -mem MEMORY_MANAGEMENT  The way MorphStore shall manage memory."
     echo ""
     echo "Examples:"
     echo "  ssb.sh"
@@ -546,8 +552,34 @@ function build () {
     else
         local vbpFlag=""
     fi
+
+    if [[ $memManagement == $memNoSelf ]]
+    then
+        local mem="-noSelfManaging"
+    elif [[ $memManagement == $memSelf ]]
+    then
+        local mem=""
+    elif [[ $memManagement == $memSelfInit ]]
+    then
+        # TODO These sizes were determined manually for the purely uncompressed
+        # processing with the current state of the implementation of
+        # MorphStore. They might be too high or too low in the future.
+        if [[ $scaleFactor -eq 1 ]]
+        then
+            let queryInitSize="500 * 1024 * 1024" # 500 MiB
+        elif [[ $scaleFactor -le 10 ]]
+        then
+            let queryInitSize="5 * 1024 * 1024 * 1024" # 1 GiB
+        else
+            printf "initializing memory is only supported for scale factors up to 10 so far\n"
+            exit -1
+        fi
+
+        local mem="-queryInitSize $queryInitSize -queryDisallowExpand -queryInitBuffers"
+    fi
+
     # TODO Do not hard-code the arguments for build.sh.
-    ./build.sh -hi -j8 $monitoringFlag $extensionFlags -bSSB $scaleFactor $noSelfManaging $vbpFlag
+    ./build.sh -hi -j8 $monitoringFlag $extensionFlags -bSSB $scaleFactor $mem $vbpFlag
     cd $oldPwd
 
     set +e
@@ -845,6 +877,23 @@ declare -A umMap=(
     [saved]=$umSaved
 )
 
+# -----------------------------------------------------------------------------
+# Memory management.
+# -----------------------------------------------------------------------------
+
+memNoSelf="n"
+memSelf="s"
+memSelfInit="si"
+
+declare -A memMap=(
+    [n]=$memNoSelf
+    [noSelfManaging]=$memNoSelf
+    [s]=$memSelf
+    [selfManaging]=$memSelf
+    [si]=$memSelfInit
+    [selfManagingInit]=$memSelfInit
+)
+
 # *****************************************************************************
 # Argument parsing
 # *****************************************************************************
@@ -866,7 +915,7 @@ comprCascBlockSizeLog=""
 comprUncomprBase=""
 comprUncomprInterm=""
 useMonetDB=$umPipeline
-noSelfManaging=""
+memManagement=$memSelf
 
 while [[ $# -gt 0 ]]
 do
@@ -970,8 +1019,15 @@ do
                 exit -1
             fi
             ;;
-        -noSelfManaging)
-            noSelfManaging="-noSelfManaging"
+        -mem|--memManagement)
+            if [[ ${memMap[$2]+_} ]]
+            then
+                memManagement=${memMap[$2]}
+                shift
+            else
+                printf "unknown memory management: $2\n"
+                exit -1
+            fi
             ;;
         *)
             printf "unknown option: $key\n"
@@ -987,9 +1043,9 @@ then
     exit -1
 fi
 
-if [[ $purpose = $purposeSize ]] && [[ $noSelfManaging = "" ]]
+if [[ $purpose = $purposeSize ]] && [[ $memManagement != $memNoSelf ]]
 then
-    printf "you selected purpose '$purpose', which requires '-noSelfManaging'\n"
+    printf "you selected purpose '$purpose', which requires '-mem $memNoSelf'\n"
     exit -1
 fi
 
