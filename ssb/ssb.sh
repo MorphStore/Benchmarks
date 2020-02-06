@@ -392,7 +392,7 @@ function translate () {
         local ciFlag="--cifile $pathDataCh/q$query.csv"
         if [[ $comprStrategy = "realbest" || $comprStrategy = "realworst" ]]
         then
-            local sizesFileFlag="--csizesfile $pathSize/q$query.csv"
+            local sizesFileFlag="--csizesfile ${pathSize}_$processingStyle/q$query.csv"
         else
             local sizesFileFlag=""
         fi
@@ -569,7 +569,7 @@ function build () {
             let queryInitSize="500 * 1024 * 1024" # 500 MiB
         elif [[ $scaleFactor -le 10 ]]
         then
-            let queryInitSize="5 * 1024 * 1024 * 1024" # 1 GiB
+            let queryInitSize="5 * 1024 * 1024 * 1024" # 5 GiB
         else
             printf "initializing memory is only supported for scale factors up to 10 so far\n"
             exit -1

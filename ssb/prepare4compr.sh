@@ -134,7 +134,7 @@ fi
 # Execution
 #******************************************************************************
 
-generalFlags="-noSelfManaging -um s -sf $scaleFactor -s t"
+generalFlags="-mem noSelfManaging -um s -sf $scaleFactor -s t"
 
 set -e
 
@@ -151,7 +151,7 @@ set -e
 for ps in $pss
 do
     ./ssb.sh $generalFlags -p s -ps ${psLongMap[$ps]}
-    mv size_sf$scaleFactor size_sf${scaleFactor}_$ps
+    mv size_sf$scaleFactor size_sf${scaleFactor}_${psLongMap[$ps]}
 done
 
 # -----------------------------------------------------------------------------
