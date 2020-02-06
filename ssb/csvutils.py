@@ -23,8 +23,8 @@ MorphStore.
 
 import sys
 # TODO This is relative to ssb.sh.
-sys.path.append("../../LC-BaSe/cm")
-import data
+sys.path.append("../../LC-BaSe")
+import lcbase_py.costmodel as cm
 
 import pandas as pd
 
@@ -60,12 +60,12 @@ class ColInfoCols:
     """
     
     # Columns needed by our cost model for compression algorithms.
-    bwHist          = data.COLS_DA_EFFBITSHIST
-    countValues     = data.COL_DA_COUNTVALUES
-    countDistinct   = data.COL_DA_COUNTDISTINCT
-    min             = data.COL_DA_MIN
-    max             = data.COL_DA_MAX
-    isSorted        = data.COL_DA_SORTEDASC
+    bwHist          = cm.ColsDC.effBitsHist()
+    countValues     = cm.ColsDC.count
+    countDistinct   = cm.ColsDC.distinct
+    min             = cm.ColsDC.min
+    max             = cm.ColsDC.max
+    isSorted        = cm.ColsDC.isSorted
     # More columns.
     maxBw           = "maxBw"
     isBaseCol       = "isBaseCol"
@@ -78,7 +78,7 @@ def getColInfos(colInfosFilePath):
     dfInDedup = dfIn.drop_duplicates("colName")
     
     df = dfInDedup[
-        ["bwHist_{}".format(bw) for bw in range(1, data.MAX_BW + 1)] +
+        ["bwHist_{}".format(bw) for bw in range(1, cm.UNCOMPR_BW + 1)] +
         ["valueCount", "Min", "Max", "DistinctCount"]
     ].copy()
     df.columns = ColInfoCols.bwHist + [
@@ -93,7 +93,7 @@ def getColInfos(colInfosFilePath):
     df[ColInfoCols.isForcedUncompr] = dfInDedup["isForcedUncompr"] == 1
     
     df[ColInfoCols.maxBw] = df.apply(
-        lambda row: data.MAX_BW - list(row[ColInfoCols.bwHist] > 0)[::-1].index(True),
+        lambda row: cm.UNCOMPR_BW - list(row[ColInfoCols.bwHist] > 0)[::-1].index(True),
         axis=1
     )
     df[ColInfoCols.isBaseCol] = dfInDedup["colName"].apply(
@@ -111,20 +111,13 @@ def getColInfos(colInfosFilePath):
 class SizesCols:
     formatWithBw = "formatWithBw"
     formatWithoutBw = "formatWithoutBw"
-    sizeUsedByte = data.COL_F_WRITTEN_BYTE
-    comprRateBitsPerInt = data.COL_F_COMPRRATE_BITSPERINT
+    sizeUsedByte = "sizeUsedByte"
 
 def getSizes(sizesFilePath):
-    dfIn = readMorphStoreCsv(sizesFilePath)
-
-    bitsPerByte = 8 # TODO This does not belong here.
-    df = pd.DataFrame({
-        SizesCols.formatWithBw: dfIn["formatWithBw"],
-        SizesCols.formatWithoutBw: dfIn["formatWithoutBw"],
-        SizesCols.sizeUsedByte: dfIn["sizeUsedByte"],
-        SizesCols.comprRateBitsPerInt: dfIn["sizeUsedByte"] / (
-                dfIn["valueCount"] * (data.MAX_BW / bitsPerByte)
-        ),
-    })
-    df.index=dfIn["colName"]
-    return df
+    df = readMorphStoreCsv(sizesFilePath)
+    df.index = df["colName"]
+    return df[[
+        SizesCols.formatWithBw,
+        SizesCols.formatWithoutBw,
+        SizesCols.sizeUsedByte,
+    ]]

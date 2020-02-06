@@ -35,11 +35,17 @@ import mal2morphstore.operators as ops
 import mal2morphstore.processingstyles as pss
 
 import sys
+
 # TODO This is relative to ssb.sh.
-sys.path.append("../../LC-BaSe/cm")
-import algo
-import data
-import est
+sys.path.append("../../LC-BaSe")
+import lcbase_py.algo as algo
+import lcbase_py.costmodel as cm
+import lcbase_py.whitebox as wb
+
+# Configure the cost model to assume 64 bit for uncompressed data elements.
+# This must be done before everything else, e.g., before importing csvutils.
+cm.UNCOMPR_BW = 64
+
 # TODO This is relative to ssb.sh.
 sys.path.append(".")
 import csvutils
@@ -96,7 +102,7 @@ def chooseRuleBased(dfColInfos, fRndAcc, fSeqAccUnsorted, fSeqAccSorted):
     def _decideFormat(rColInfo):
         if rColInfo[csvutils.ColInfoCols.hasRndAcc]:
             return fRndAcc
-        elif rColInfo[data.COL_DA_SORTEDASC]:
+        elif rColInfo[cm.ColsDC.isSorted]:
             return fSeqAccSorted
         else:
             return fSeqAccUnsorted
@@ -107,21 +113,8 @@ def chooseRuleBased(dfColInfos, fRndAcc, fSeqAccUnsorted, fSeqAccSorted):
     )
 
 def _configureCostModel(ps, profileDirPath):
-    data.MAX_BW = 64 # MorphStore is 64-bit.
-    
     #TODO This does not belong here.
     BITS_PER_BYTE = 8
-    
-    # Clear.
-    # TODO maybe this should be a function in est!
-    est._constProfs_Alone = {}
-    est._constProfs_Casc = {}
-    est._varProfs_Alone = {}
-    est._varProfs_Casc = {}
-    est._bwProfs_Alone = {}
-    est._bwProfs_Casc = {}
-    est._penaltyFactors_Alone = {}
-    est._penaltyFactors_Casc = {}
     
     # -------------------------------------------------------------------------
     # Column names in the CSV files containing the profiles
@@ -176,16 +169,21 @@ def _configureCostModel(ps, profileDirPath):
     # The checks for cascade constant profiles cannot be checked, because they
     # are all false-positives by construction.
     
-    # TODO Check and set est._countValuesCalib.
+    # TODO Check and set cm.CostModel.countValuesCalib.
+    
+    # -------------------------------------------------------------------------
+    # Creation of a new cost model
+    # -------------------------------------------------------------------------
+    
+    costModel = cm.CostModel()
     
     # -------------------------------------------------------------------------
     # Cost model configuration for the uncompressed format
     # -------------------------------------------------------------------------
     
     fmt = formats.UncomprFormat()
-    est._costFuncs[fmt] = est._costLogConst
-    est._comprGrans[fmt] = 1
-    est._constProfs_Alone[fmt.changeMode(algo.MODE_FORMAT)] = data.MAX_BW
+    costModel.costTypes[fmt] = cm.COSTTYPE_LOG_DI
+    costModel.diProfs[cm.CONTEXT_STAND_ALONE][fmt.changeMode(algo.MODE_FORMAT)] = cm.UNCOMPR_BW
     # TODO Add runtime profiles.
     
     # -------------------------------------------------------------------------
@@ -198,14 +196,14 @@ def _configureCostModel(ps, profileDirPath):
     phyInfo = [
         (
             formats.StaticVBPFormat(ps),
-            est._adaptMax,
+            wb.adaptMax,
             pss.PS_INFOS[ps].vectorSizeBit,
             False,
         ),
         (
             formats.DynamicVBPFormat(ps),
             partial(
-                    est._adaptFixed,
+                    wb.adaptFixed,
                     blockSize=pss.PS_INFOS[ps].vectorSizeBit
             ),
             pss.PS_INFOS[ps].vectorSizeBit,
@@ -215,7 +213,7 @@ def _configureCostModel(ps, profileDirPath):
     if ps == pss.PS_VEC128:
         phyInfo.append((
             formats.KWiseNSFormat(ps),
-            est._adaptId,
+            wb.adaptId,
             pss.PS_INFOS[ps].vectorElementCount,
             True,
         ))
@@ -225,9 +223,8 @@ def _configureCostModel(ps, profileDirPath):
         # White-box part
         # --------------
         
-        est._costFuncs[fmt] = est._costPhy
-        est._adaptFuncs[fmt] = adaptFunc
-        est._comprGrans[fmt] = comprGran
+        costModel.costTypes[fmt] = cm.COSTTYPE_PHY
+        costModel.adaptFuncs[fmt] = adaptFunc
         
         # --------------
         # Black-box part
@@ -246,7 +243,7 @@ def _configureCostModel(ps, profileDirPath):
             dfBwProfsCasc_PsFmt.index = dfBwProfsCasc_PsFmt[BwProfCols.bw]
         
         # Compression rate.
-        est._bwProfs_Alone[fmt.changeMode(algo.MODE_FORMAT)] = \
+        costModel.bwProfs[cm.CONTEXT_STAND_ALONE][fmt.changeMode(algo.MODE_FORMAT)] = \
                 dfBwProfsAlone_PsFmt[BwProfAloneCols.sizeUsed] / \
                 dfBwProfsAlone_PsFmt[BwProfAloneCols.count] * BITS_PER_BYTE
         
@@ -256,9 +253,9 @@ def _configureCostModel(ps, profileDirPath):
             (GeneralCols.rtd, algo.MODE_DECOMPR),
         ]:
             fmtMode = fmt.changeMode(mode)
-            est._bwProfs_Alone[fmtMode] = dfBwProfsAlone_PsFmt[colName]
+            costModel.bwProfs[cm.CONTEXT_STAND_ALONE][fmtMode] = dfBwProfsAlone_PsFmt[colName]
             if supportCasc:
-                est._bwProfs_Casc[fmtMode] = dfBwProfsCasc_PsFmt[colName]
+                costModel.bwProfs[cm.CONTEXT_IN_CASC][fmtMode] = dfBwProfsCasc_PsFmt[colName]
 
     # -------------------------------------------------------------------------
     # Cost model configuration for logical-level algorithms
@@ -267,12 +264,12 @@ def _configureCostModel(ps, profileDirPath):
     logInfos = [
         (
             formats._DeltaFormat(ps),
-            est._changeDC_Delta,
+            wb.changeDelta,
             None, # TODO
         ),
         (
             formats._ForFormat(ps),
-            est._changeDC_For,
+            wb.changeFor,
             None, # TODO
         ),
     ]
@@ -282,9 +279,8 @@ def _configureCostModel(ps, profileDirPath):
         # White-box part
         # --------------
         
-        est._costFuncs[fmt] = est._costLogConst
-        est._changeFuncs[fmt] = changeFunc
-        est._comprGrans[fmt] = comprGran
+        costModel.costTypes[fmt] = cm.COSTTYPE_LOG_DI
+        costModel.changeFuncs[fmt] = changeFunc
         
         # --------------
         # Black-box part
@@ -297,52 +293,68 @@ def _configureCostModel(ps, profileDirPath):
         
         # Compression rate.
         # TODO This is inaccurate for FOR.
-        est._constProfs_Alone[fmt.changeMode(algo.MODE_FORMAT)] = data.MAX_BW
+        costModel.diProfs[cm.CONTEXT_STAND_ALONE][fmt.changeMode(algo.MODE_FORMAT)] = cm.UNCOMPR_BW
         
         # Runtimes.
         for colName, mode in [
             (GeneralCols.rtc, algo.MODE_COMPR),
             (GeneralCols.rtd, algo.MODE_DECOMPR),
         ]:
-            est._constProfs_Casc[fmt.changeMode(mode)] = \
+            costModel.diProfs[cm.CONTEXT_IN_CASC][fmt.changeMode(mode)] = \
                     dfConstProfsCasc_PsFmt[colName].values[0]
+                    
+    return costModel
 
-def _chooseFuncBased(costFunc, betterWins, dfColInfos, choice):
-    res = est.select(
+def _chooseFuncBased(costFunc, minimize, dfColInfos, choice):
+    res = cm.select(
             choice,
             costFunc,
-            algo.MODE_FORMAT,
-            data.COL_F_COMPRRATE_BITSPERINT,
-            betterWins,
+            minimize,
             math.inf,
             None
-    )[0]
+    )["algo"]
     res = _setStaticBitwidth(res, dfColInfos)
     return res
 
 # Our cost-based strategy.
 def chooseCostBased(dfColInfos, choice, processingStyle, profileDirPath):
     # TODO Don't reconfigure every time.
-    _configureCostModel(processingStyle, profileDirPath)
+    costModel = _configureCostModel(processingStyle, profileDirPath)
     return _chooseFuncBased(
-            partial(est.estimate, dfColInfos),
+            partial(costModel.cost, dfDC=dfColInfos),
             True,
             dfColInfos,
             choice
     )
 
-def _measure(dfMea, al, dataColName):
+def _measure(dfMea, al):
     if al._mode == algo.MODE_FORMAT:
-        return dfMea[
-                dfMea[csvutils.SizesCols.formatWithoutBw] == al.getInternalName()
-        ][dataColName]
+        haystackFormatCol = csvutils.SizesCols.formatWithoutBw
+        sMeaForAlgo = dfMea[
+                dfMea[haystackFormatCol] == al.getInternalName()
+        ][csvutils.SizesCols.sizeUsedByte]
+        if len(sMeaForAlgo) == 0:
+            raise RuntimeError(
+                    "could not retrieve measured column sizes for format "
+                    "'{}', provided measurements contain only the following "
+                    "formats: [{}]".format(
+                            al.getInternalName(),
+                            ", ".join(map(
+                                    lambda x: "'{}'".format(x),
+                                    dfMea[haystackFormatCol].unique()
+                            ))
+                    )
+            )
+        return sMeaForAlgo
+    elif al._mode is None:
+        raise RuntimeError("the algorithm's mode is None")
     else:
         raise NotImplemented()
 
-def chooseRealBased(dfColInfos, choice, sizesFilePath, betterWins=True):
+def chooseRealBased(dfColInfos, choice, sizesFilePath, minimize=True):
     return _chooseFuncBased(
             partial(_measure, csvutils.getSizes(sizesFilePath)),
-            betterWins,
+            minimize,
             dfColInfos,
             choice
     ).reindex(dfColInfos.index)
@@ -537,7 +549,7 @@ def choose(
                     chooseFunc = partial(
                             chooseRealBased,
                             sizesFilePath=sizesFilePath,
-                            betterWins=strategy == CS_REALBEST
+                            minimize=strategy == CS_REALBEST
                     )
                 
                 sHasRndAcc = dfColInfosCompr[csvutils.ColInfoCols.hasRndAcc]
@@ -549,6 +561,7 @@ def choose(
                         formats.UncomprFormat(),
                         formats.StaticVBPFormat(processingStyle),
                     ]
+                    choice = [al.changeMode(algo.MODE_FORMAT) for al in choice]
                     sFormats = sFormats.append(chooseFunc(
                             dfColInfosComprHasRndAcc, choice
                     ))
@@ -582,6 +595,7 @@ def choose(
                                     formats.KWiseNSFormat(processingStyle)
                             ),
                         ])
+                    choice = [al.changeMode(algo.MODE_FORMAT) for al in choice]
                     sFormats = sFormats.append(chooseFunc(
                             dfColInfosComprHasNoRndAcc, choice
                     ))

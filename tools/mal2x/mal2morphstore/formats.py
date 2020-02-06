@@ -35,8 +35,8 @@ import mal2morphstore.processingstyles as pss
 
 import sys
 # TODO This is relative to ssb.sh.
-sys.path.append("../../LC-BaSe/cm")
-import algo
+sys.path.append("../../LC-BaSe")
+import lcbase_py.algo as algo
 
 # *****************************************************************************
 # Constants
