@@ -335,19 +335,23 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                         maxCardByCol[el.inDataRCol] - 1
                     )
                 elif isinstance(el, ops.CalcBinary):
-                    if el.op == "add":
+                    # TODO Remove the std-functors once we only use the TVL
+                    # primitives. Currently they must be included to avoid
+                    # query translation problems with the hand-vectorized
+                    # operators.
+                    if el.op in ["add", "std::plus"]:
                         maxBwByCol[el.outDataCol] = min(
                             64,
                             1 + max(
                                 maxBwByCol[el.inDataLCol], maxBwByCol[el.inDataRCol]
                             )
                         )
-                    elif el.op == "sub":
+                    elif el.op in ["sub", "std::minus"]:
                         maxBwByCol[el.outDataCol] = max(
                             maxBwByCol[el.inDataLCol],
                             maxBwByCol[el.inDataRCol]
                         )
-                    elif el.op == "mul":
+                    elif el.op in ["mul", "std::multiplies"]:
                         maxBwByCol[el.outDataCol] = min(
                             64,
                             maxBwByCol[el.inDataLCol] + \
