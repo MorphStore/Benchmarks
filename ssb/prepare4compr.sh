@@ -138,6 +138,9 @@ generalFlags="-mem noSelfManaging -um s -sf $scaleFactor -s t"
 
 set -e
 
+# TODO Data characteristics and data sizes could run in parallel for different
+# queries on different cores, since they do not measure runtimes.
+
 # -----------------------------------------------------------------------------
 # Data characteristics
 # -----------------------------------------------------------------------------
