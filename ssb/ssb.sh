@@ -25,7 +25,7 @@
 function print_help () {
     echo "Usage: ssb.sh [-h] [-s STEP] [-e STEP] [-sf N] [-q {N.N}]"
     echo "              [-p PURPOSE] [-r N] [-ps PROCESSING_STYLE]"
-    echo "              [-v vectorVersion] [-c COMPRESSION_STRATEGY]"
+    echo "              [-v vectorVersion] [-c COMPRESSION_STRATEGY] [-cobj OBJECTIVE] "
     echo "              [-crnd FORMAT] [-csequ FORMAT] [-cseqs FORMAT]"
     echo "              [-ccbsl N] [-cubase BOOL] [-cuinterm BOOL]"
     echo "              [-um WAY_TO_USE_MONETDB] [-mem MEMORY_MANAGEMENT]"
@@ -350,7 +350,7 @@ function translate () {
 
     rm -f $cmakeListsFile
 
-    local comprFlags="-c $comprStrategy"
+    local comprFlags="-c $comprStrategy -cobj $comprObjective"
     if [[ $comprStrategy = "costbased" ]]
     then
         comprFlags="$comprFlags --cprofdir compr_profiles"
@@ -908,6 +908,7 @@ repetitionCount=1
 versionSelect=$usingLib
 processingStyle=$psScalar
 comprStrategy=uncompr
+comprObjective=mem
 comprRnd=""
 comprSeqUnsorted=""
 comprSeqSorted=""
@@ -983,6 +984,10 @@ do
             ;;
         -c|--comprStrategy)
             comprStrategy=$2
+            shift
+            ;;
+        -cobj|--comprObjective)
+            comprObjective=$2
             shift
             ;;
         -crnd)

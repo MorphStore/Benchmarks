@@ -178,8 +178,20 @@ if __name__ == "__main__":
         choices=compr.COMPR_STRATEGIES, default=compr.CS_UNCOMPR,
         help="The strategy to use for deciding the compressed formats of all "
             "base and intermediate columns in the translated query. The "
-            "following strategies are supported: {}.".format(
+            "following strategies are supported: {}. Defaults to '{}'.".format(
                 ", ".join(map(quote, compr.COMPR_STRATEGIES)),
+                compr.CS_UNCOMPR,
+            )
+    )
+    comprArgGr.add_argument(
+        "-cobj", dest="comprObjective",
+        metavar="OBJECTIVE",
+        choices=compr.OBJECTIVES, default=compr.OBJ_MEM,
+        help="The optimization objective for choosing the formats of all base "
+            "and intermediate columns in the translated query. The following "
+            "objectives are supported: {}. Defaults to '{}'.".format(
+                ", ".join(map(quote, compr.OBJECTIVES)),
+                compr.OBJ_MEM,
             )
     )
     allSimpleNames = formats.getAllSimpleNames()
@@ -307,6 +319,7 @@ if __name__ == "__main__":
         args.colInfosFilePath,
         args.processingStyle,
         args.comprStrategy,
+        args.comprObjective,
         parseBool(args.comprUncomprBase),
         parseBool(args.comprUncomprInterm),
         args.comprRndFormat,

@@ -79,7 +79,16 @@ COMPR_STRATEGIES = [
     CS_REALWORST,
 ]
 
-        
+# -----------------------------------------------------------------------------
+# Optimization objectives
+# -----------------------------------------------------------------------------
+
+OBJ_MEM = "mem"
+OBJ_PERF = "perf"
+
+OBJECTIVES = [OBJ_MEM, OBJ_PERF]
+
+
 # *****************************************************************************
 # Compression strategies
 # *****************************************************************************
@@ -317,15 +326,19 @@ def _chooseFuncBased(costFunc, minimize, dfColInfos, choice):
     return res
 
 # Our cost-based strategy.
-def chooseCostBased(dfColInfos, choice, processingStyle, profileDirPath):
+def chooseCostBased(
+    objective, dfColInfos, choice, processingStyle, profileDirPath
+):
     # TODO Don't reconfigure every time.
     costModel = _configureCostModel(processingStyle, profileDirPath)
-    return _chooseFuncBased(
-            partial(costModel.cost, dfDC=dfColInfos),
-            True,
-            dfColInfos,
-            choice
-    )
+    if objective == OBJ_MEM:
+        func = partial(costModel.cost, dfDC=dfColInfos)
+    else:
+        raise RuntimeError(
+                "unsupported objective for cost-based format selection: "
+                "'{}'".format(objective)
+        )
+    return _chooseFuncBased(func, True, dfColInfos, choice)
 
 def _measure(dfMea, al):
     if al._mode == algo.MODE_FORMAT:
@@ -351,13 +364,19 @@ def _measure(dfMea, al):
     else:
         raise NotImplemented()
 
-def chooseRealBased(dfColInfos, choice, sizesFilePath, minimize=True):
-    return _chooseFuncBased(
-            partial(_measure, csvutils.getSizes(sizesFilePath)),
-            minimize,
-            dfColInfos,
-            choice
-    ).reindex(dfColInfos.index)
+def chooseRealBased(
+    objective, dfColInfos, choice, sizesFilePath, minimize=True
+):
+    if objective == OBJ_MEM:
+        func = partial(_measure, csvutils.getSizes(sizesFilePath))
+    else:
+        raise RuntimeError(
+                "unsupported objective for real best/worst format selection: "
+                "'{}'".format(objective)
+        )
+    return _chooseFuncBased(func, minimize, dfColInfos, choice).reindex(
+            dfColInfos.index
+    )
     
                     
 # *****************************************************************************
@@ -502,7 +521,7 @@ def _reorderMorphs(translationResult):
 
 def choose(
     dfColInfos, processingStyle,
-    strategy, uncomprBase=False, uncomprInterm=False,
+    strategy, objective, uncomprBase=False, uncomprInterm=False,
     fnRndAcc=None, fnSeqAccUnsorted=None, fnSeqAccSorted=None,
     profileDirPath=None,
     sizesFilePath=None,
@@ -563,7 +582,7 @@ def choose(
                     ]
                     choice = [al.changeMode(algo.MODE_FORMAT) for al in choice]
                     sFormats = sFormats.append(chooseFunc(
-                            dfColInfosComprHasRndAcc, choice
+                            objective, dfColInfosComprHasRndAcc, choice
                     ))
                 if len(dfColInfosComprHasNoRndAcc):
                     choice = [
@@ -597,7 +616,7 @@ def choose(
                         ])
                     choice = [al.changeMode(algo.MODE_FORMAT) for al in choice]
                     sFormats = sFormats.append(chooseFunc(
-                            dfColInfosComprHasNoRndAcc, choice
+                            objective, dfColInfosComprHasNoRndAcc, choice
                     ))
             else:
                 raise RuntimeError(
@@ -614,7 +633,7 @@ def choose(
             
 def configureProgram(
     translationResult, colInfosFilePath, processingStyle,
-    strategy, uncomprBase, uncomprInterm,
+    strategy, objective, uncomprBase, uncomprInterm,
     fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
     profileDirPath,
     sizesFilePath,
@@ -642,7 +661,7 @@ def configureProgram(
         sFormats = choose(
             csvutils.getColInfos(colInfosFilePath),
             processingStyle,
-            strategy, uncomprBase, uncomprInterm,
+            strategy, objective, uncomprBase, uncomprInterm,
             fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
             profileDirPath,
             sizesFilePath,
