@@ -206,7 +206,7 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
             if isinstance(el, ops.Project):
                 if el.inDataCol in varsUnique and el.inPosCol in varsUnique:
                     varsUnique.append(el.outDataCol)
-            elif isinstance(el, ops.Select):
+            elif isinstance(el, ops.Select) or isinstance(el, ops.Between):
                 varsUnique.append(el.outPosCol)
             elif isinstance(el, ops.Intersect) or isinstance(el, ops.Merge):
                 if el.inPosLCol not in varsUnique:
@@ -264,7 +264,7 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                 # Tracking the maximum cardinalities of columns.
                 if isinstance(el, ops.Project):
                     maxCardByCol[el.outDataCol] = maxCardByCol[el.inPosCol]
-                elif isinstance(el, ops.Select):
+                elif isinstance(el, ops.Select) or isinstance(el, ops.Between):
                     maxCardByCol[el.outPosCol] = maxCardByCol[el.inDataCol]
                 elif isinstance(el, ops.Intersect):
                     maxCardByCol[el.outPosCol] = min(
@@ -308,7 +308,7 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                 # Tracking the maximum bit width of columns.
                 if isinstance(el, ops.Project):
                     maxBwByCol[el.outDataCol] = maxBwByCol[el.inDataCol]
-                elif isinstance(el, ops.Select):
+                elif isinstance(el, ops.Select) or isinstance(el, ops.Between):
                     maxBwByCol[el.outPosCol] = effective_bitwidth(
                         maxCardByCol[el.inDataCol] - 1
                     )
@@ -386,7 +386,7 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                 else:
                     raise RuntimeError(
                             "the operator {} is not taken into account in "
-                            "tracking the maximum cardinalities of columns".format(
+                            "tracking the maximum bit width of columns".format(
                                     el.__class__.__name__
                             )
                     )
@@ -397,6 +397,7 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                     varsRndAccess.append(el.inDataCol)
             elif (
                 isinstance(el, ops.Select) or
+                isinstance(el, ops.Between) or
                 isinstance(el, ops.Intersect) or
                 isinstance(el, ops.Merge) or
                 isinstance(el, ops.Join) or
@@ -422,7 +423,7 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
             if isinstance(el, ops.Project):
                 if el.inDataCol in varsSorted and el.inPosCol in varsSorted:
                     varsSorted.append(el.outDataCol)
-            elif isinstance(el, ops.Select):
+            elif isinstance(el, ops.Select) or isinstance(el, ops.Between):
                 varsSorted.append(el.outPosCol)
             elif isinstance(el, ops.Intersect) or isinstance(el, ops.Merge):
                 if el.inPosLCol not in varsSorted:
@@ -500,6 +501,7 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
             elif (
                 isinstance(el, ops.Project) or
                 isinstance(el, ops.Select) or
+                isinstance(el, ops.Between) or
                 isinstance(el, ops.Join) or
                 isinstance(el, ops.Nto1Join) or
                 isinstance(el, ops.LeftSemiNto1Join) or

@@ -359,11 +359,9 @@ def _translateAlgebraSelect(ts, resStr, parStr,vectorSelect, style):
     Translation function for MAL's "algebra.select".
     
     This MAL operator representes a range selection with a lower and an upper
-    bound, i.e., BETWEEN. Since MorphStore does not support such predicates
-    directly, we have to translate this to two selections (with one constant
-    each) whose results are intersected afterwards.
+    bound, i.e., BETWEEN.
     
-    Futhermore, a candidate list might be given to the MAL operator. If this is
+    A candidate list might be given to the MAL operator. If this is
     the case, we have to insert an additional intersect operator call in
     MorphStore.
     """
@@ -385,44 +383,15 @@ def _translateAlgebraSelect(ts, resStr, parStr,vectorSelect, style):
         (inCandCol is not None) and (inCandCol not in ts.fullOidBats)
     
     ts.headers.add("functional")
-    # Select for the lower bound.
-    outPosColLo = "{}_lo".format(outPosCol)
-    if (vectorSelect == 1):
-        ts.prog.append(ops.Select(
-            outPosCol = outPosColLo,
-            inDataCol = inDataCol,
-            op        = "std::greater_equal",
-            val       = valLo
-        ))
-    else:
-        ts.prog.append(ops.Select(
-            outPosCol = outPosColLo,
-            inDataCol = inDataCol,
-            op        = "greaterequal",
-            val       = valLo
-        ))
-    # Select for the upper bound.
-    outPosColHi = "{}_hi".format(outPosCol)
-    if (vectorSelect == 1):
-        ts.prog.append(ops.Select(
-            outPosCol = outPosColHi,
-            inDataCol = inDataCol,
-            op        = "std::less_equal",
-            val       = valHi
-        ))
-    else:
-        ts.prog.append(ops.Select(
-            outPosCol = outPosColHi,
-            inDataCol = inDataCol,
-            op        = "lessequal",
-            val       = valHi
-        ))
-    # Intersection of lower and upper bound.
+    # Select with between lower and upper bound.
     outPosColInterm = "{}_0".format(outPosCol)
-    ts.prog.append(ops.Intersect(
+    ts.prog.append(ops.Between(
         outPosCol = outPosColInterm if hasUsefulCands else outPosCol,
-        inPosLCol = outPosColLo,
-        inPosRCol = outPosColHi
+        inDataCol = inDataCol,
+        opLo      = "greaterequal", # "std::greater_equal",
+        valLo     = valLo,
+        opHi      = "lessequal", # "std::less_equal",
+        valHi     = valHi
     ))
     # Intersection with candidate list, if required.
     if hasUsefulCands:
@@ -479,7 +448,7 @@ def _translateAlgebraThetaselect(ts, resStr, parStr, vectorSelect, style):
     Translation function for MAL's "algebra.thetaselect".
     
     A candidate list might be given to the MAL operator. If this is the case,
-    we have to insert an additional intersect operator call in sMorphStore.
+    we have to insert an additional intersect operator call in MorphStore.
     """
     
     mRes = ts.fullmatchRes(resStr, _pRes1)

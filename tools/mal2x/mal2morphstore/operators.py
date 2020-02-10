@@ -138,6 +138,31 @@ class Select(Op):
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
+class Between(Op):
+    """A call to MorphStore's between operator."""
+    
+    opName = "between"
+    headers = [
+        # TODO Don't hardcode which header to include.
+#        "core/operators/{{{}}}/between_uncompr.h".format(ps.INCLUDE_DIR_KEY)
+        "core/operators/{{{}}}/between_compr.h".format(ps.INCLUDE_DIR_KEY)
+    ]
+    
+    def __init__(self, outPosCol, opLo, opHi, inDataCol, valLo, valHi):
+        self.outPosCol = outPosCol
+        self.opLo = opLo
+        self.opHi = opHi
+        self.inDataCol = inDataCol
+        self.valLo = valLo
+        self.valHi = valHi
+        self.outPosF = None
+        self.inDataF = None
+        
+    def __str__(self):
+        return "auto {outPosCol} = my_select_wit_t<{opLo}, {opHi}, {ps}, {outPosF}, {inDataF} >::apply({inDataCol}, {valLo}, {valHi});".format(
+            opName=self.opName, **self.__dict__, **_commonIdentifiers
+        )
+    
 class Intersect(Op):
     """A call to MorphStore's intersect operator."""
     
