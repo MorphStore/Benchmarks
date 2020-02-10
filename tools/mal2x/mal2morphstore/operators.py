@@ -159,7 +159,7 @@ class Between(Op):
         self.inDataF = None
         
     def __str__(self):
-        return "auto {outPosCol} = my_select_wit_t<{opLo}, {opHi}, {ps}, {outPosF}, {inDataF} >::apply({inDataCol}, {valLo}, {valHi});".format(
+        return "auto {outPosCol} = my_between_wit_t<{opLo}, {opHi}, {ps}, {outPosF}, {inDataF} >::apply({inDataCol}, {valLo}, {valHi});".format(
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
