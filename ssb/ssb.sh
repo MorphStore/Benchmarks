@@ -29,6 +29,7 @@ function print_help () {
     echo "              [-crnd FORMAT] [-csequ FORMAT] [-cseqs FORMAT]"
     echo "              [-ccbsl N] [-cubase BOOL] [-cuinterm BOOL]"
     echo "              [-um WAY_TO_USE_MONETDB] [-mem MEMORY_MANAGEMENT]"
+    echo "              [--useBetween BOOL]"
     echo ""
     echo "Star Schema Benchmark (SSB) in MorphStore."
     echo ""
@@ -380,9 +381,15 @@ function translate () {
         comprFlags="$comprFlags -cuinterm $comprUncomprInterm"
     fi
 
+    local structFlags=""
+    if [[ $structUseBetween ]]
+    then
+        structFlags="$structFlags --useBetween $structUseBetween"
+    fi
+
     local statFlag="--statdir $pathDataStatsDict"
 
-    local queryIndependentFlags="$processingStyle $purpose $versionSelect --rep $repetitionCount $comprFlags $statFlag"
+    local queryIndependentFlags="$processingStyle $purpose $versionSelect --rep $repetitionCount $comprFlags $structFlags $statFlag"
 
     printf "if( BUILD_ALL OR BUILD_SSB EQUAL $scaleFactor )\n" >> $cmakeListsFile
     for query in $queries
@@ -917,6 +924,7 @@ comprUncomprBase=""
 comprUncomprInterm=""
 useMonetDB=$umPipeline
 memManagement=$memSelf
+structUseBetween=""
 
 while [[ $# -gt 0 ]]
 do
@@ -1033,6 +1041,10 @@ do
                 printf "unknown memory management: $2\n"
                 exit -1
             fi
+            ;;
+        --useBetween)
+            structUseBetween=$2
+            shift
             ;;
         *)
             printf "unknown option: $key\n"

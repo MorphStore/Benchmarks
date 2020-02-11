@@ -354,7 +354,7 @@ def _translateAlgebraProjectionpath(ts, resStr, parStr):
 _pParAlgebraSelect = re.compile(
     r"([XC]_\d+):bat\[:(?:.+?)\], (?:(C_\d+):bat\[:oid\], )?(\d+):(?:.+?), (\d+):(?:.+?), true:bit, true:bit, false:bit"
 )
-def _translateAlgebraSelect(ts, resStr, parStr,vectorSelect, style):
+def _translateAlgebraSelect(ts, resStr, parStr, vectorSelect, style, useBetween):
     """
     Translation function for MAL's "algebra.select".
     
@@ -383,16 +383,57 @@ def _translateAlgebraSelect(ts, resStr, parStr,vectorSelect, style):
         (inCandCol is not None) and (inCandCol not in ts.fullOidBats)
     
     ts.headers.add("functional")
-    # Select with between lower and upper bound.
-    outPosColInterm = "{}_0".format(outPosCol)
-    ts.prog.append(ops.Between(
-        outPosCol = outPosColInterm if hasUsefulCands else outPosCol,
-        inDataCol = inDataCol,
-        opLo      = "greaterequal", # "std::greater_equal",
-        valLo     = valLo,
-        opHi      = "lessequal", # "std::less_equal",
-        valHi     = valHi
-    ))
+    if useBetween:
+        # Select with between lower and upper bound.
+        outPosColInterm = "{}_0".format(outPosCol)
+        ts.prog.append(ops.Between(
+            outPosCol = outPosColInterm if hasUsefulCands else outPosCol,
+            inDataCol = inDataCol,
+            opLo      = "greaterequal", # "std::greater_equal",
+            valLo     = valLo,
+            opHi      = "lessequal", # "std::less_equal",
+            valHi     = valHi
+        ))
+    else:
+        # Select for the lower bound.
+        outPosColLo = "{}_lo".format(outPosCol)
+        if (vectorSelect == 1):
+            ts.prog.append(ops.Select(
+                outPosCol = outPosColLo,
+                inDataCol = inDataCol,
+                op        = "std::greater_equal",
+                val       = valLo
+            ))
+        else:
+            ts.prog.append(ops.Select(
+                outPosCol = outPosColLo,
+                inDataCol = inDataCol,
+                op        = "greaterequal",
+                val       = valLo
+            ))
+        # Select for the upper bound.
+        outPosColHi = "{}_hi".format(outPosCol)
+        if (vectorSelect == 1):
+            ts.prog.append(ops.Select(
+                outPosCol = outPosColHi,
+                inDataCol = inDataCol,
+                op        = "std::less_equal",
+                val       = valHi
+            ))
+        else:
+            ts.prog.append(ops.Select(
+                outPosCol = outPosColHi,
+                inDataCol = inDataCol,
+                op        = "lessequal",
+                val       = valHi
+            ))
+        # Intersection of lower and upper bound.
+        outPosColInterm = "{}_0".format(outPosCol)
+        ts.prog.append(ops.Intersect(
+            outPosCol = outPosColInterm if hasUsefulCands else outPosCol,
+            inPosLCol = outPosColLo,
+            inPosRCol = outPosColHi
+        ))
     # Intersection with candidate list, if required.
     if hasUsefulCands:
         ts.prog.append(ops.Intersect(
@@ -617,7 +658,7 @@ _pResultSetInner = re.compile(r", (X_\d+):(?:{}|bat\[.+?\])".format(
     "|".join(_MAL_INT_TYPES))
 )
 
-def translate(inMalFilePath,versionSelect,style):
+def translate(inMalFilePath, versionSelect, style, useBetween):
     """
     Translates the MAL program in the specified file and returns an abstract
     representation of the translated C++ program as an instance of
@@ -694,7 +735,7 @@ def translate(inMalFilePath,versionSelect,style):
                     ]:
                         _translateAlgebraProjectionpath(ts, resStr, parStr)
                     elif (modStr, funStr) == ("algebra", "select"):
-                        _translateAlgebraSelect(ts, resStr, parStr, versionSelect, style)
+                        _translateAlgebraSelect(ts, resStr, parStr, versionSelect, style, useBetween)
                     elif (modStr, funStr) == ("algebra", "sort"):
                         _translateAlgebraSort(ts, resStr)
                     elif (modStr, funStr) == ("algebra", "thetaselect"):

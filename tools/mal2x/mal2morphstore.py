@@ -249,6 +249,22 @@ if __name__ == "__main__":
             "'ssb.sh -p s'"
         # TODO Validate existence.
     )
+    
+    # Query plan structure arguments
+    structArgGr = parser.add_argument_group(
+        "query plan structure arguments",
+        "The following arguments affect the structure of the query plan of "
+        "the translated query program, i.e., which operators are exectuted."
+    );
+    structArgGr.add_argument(
+        "--useBetween", dest="structUseBetween", metavar="BOOL",
+        choices=trueVals+falseVals, default=trueVals[0],
+        help="Whether to use MorphStore's between-operator for range "
+            "predicates with a lower and an upper bound. If set to True, the "
+            "between-operator is used. If set to False, the predicate is "
+            "split into two select-operators whose results are combined using "
+            "the intersect-operator afterwards. Defaults to True."
+    )
 
     args = parser.parse_args()
     
@@ -309,7 +325,10 @@ if __name__ == "__main__":
 
     # Query translation.
     translationResult = mal2morphstore.translation.translate(
-        args.inMalFilePath, args.versionSelect, args.processingStyle
+        args.inMalFilePath,
+        args.versionSelect,
+        args.processingStyle,
+        parseBool(args.structUseBetween),
     )
     
     # Compression configuration.
