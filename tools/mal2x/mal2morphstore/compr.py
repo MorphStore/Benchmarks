@@ -178,13 +178,13 @@ def _configureCostModel(ps, profileDirPath):
     # The checks for cascade constant profiles cannot be checked, because they
     # are all false-positives by construction.
     
-    # TODO Check and set cm.CostModel.countValuesCalib.
-    
     # -------------------------------------------------------------------------
     # Creation of a new cost model
     # -------------------------------------------------------------------------
     
     costModel = cm.CostModel()
+    # TODO Check and set cm.CostModel.countValuesCalib.
+    costModel.countValuesCalib = 128 * 1024 * 1024
     
     # -------------------------------------------------------------------------
     # Cost model configuration for the uncompressed format
@@ -234,6 +234,9 @@ def _configureCostModel(ps, profileDirPath):
         
         costModel.costTypes[fmt] = cm.COSTTYPE_PHY
         costModel.adaptFuncs[fmt] = adaptFunc
+        # The mixture/penalty is zero for all Null Suppression algorithms we
+        # have so far in MorphStore.
+        costModel.mixtureFuncs[fmt] = wb.mixtureZero
         
         # --------------
         # Black-box part
@@ -256,15 +259,19 @@ def _configureCostModel(ps, profileDirPath):
                 dfBwProfsAlone_PsFmt[BwProfAloneCols.sizeUsed] / \
                 dfBwProfsAlone_PsFmt[BwProfAloneCols.count] * BITS_PER_BYTE
         
-        # Runtimes.
+        # Runtimes and penalty factors.
         for colName, mode in [
             (GeneralCols.rtc, algo.MODE_COMPR),
             (GeneralCols.rtd, algo.MODE_DECOMPR),
         ]:
+            # The penalty factors are 0 for all Null Suppression algorithms we
+            # have so far in MorphStore.
             fmtMode = fmt.changeMode(mode)
             costModel.bwProfs[cm.CONTEXT_STAND_ALONE][fmtMode] = dfBwProfsAlone_PsFmt[colName]
+            costModel.penaltyFactors[cm.CONTEXT_STAND_ALONE][fmtMode] = 0
             if supportCasc:
                 costModel.bwProfs[cm.CONTEXT_IN_CASC][fmtMode] = dfBwProfsCasc_PsFmt[colName]
+                costModel.penaltyFactors[cm.CONTEXT_IN_CASC][fmtMode] = 0
 
     # -------------------------------------------------------------------------
     # Cost model configuration for logical-level algorithms
