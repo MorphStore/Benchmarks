@@ -26,7 +26,7 @@
 #******************************************************************************
 
 function print_help () {
-    echo "Usage: prepare4compr.sh [-h] [-sf N] [-maxps PS]"
+    echo "Usage: prepare4compr.sh [-h] [-sf N] [-maxps PS] [-r N]"
     echo ""
     echo "Prepararion for using compression in the Star Schema Benchmark "
     echo "(SSB) in MorphStore."
@@ -50,6 +50,8 @@ function print_help () {
     echo "                          artifacts shall be made available. Choose "
     echo "                          from 'scalar', 'sse', 'avx2', and "
     echo "                          'avx512'. Defaults to 'scalar'."
+    echo "  -r N                    The number of repetitions for the "
+    echo "                          calibration measurements. Defaults to 1."
 }
 
 
@@ -81,6 +83,7 @@ declare -A psLongMap=(
 # Defaults.
 scaleFactor=1
 maxPs=$psScalar
+countReps=1
 
 # Parsing.
 while [[ $# -gt 0 ]]
@@ -97,6 +100,10 @@ do
             ;;
         -maxps)
             maxPs=$2
+            shift
+            ;;
+        -r)
+            countReps=$2
             shift
             ;;
         *)
@@ -164,8 +171,8 @@ done
 cd ../../Engine
 ./build.sh -noSelfManaging -hi $psFlag -mon -bCa
 mkdir --parents ../Benchmarks/ssb/compr_profiles
-build/src/calibration/bw_prof > ../Benchmarks/ssb/compr_profiles/bw_prof_alone.csv
-build/src/calibration/bw_prof_casc > ../Benchmarks/ssb/compr_profiles/bw_prof_casc.csv
-build/src/calibration/const_prof > ../Benchmarks/ssb/compr_profiles/const_prof_casc.csv
+build/src/calibration/bw_prof $countReps > ../Benchmarks/ssb/compr_profiles/bw_prof_alone.csv
+build/src/calibration/bw_prof_casc $countReps > ../Benchmarks/ssb/compr_profiles/bw_prof_casc.csv
+build/src/calibration/const_prof $countReps > ../Benchmarks/ssb/compr_profiles/const_prof_casc.csv
 
 set +e
