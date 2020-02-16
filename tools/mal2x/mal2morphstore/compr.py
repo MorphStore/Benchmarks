@@ -146,6 +146,7 @@ def _configureCostModel(ps, profileDirPath):
         rtc = "runtime compr [µs]"
         rtd = "runtime decompr [µs]"
         check = "check"
+        rep = "repetition"
     class BwProfCols:
         bw = "bitwidth"
     class BwProfAloneCols:
@@ -188,6 +189,25 @@ def _configureCostModel(ps, profileDirPath):
         )
     # The checks for cascade constant profiles cannot be checked, because they
     # are all false-positives by construction.
+    
+    # -------------------------------------------------------------------------
+    # Averaging of repeated calibration measurements
+    # -------------------------------------------------------------------------
+    
+    # Drop unnecessary columns.
+    for df in [dfBwProfsAlone, dfBwProfsCasc, dfConstProfsCasc]:
+        df.drop(columns=[GeneralCols.rep, GeneralCols.check], inplace=True)
+    
+    # Calculate the mean of repeated measurements.
+    dfBwProfsAlone = dfBwProfsAlone.groupby(
+        [GeneralCols.ve, GeneralCols.fmt, BwProfCols.bw], as_index=False
+    ).mean()
+    dfBwProfsCasc = dfBwProfsCasc.groupby(
+        [GeneralCols.ve, GeneralCols.fmt, BwProfCols.bw], as_index=False
+    ).mean()
+    dfConstProfsCasc = dfConstProfsCasc.groupby(
+        [GeneralCols.ve, GeneralCols.fmt], as_index=False
+    ).mean()
     
     # -------------------------------------------------------------------------
     # Creation of a new cost model
