@@ -38,6 +38,8 @@ import sys
 sys.path.append("../../LC-BaSe")
 import lcbase_py.algo as algo
 
+import re
+
 # *****************************************************************************
 # Constants
 # *****************************************************************************
@@ -141,6 +143,20 @@ class StaticVBPFormat(MorphStoreStandAloneFormat):
     
     def changeBw(self, bw):
         return StaticVBPFormat(self._ps, bw, self._mode)
+    
+    _pByName = re.compile(r"static_vbp_(\d+)")
+    @staticmethod
+    def byName(name, ps):
+        m = StaticVBPFormat._pByName.fullmatch(name)
+        if m is None:
+            return None
+        bw = int(m.group(1))
+        if bw < 1 or bw > 64:
+            raise RuntimeError(
+                    "the bit width must be between 1 and 64, you "
+                    "passed {}".format(bw)
+            )
+        return StaticVBPFormat(ps, bw)
 
 class DynamicVBPFormat(MorphStoreStandAloneFormat):
     headers = ["core/morphing/dynamic_vbp.h"]
@@ -416,4 +432,7 @@ def byName(name, ps):
     for fmt in getAllFormats(ps):
         if name == fmt.getSimpleName():
             return fmt
+    fmt = StaticVBPFormat.byName(name, ps)
+    if fmt is not None:
+        return fmt
     raise RuntimeError("unknown format: '{}'".format(name))

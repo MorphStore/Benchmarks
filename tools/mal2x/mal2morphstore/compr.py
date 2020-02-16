@@ -70,6 +70,7 @@ CS_RULEBASED = "rulebased"
 CS_COSTBASED = "costbased"
 CS_REALBEST = "realbest"
 CS_REALWORST = "realworst"
+CS_MANUAL = "manual"
 
 COMPR_STRATEGIES = [
     CS_UNCOMPR,
@@ -77,6 +78,7 @@ COMPR_STRATEGIES = [
     CS_COSTBASED,
     CS_REALBEST,
     CS_REALWORST,
+    CS_MANUAL,
 ]
 
 # -----------------------------------------------------------------------------
@@ -94,13 +96,22 @@ OBJECTIVES = [OBJ_MEM, OBJ_PERF]
 # *****************************************************************************
 
 def _setStaticBitwidth(sFormat, dfColInfos):
-    return sFormat.combine(
-            dfColInfos[csvutils.ColInfoCols.maxBw],
-            lambda fmt, maxBw:
-                    fmt.changeBw(maxBw) \
-                    if isinstance(fmt, formats.StaticVBPFormat) \
-                    else fmt
-    )
+    def setBw(fmt, bw):
+        """
+        Explicitly sets the bit width of the given format, if necessary. If the
+        given format is not Static Bit-Packing, it is returned as it is. If the
+        given format is Static Bit-Packing, then the bit width is set to the
+        given bit width, but only if the bit width has not been set explicitly
+        before.
+        """
+        if isinstance(fmt, formats.StaticVBPFormat):
+            if fmt._bw is None:
+                return fmt.changeBw(bw)
+            else:
+                return fmt
+        else:
+            return fmt
+    return sFormat.combine(dfColInfos[csvutils.ColInfoCols.maxBw], setBw)
 
 # All base and intermediate columns are uncompressed.
 def chooseUncompr(varNames):
@@ -384,6 +395,20 @@ def chooseRealBased(
     return _chooseFuncBased(func, minimize, dfColInfos, choice).reindex(
             dfColInfos.index
     )
+
+def chooseManual(processingStyle, configFilePath, dfColInfos):
+    return _setStaticBitwidth(
+            pd.read_csv(
+                    configFilePath,
+                    sep="\t",
+                    index_col=0,
+                    squeeze=True,
+                    converters={
+                        "format": partial(formats.byName, ps=processingStyle)
+                    }
+            ),
+            dfColInfos
+    )
     
                     
 # *****************************************************************************
@@ -528,21 +553,30 @@ def _reorderMorphs(translationResult):
 
 def choose(
     dfColInfos, processingStyle,
+    # general compression parameters
     strategy, objective, uncomprBase=False, uncomprInterm=False,
+    # parameter for rule-based strategy
     fnRndAcc=None, fnSeqAccUnsorted=None, fnSeqAccSorted=None,
+    # parameters for cost-based strategy
     profileDirPath=None,
+    # parameters for real best/worst w.r.t. memory footprint
     sizesFilePath=None,
+    # parameters for the manual strategy
+    configFilePath=None,
 ):
     """
     Chooses a (un)compressed format for each base column or intermediate result
     represented by a row in the given `pandas.DataFrame`.
     
     Note that this function can be used completely independent from the query
-    translation.
+    translation, e.g., from a jupyter notebook. Therefore, it should support
+    all compression strategies.
     """
     
     if strategy == CS_UNCOMPR:
         sFormats = chooseUncompr(dfColInfos.index)
+    elif strategy == CS_MANUAL:
+        sFormats = chooseManual(processingStyle, configFilePath, dfColInfos)
     else:
         sMustBeUncompr = \
             dfColInfos[csvutils.ColInfoCols.isForcedUncompr] | \
@@ -640,10 +674,16 @@ def choose(
             
 def configureProgram(
     translationResult, colInfosFilePath, processingStyle,
+    # general compression parameters
     strategy, objective, uncomprBase, uncomprInterm,
+    # parameter for rule-based strategy
     fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
+    # parameters for cost-based strategy
     profileDirPath,
+    # parameters for real best/worst w.r.t. memory footprint
     sizesFilePath,
+    # parameters for the manual strategy
+    configFilePath,
 ):
     """
     Modifies the given translated query program to use compression in the way
@@ -666,12 +706,17 @@ def configureProgram(
         sFormats = chooseUncompr(varNames)
     else:
         sFormats = choose(
-            csvutils.getColInfos(colInfosFilePath),
-            processingStyle,
+            csvutils.getColInfos(colInfosFilePath), processingStyle,
+            # general compression parameters
             strategy, objective, uncomprBase, uncomprInterm,
+            # parameter for rule-based strategy
             fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
+            # parameters for cost-based strategy
             profileDirPath,
+            # parameters for real best/worst w.r.t. memory footprint
             sizesFilePath,
+            # parameters for the manual strategy
+            configFilePath,
         )
         
     # Insert the formats into the query program.

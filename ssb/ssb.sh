@@ -27,7 +27,7 @@ function print_help () {
     echo "              [-p PURPOSE] [-r N] [-ps PROCESSING_STYLE]"
     echo "              [-v vectorVersion] [-c COMPRESSION_STRATEGY] [-cobj OBJECTIVE] "
     echo "              [-crnd FORMAT] [-csequ FORMAT] [-cseqs FORMAT]"
-    echo "              [-ccbsl N] [-cubase BOOL] [-cuinterm BOOL]"
+    echo "              [-ccbsl N] [-cubase BOOL] [-cuinterm BOOL] [-cconfig DIR]"
     echo "              [-um WAY_TO_USE_MONETDB] [-mem MEMORY_MANAGEMENT]"
     echo "              [--useBetween BOOL]"
     echo ""
@@ -404,7 +404,12 @@ function translate () {
             local sizesFileFlag=""
         fi
 
-        local queryDependentFlags="$ciFlag $sizesFileFlag"
+        if [[ $comprConfigDir ]]
+        then
+            local configFileFlag="--cconfigfile ${comprConfigDir}/q$query.csv"
+        fi
+
+        local queryDependentFlags="$ciFlag $sizesFileFlag $configFileFlag"
 
         case $useMonetDB in
             $umPipeline)
@@ -922,6 +927,7 @@ comprSeqSorted=""
 comprCascBlockSizeLog=""
 comprUncomprBase=""
 comprUncomprInterm=""
+comprConfigDir=""
 useMonetDB=$umPipeline
 memManagement=$memSelf
 structUseBetween=""
@@ -1012,6 +1018,10 @@ do
             ;;
         -ccbsl)
             comprCascBlockSizeLog=$2
+            shift
+            ;;
+        -cconfig)
+            comprConfigDir=$2
             shift
             ;;
         -cubase)

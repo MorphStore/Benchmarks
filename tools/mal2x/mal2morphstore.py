@@ -249,6 +249,12 @@ if __name__ == "__main__":
             "'ssb.sh -p s'"
         # TODO Validate existence.
     )
+    comprArgGr.add_argument(
+        "--cconfigfile", dest="comprConfigFilePath", default=None, metavar="FILE",
+        help="A path to a CSV file containing a mapping from column names to "
+            "simple format names."
+        # TODO Validate existence.
+    )
     
     # Query plan structure arguments
     structArgGr = parser.add_argument_group(
@@ -303,6 +309,9 @@ if __name__ == "__main__":
     elif args.comprStrategy in [compr.CS_REALBEST, compr.CS_REALWORST]:
         if args.comprSizesFilePath is None:
             raise RuntimeError("the file containing the measured physical sizes of each column in each format must be specified")
+    elif args.comprStrategy in [compr.CS_MANUAL]:
+        if args.comprConfigFilePath is None:
+            raise RuntimeError("the file containing the mapping from column names to formats must be specified")
 
     if args.inMalFilePath == FROM_STDIN:
         # 0 is the file descriptor of stdin, can be used with open().
@@ -346,6 +355,7 @@ if __name__ == "__main__":
         args.comprSeqSortedFormat,
         args.comprProfileDirPath,
         args.comprSizesFilePath,
+        args.comprConfigFilePath,
     )
     
     # C++-code generation.
