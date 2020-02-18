@@ -70,7 +70,8 @@ class ColInfoCols:
     maxBw           = "maxBw"
     isBaseCol       = "isBaseCol"
     isResult        = "isResult"
-    hasRndAcc       = "hasRndAcc"
+    hasRndAccUnsorted = "hasRndAccUnsorted"
+    hasRndAccSorted = "hasRndAccSorted"
     isForcedUncompr = "isForcedUncompr"
 
 def getColInfos(colInfosFilePath):
@@ -89,7 +90,8 @@ def getColInfos(colInfosFilePath):
     ]
     df[ColInfoCols.isSorted]        = dfInDedup["Sorted"]          == 1
     df[ColInfoCols.isResult]        = dfInDedup["isResult"]        == 1
-    df[ColInfoCols.hasRndAcc]       = dfInDedup["hasRndAccess"]    == 1
+    df[ColInfoCols.hasRndAccUnsorted] = dfInDedup["hasRndAccessUnsorted"] == 1
+    df[ColInfoCols.hasRndAccSorted] = dfInDedup["hasRndAccessSorted"] == 1
     df[ColInfoCols.isForcedUncompr] = dfInDedup["isForcedUncompr"] == 1
     
     df[ColInfoCols.maxBw] = df.apply(

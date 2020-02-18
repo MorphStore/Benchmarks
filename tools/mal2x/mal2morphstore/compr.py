@@ -120,7 +120,7 @@ def chooseUncompr(varNames):
 # Simple rule-based strategy.
 def chooseRuleBased(dfColInfos, fRndAcc, fSeqAccUnsorted, fSeqAccSorted):
     def _decideFormat(rColInfo):
-        if rColInfo[csvutils.ColInfoCols.hasRndAcc]:
+        if rColInfo[csvutils.ColInfoCols.hasRndAccUnsorted] or rColInfo[csvutils.ColInfoCols.hasRndAccSorted]:
             return fRndAcc
         elif rColInfo[cm.ColsDC.isSorted]:
             return fSeqAccSorted
@@ -632,7 +632,7 @@ def choose(
                             minimize=strategy == CS_REALBEST
                     )
                 
-                sHasRndAcc = dfColInfosCompr[csvutils.ColInfoCols.hasRndAcc]
+                sHasRndAcc = dfColInfosCompr[csvutils.ColInfoCols.hasRndAccUnsorted] | dfColInfosCompr[csvutils.ColInfoCols.hasRndAccSorted]
                 dfColInfosComprHasRndAcc = dfColInfosCompr[sHasRndAcc]
                 dfColInfosComprHasNoRndAcc = dfColInfosCompr[~sHasRndAcc]
                 sFormats = pd.Series()

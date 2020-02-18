@@ -153,7 +153,7 @@ def _prepareOutColsForRandomAccess(indent, op, ar):
     for key in op.__dict__:
         if key.startswith("out") and key.endswith("Col"):
             varName = getattr(op, key)
-            if varName in ar.varsRndAccess:
+            if varName in ar.varsRndAccessUnsorted or varName in ar.varsRndAccessSorted:
                 print("{}{}->template prepare_for_random_access<{}>();".format(
                         indent, varName, ps.PS_VAR
                 ))
@@ -375,7 +375,8 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath, repetitionCount):
         varColValueCount = "colValueCount"
         varColIsResult = "colIsResult"
         varColUsedBytes = "colUsedBytes"
-        varColHasRndAcc = "colHasRndAccess"
+        varColHasRndAccUnsorted = "colHasRndAccessUnsorted"
+        varColHasRndAccSorted = "colHasRndAccessSorted"
         varColIsForcedUncompr = "colIsForcedUncompr"
         print("{}// Constants for the monitoring column names.".format(indent))
         for varName, varVal in [
@@ -387,7 +388,8 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath, repetitionCount):
             (varColValueCount, "valueCount"),
             (varColIsResult, "isResult"),
             (varColUsedBytes, "UsedBytes"),
-            (varColHasRndAcc, "hasRndAccess"),
+            (varColHasRndAccUnsorted, "hasRndAccessUnsorted"),
+            (varColHasRndAccSorted, "hasRndAccessSorted"),
             (varColIsForcedUncompr, "isForcedUncompr"),
         ]:
             print('{}const std::string {} = "{}";'.format(
@@ -474,8 +476,13 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath, repetitionCount):
                                 2*indent, varColUsedBytes, el.__dict__[foo], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
                         print('{}MONITORING_ADD_BOOL_FOR({}, {}, {}, {}, "{}", "{}");'.format(
-                                2*indent, varColHasRndAcc,
-                                "true" if (el.__dict__[foo] in ar.varsRndAccess) else "false",
+                                2*indent, varColHasRndAccUnsorted,
+                                "true" if (el.__dict__[foo] in ar.varsRndAccessUnsorted) else "false",
+                                monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        )
+                        print('{}MONITORING_ADD_BOOL_FOR({}, {}, {}, {}, "{}", "{}");'.format(
+                                2*indent, varColHasRndAccSorted,
+                                "true" if (el.__dict__[foo] in ar.varsRndAccessSorted) else "false",
                                 monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
                         print('{}MONITORING_ADD_BOOL_FOR({}, {}, {}, {}, "{}", "{}");'.format(

@@ -46,7 +46,8 @@ class AnalysisResult:
         varsUnique,
         maxCardByCol,
         maxBwByCol,
-        varsRndAccess,
+        varsRndAccessUnsorted,
+        varsRndAccessSorted,
         varsSorted,
         varsForcedUncompr,
     ):
@@ -76,9 +77,16 @@ class AnalysisResult:
         self.maxBwByCol = maxBwByCol
         
         # A list of the names of column-variables in the translated program
-        # which require random access, i.e., which are the input data column of
-        # some project-operator.
-        self.varsRndAccess = varsRndAccess
+        # which require unsorted random access, i.e., which are the input data
+        # column of some project-operator with an unsorted input positions
+        # column.
+        self.varsRndAccessUnsorted = varsRndAccessUnsorted
+        
+        # A list of the names of column-variables in the translated program
+        # which require sorted random access (skip-sequential access), i.e.,
+        # which are the input data column of some project-operator with a
+        # sorted input positions column.
+        self.varsRndAccessSorted = varsRndAccessSorted
         
         # A list of the names of column-variables in the translated program
         # whose contents is known to be sorted at query translation-time.
@@ -120,7 +128,8 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
         "supplier.s_suppkey",
     ]
     
-    varsRndAccess = []
+    varsRndAccessUnsorted = []
+    varsRndAccessSorted = []
     
     # TODO This is specific to the Star Schema Benchmark (SSB). Do not hardcode
     #      this.
@@ -393,8 +402,12 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                     
             # Tracking which columns require random access.
             if isinstance(el, ops.Project):
-                if el.inDataCol not in varsRndAccess:
-                    varsRndAccess.append(el.inDataCol)
+                if el.inPosCol in varsSorted:
+                    if el.inDataCol not in varsRndAccessSorted:
+                        varsRndAccessSorted.append(el.inDataCol)
+                else:
+                    if el.inDataCol not in varsRndAccessUnsorted:
+                        varsRndAccessUnsorted.append(el.inDataCol)
             elif (
                 isinstance(el, ops.Select) or
                 isinstance(el, ops.Between) or
@@ -527,7 +540,8 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
         varsUnique,
         maxCardByCol,
         maxBwByCol,
-        varsRndAccess,
+        varsRndAccessUnsorted,
+        varsRndAccessSorted,
         varsSorted,
         varsForcedUncompr,
     )
