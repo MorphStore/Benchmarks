@@ -196,11 +196,21 @@ if __name__ == "__main__":
     )
     allSimpleNames = formats.getAllSimpleNames()
     comprArgGr.add_argument(
-        "-crnd", dest="comprRndFormat", metavar="FORMAT",
+        "-crndu", dest="comprRndUnsortedFormat", metavar="FORMAT",
         choices=allSimpleNames, default=None,
-        help="The format to use for columns requiring random access. Only "
-            "allowed for the '{}' strategy. Defaults to '{}'".format(
+        help="The format to use for columns requiring random access with "
+            "unsorted positions. Only allowed for the '{}' strategy. Defaults "
+            "to '{}'".format(
                 compr.CS_RULEBASED, formats.UncomprFormat().getSimpleName()
+            )
+    )
+    comprArgGr.add_argument(
+        "-crnds", dest="comprRndSortedFormat", metavar="FORMAT",
+        choices=allSimpleNames, default=None,
+        help="The format to use for columns requiring random access with "
+            "sorted positions (skip-sequential access). Only allowed for the "
+            "'{}' strategy. Defaults to the value of -crndu".format(
+                compr.CS_RULEBASED
             )
     )
     comprArgGr.add_argument(
@@ -208,7 +218,7 @@ if __name__ == "__main__":
         choices=allSimpleNames, default=None,
         help="The format to use for unsorted columns requiring only "
             "sequential access. Only  allowed for the '{}' strategy. Defaults "
-            "to the value of -crnd".format(compr.CS_RULEBASED)
+            "to the value of -crnds".format(compr.CS_RULEBASED)
     )
     comprArgGr.add_argument(
         "-cseqs", dest="comprSeqSortedFormat", metavar="FORMAT",
@@ -287,17 +297,21 @@ if __name__ == "__main__":
     # Validation of the combination of the compression arguments.
     if args.comprStrategy == compr.CS_UNCOMPR:
         if (
-            args.comprRndFormat is not None or
+            args.comprRndUnsortedFormat is not None or
+            args.comprRndSortedFormat is not None or
             args.comprSeqUnsortedFormat is not None or
             args.comprSeqSortedFormat is not None or
             args.comprProfileDirPath is not None
         ):
             parser.error("Illegal combination of the compression arguments.")
     elif args.comprStrategy == compr.CS_RULEBASED:
-        args.comprRndFormat = formats.UncomprFormat() \
-            if args.comprRndFormat is None \
-            else formats.byName(args.comprRndFormat, args.processingStyle)
-        args.comprSeqUnsortedFormat = args.comprRndFormat \
+        args.comprRndUnsortedFormat = formats.UncomprFormat() \
+            if args.comprRndUnsortedFormat is None \
+            else formats.byName(args.comprRndUnsortedFormat, args.processingStyle)
+        args.comprRndSortedFormat = args.comprRndUnsortedFormat \
+            if args.comprRndSortedFormat is None \
+            else formats.byName(args.comprRndSortedFormat, args.processingStyle)
+        args.comprSeqUnsortedFormat = args.comprRndSortedFormat \
             if args.comprSeqUnsortedFormat is None \
             else formats.byName(args.comprSeqUnsortedFormat, args.processingStyle)
         args.comprSeqSortedFormat = args.comprSeqUnsortedFormat \
@@ -350,7 +364,8 @@ if __name__ == "__main__":
         args.comprObjective,
         parseBool(args.comprUncomprBase),
         parseBool(args.comprUncomprInterm),
-        args.comprRndFormat,
+        args.comprRndUnsortedFormat,
+        args.comprRndSortedFormat,
         args.comprSeqUnsortedFormat,
         args.comprSeqSortedFormat,
         args.comprProfileDirPath,

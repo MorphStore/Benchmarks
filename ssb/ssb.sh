@@ -26,7 +26,7 @@ function print_help () {
     echo "Usage: ssb.sh [-h] [-s STEP] [-e STEP] [-sf N] [-q {N.N}]"
     echo "              [-p PURPOSE] [-r N] [-ps PROCESSING_STYLE]"
     echo "              [-v vectorVersion] [-c COMPRESSION_STRATEGY] [-cobj OBJECTIVE] "
-    echo "              [-crnd FORMAT] [-csequ FORMAT] [-cseqs FORMAT]"
+    echo "              [-crndu FORMAT] [-crnds FORMAT] [-csequ FORMAT] [-cseqs FORMAT]"
     echo "              [-ccbsl N] [-cubase BOOL] [-cuinterm BOOL] [-cconfig DIR]"
     echo "              [-um WAY_TO_USE_MONETDB] [-mem MEMORY_MANAGEMENT]"
     echo "              [--useBetween BOOL]"
@@ -130,7 +130,7 @@ function print_help () {
     echo "      All columns are uncompressed (uncompr_f in MorphStore)."
     echo "  rulebased"
     echo "      Applies a simple rule-based strategy. This allows the "
-    echo "      specification of the arguments -crnd, -csequ, -cseqs, each of "
+    echo "      specification of the arguments -crndu, -crnds, -csequ, -cseqs, each of "
     echo "      which must be followed by a format name. See the help of "
     echo "      mal2morphstore for more details."
     echo "      Assumes that the directories 'data_sfN/stats_dict' (as "
@@ -356,9 +356,13 @@ function translate () {
     then
         comprFlags="$comprFlags --cprofdir compr_profiles"
     fi
-    if [[ $comprRnd ]]
+    if [[ $comprRndUnsorted ]]
     then
-        comprFlags="$comprFlags -crnd $comprRnd"
+        comprFlags="$comprFlags -crndu $comprRndUnsorted"
+    fi
+    if [[ $comprRndSorted ]]
+    then
+        comprFlags="$comprFlags -crnds $comprRndSorted"
     fi
     if [[ $comprSeqUnsorted ]]
     then
@@ -921,7 +925,8 @@ versionSelect=$usingLib
 processingStyle=$psScalar
 comprStrategy=uncompr
 comprObjective=mem
-comprRnd=""
+comprRndUnsorted=""
+comprRndSorted=""
 comprSeqUnsorted=""
 comprSeqSorted=""
 comprCascBlockSizeLog=""
@@ -1004,8 +1009,12 @@ do
             comprObjective=$2
             shift
             ;;
-        -crnd)
-            comprRnd=$2
+        -crndu)
+            comprRndUnsorted=$2
+            shift
+            ;;
+        -crnds)
+            comprRndSorted=$2
             shift
             ;;
         -csequ)

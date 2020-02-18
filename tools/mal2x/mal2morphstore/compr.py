@@ -118,10 +118,15 @@ def chooseUncompr(varNames):
     return pd.Series([formats.UncomprFormat()] * len(varNames), index=varNames)
                     
 # Simple rule-based strategy.
-def chooseRuleBased(dfColInfos, fRndAcc, fSeqAccUnsorted, fSeqAccSorted):
+def chooseRuleBased(dfColInfos, fRndAccUnsorted, fRndAccSorted, fSeqAccUnsorted, fSeqAccSorted):
     def _decideFormat(rColInfo):
-        if rColInfo[csvutils.ColInfoCols.hasRndAccUnsorted] or rColInfo[csvutils.ColInfoCols.hasRndAccSorted]:
-            return fRndAcc
+        # TODO Think about which case should determine the format if the column
+        # requires random access with both sorted and unsorted positions.
+        # However, in SSB this situation does not occur.
+        if rColInfo[csvutils.ColInfoCols.hasRndAccUnsorted]:
+            return fRndAccUnsorted
+        elif rColInfo[csvutils.ColInfoCols.hasRndAccSorted]:
+            return fRndAccSorted
         elif rColInfo[cm.ColsDC.isSorted]:
             return fSeqAccSorted
         else:
@@ -576,7 +581,7 @@ def choose(
     # general compression parameters
     strategy, objective, uncomprBase=False, uncomprInterm=False,
     # parameter for rule-based strategy
-    fnRndAcc=None, fnSeqAccUnsorted=None, fnSeqAccSorted=None,
+    fnRndAccUnsorted=None, fnRndAccSorted=None, fnSeqAccUnsorted=None, fnSeqAccSorted=None,
     # parameters for cost-based strategy
     profileDirPath=None,
     # parameters for real best/worst w.r.t. memory footprint
@@ -614,7 +619,8 @@ def choose(
             if strategy == CS_RULEBASED:
                 sFormats = chooseRuleBased(
                     dfColInfosCompr,
-                    fnRndAcc,
+                    fnRndAccUnsorted,
+                    fnRndAccSorted,
                     fnSeqAccUnsorted,
                     fnSeqAccSorted,
                 )
@@ -697,7 +703,7 @@ def configureProgram(
     # general compression parameters
     strategy, objective, uncomprBase, uncomprInterm,
     # parameter for rule-based strategy
-    fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
+    fnRndAccUnsorted, fnRndAccSorted, fnSeqAccUnsorted, fnSeqAccSorted,
     # parameters for cost-based strategy
     profileDirPath,
     # parameters for real best/worst w.r.t. memory footprint
@@ -730,7 +736,7 @@ def configureProgram(
             # general compression parameters
             strategy, objective, uncomprBase, uncomprInterm,
             # parameter for rule-based strategy
-            fnRndAcc, fnSeqAccUnsorted, fnSeqAccSorted,
+            fnRndAccUnsorted, fnRndAccSorted, fnSeqAccUnsorted, fnSeqAccSorted,
             # parameters for cost-based strategy
             profileDirPath,
             # parameters for real best/worst w.r.t. memory footprint
