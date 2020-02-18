@@ -150,6 +150,7 @@ def _configureCostModel(ps, profileDirPath):
         fmt = "format"
         rtc = "runtime compr [µs]"
         rtd = "runtime decompr [µs]"
+        rta = "runtime agg [µs]"
         check = "check"
         rep = "repetition"
     class BwProfCols:
@@ -164,22 +165,25 @@ def _configureCostModel(ps, profileDirPath):
     # -------------------------------------------------------------------------
 
     # Has GeneralCols + BwProfCols + BwProfColsAlone
+    readCsvParams = dict(sep="\t", skiprows=2)
     dfBwProfsAlone = pd.read_csv(
             os.path.join(profileDirPath, "bw_prof_alone.csv"),
-            delimiter="\t",
-            skiprows=2
+            **readCsvParams
     )
     # Has GeneralCols + BwProfCols
     dfBwProfsCasc = pd.read_csv(
             os.path.join(profileDirPath, "bw_prof_casc.csv"),
-            delimiter="\t",
-            skiprows=2
+            **readCsvParams
     )
     # Has GeneralCols
     dfConstProfsCasc = pd.read_csv(
             os.path.join(profileDirPath, "const_prof_casc.csv"),
-            delimiter="\t",
-            skiprows=2
+            **readCsvParams
+    )
+    # Has GeneralCols
+    dfUncomprProfs = pd.read_csv(
+            os.path.join(profileDirPath, "uncompr.csv"),
+            **readCsvParams
     )
     
     if any(dfBwProfsAlone[GeneralCols.check] == 0):
@@ -200,18 +204,21 @@ def _configureCostModel(ps, profileDirPath):
     # -------------------------------------------------------------------------
     
     # Drop unnecessary columns.
-    for df in [dfBwProfsAlone, dfBwProfsCasc, dfConstProfsCasc]:
+    for df in [dfBwProfsAlone, dfBwProfsCasc, dfConstProfsCasc, dfUncomprProfs]:
         df.drop(columns=[GeneralCols.rep, GeneralCols.check], inplace=True)
     
     # Calculate the mean of repeated measurements.
     dfBwProfsAlone = dfBwProfsAlone.groupby(
-        [GeneralCols.ve, GeneralCols.fmt, BwProfCols.bw], as_index=False
+            [GeneralCols.ve, GeneralCols.fmt, BwProfCols.bw], as_index=False
     ).mean()
     dfBwProfsCasc = dfBwProfsCasc.groupby(
-        [GeneralCols.ve, GeneralCols.fmt, BwProfCols.bw], as_index=False
+            [GeneralCols.ve, GeneralCols.fmt, BwProfCols.bw], as_index=False
     ).mean()
     dfConstProfsCasc = dfConstProfsCasc.groupby(
-        [GeneralCols.ve, GeneralCols.fmt], as_index=False
+            [GeneralCols.ve, GeneralCols.fmt], as_index=False
+    ).mean()
+    dfUncomprProfs = dfUncomprProfs.groupby(
+            GeneralCols.ve, as_index=False
     ).mean()
     
     # -------------------------------------------------------------------------
@@ -219,7 +226,8 @@ def _configureCostModel(ps, profileDirPath):
     # -------------------------------------------------------------------------
     
     costModel = cm.CostModel()
-    # TODO Check and set cm.CostModel.countValuesCalib.
+    # TODO Don't hardcode this. Obtain it from the calibration CSV files and
+    # make sure that it was the same for all calibration benchmarks.
     costModel.countValuesCalib = 128 * 1024 * 1024
     
     # -------------------------------------------------------------------------
@@ -227,9 +235,26 @@ def _configureCostModel(ps, profileDirPath):
     # -------------------------------------------------------------------------
     
     fmt = formats.UncomprFormat()
+    
+    # --------------
+    # White-box part
+    # --------------
+ 
     costModel.costTypes[fmt] = cm.COSTTYPE_LOG_DI
+    
+    # --------------
+    # Black-box part
+    # --------------
+    
+    # Compression rate.
     costModel.diProfs[cm.CONTEXT_STAND_ALONE][fmt.changeMode(algo.MODE_FORMAT)] = cm.UNCOMPR_BW
-    # TODO Add runtime profiles.
+    
+    # Runtimes.
+    dfUncomprProfs_Ps = dfUncomprProfs[dfUncomprProfs[GeneralCols.ve] == ps]
+    costModel.diProfs[cm.CONTEXT_STAND_ALONE][fmt.changeMode(algo.MODE_COMPR)] = \
+            dfUncomprProfs_Ps["runtime reg2ram [µs]"].values[0]
+    costModel.diProfs[cm.CONTEXT_STAND_ALONE][fmt.changeMode(algo.MODE_DECOMPR)] = \
+            dfUncomprProfs_Ps["runtime agg [µs]"].values[0]
     
     # -------------------------------------------------------------------------
     # Cost model configuration for physical-level algorithms
@@ -283,31 +308,35 @@ def _configureCostModel(ps, profileDirPath):
             (dfBwProfsAlone[GeneralCols.fmt] == fmt.getInternalName())
         ]
         dfBwProfsAlone_PsFmt.index = dfBwProfsAlone_PsFmt[BwProfCols.bw]
-        if supportCasc:
-            dfBwProfsCasc_PsFmt = dfBwProfsCasc[
-                (dfBwProfsCasc[GeneralCols.ve] == ps) &
-                (dfBwProfsCasc[GeneralCols.fmt] == fmt.getInternalName())
-            ]
-            dfBwProfsCasc_PsFmt.index = dfBwProfsCasc_PsFmt[BwProfCols.bw]
+        dfBwProfsCasc_PsFmt = dfBwProfsCasc[
+            (dfBwProfsCasc[GeneralCols.ve] == ps) &
+            (dfBwProfsCasc[GeneralCols.fmt] == fmt.getInternalName())
+        ]
+        dfBwProfsCasc_PsFmt.index = dfBwProfsCasc_PsFmt[BwProfCols.bw]
         
         # Compression rate.
+        
         costModel.bwProfs[cm.CONTEXT_STAND_ALONE][fmt.changeMode(algo.MODE_FORMAT)] = \
                 dfBwProfsAlone_PsFmt[BwProfAloneCols.sizeUsed] / \
                 dfBwProfsAlone_PsFmt[BwProfAloneCols.count] * BITS_PER_BYTE
         
         # Runtimes and penalty factors.
-        for colName, mode in [
-            (GeneralCols.rtc, algo.MODE_COMPR),
-            (GeneralCols.rtd, algo.MODE_DECOMPR),
-        ]:
-            # The penalty factors are 0 for all Null Suppression algorithms we
-            # have so far in MorphStore.
-            fmtMode = fmt.changeMode(mode)
-            costModel.bwProfs[cm.CONTEXT_STAND_ALONE][fmtMode] = dfBwProfsAlone_PsFmt[colName]
-            costModel.penaltyFactors[cm.CONTEXT_STAND_ALONE][fmtMode] = 0
-            if supportCasc:
-                costModel.bwProfs[cm.CONTEXT_IN_CASC][fmtMode] = dfBwProfsCasc_PsFmt[colName]
-                costModel.penaltyFactors[cm.CONTEXT_IN_CASC][fmtMode] = 0
+        # The penalty factors are 0 for all Null Suppression algorithms we
+        # have so far in MorphStore.
+
+        fmtCompr = fmt.changeMode(algo.MODE_COMPR)
+        costModel.bwProfs[cm.CONTEXT_STAND_ALONE][fmtCompr] = dfBwProfsCasc_PsFmt[GeneralCols.rtc] # cache -> RAM
+        costModel.penaltyFactors[cm.CONTEXT_STAND_ALONE][fmtCompr] = 0
+        if supportCasc:
+            costModel.bwProfs[cm.CONTEXT_IN_CASC][fmtCompr] = dfBwProfsCasc_PsFmt[GeneralCols.rtc] # cache -> RAM
+            costModel.penaltyFactors[cm.CONTEXT_IN_CASC][fmtCompr] = 0
+
+        fmtDecompr = fmt.changeMode(algo.MODE_DECOMPR)
+        costModel.bwProfs[cm.CONTEXT_STAND_ALONE][fmtDecompr] = dfBwProfsAlone_PsFmt[GeneralCols.rta] # RAM -> reg
+        costModel.penaltyFactors[cm.CONTEXT_STAND_ALONE][fmtDecompr] = 0
+        if supportCasc:
+            costModel.bwProfs[cm.CONTEXT_IN_CASC][fmtDecompr] = dfBwProfsCasc_PsFmt[GeneralCols.rtd] # RAM -> cache
+            costModel.penaltyFactors[cm.CONTEXT_IN_CASC][fmtDecompr] = 0
 
     # -------------------------------------------------------------------------
     # Cost model configuration for logical-level algorithms
@@ -344,16 +373,16 @@ def _configureCostModel(ps, profileDirPath):
         ]
         
         # Compression rate.
+        
         # TODO This is inaccurate for FOR.
         costModel.diProfs[cm.CONTEXT_STAND_ALONE][fmt.changeMode(algo.MODE_FORMAT)] = cm.UNCOMPR_BW
         
         # Runtimes.
-        for colName, mode in [
-            (GeneralCols.rtc, algo.MODE_COMPR),
-            (GeneralCols.rtd, algo.MODE_DECOMPR),
-        ]:
-            costModel.diProfs[cm.CONTEXT_IN_CASC][fmt.changeMode(mode)] = \
-                    dfConstProfsCasc_PsFmt[colName].values[0]
+        
+        costModel.diProfs[cm.CONTEXT_IN_CASC][fmt.changeMode(algo.MODE_COMPR)] = \
+                dfConstProfsCasc_PsFmt["runtime compr cache2cache [µs]"].values[0] # cache -> cache
+        costModel.diProfs[cm.CONTEXT_IN_CASC][fmt.changeMode(algo.MODE_DECOMPR)] \
+                = dfConstProfsCasc_PsFmt[GeneralCols.rta].values[0] # cache -> reg
                     
     return costModel
 
