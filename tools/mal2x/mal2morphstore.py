@@ -194,7 +194,7 @@ if __name__ == "__main__":
                 compr.OBJ_MEM,
             )
     )
-    allSimpleNames = formats.getAllSimpleNames()
+    allSimpleNames = formats.getAllSimpleNames() + formats.getAllSimpleNames_StaticVBP()
     comprArgGr.add_argument(
         "-crndu", dest="comprRndUnsortedFormat", metavar="FORMAT",
         choices=allSimpleNames, default=None,

@@ -144,19 +144,28 @@ class StaticVBPFormat(MorphStoreStandAloneFormat):
     def changeBw(self, bw):
         return StaticVBPFormat(self._ps, bw, self._mode)
     
-    _pByName = re.compile(r"static_vbp_(\d+)")
+    SUFFIX_BIT = "bit"
+    SUFFIX_EVEN = "even"
+    SUFFIX_BYTE = "byte"
+    SUFFIX_POWEROFTWO = "pot"
+    SUFFIXES = [SUFFIX_BIT, SUFFIX_EVEN, SUFFIX_BYTE, SUFFIX_POWEROFTWO]
+    _pByName = re.compile(r"static_vbp_(\d+|{})".format("|".join(SUFFIXES)))
     @staticmethod
     def byName(name, ps):
         m = StaticVBPFormat._pByName.fullmatch(name)
         if m is None:
             return None
-        bw = int(m.group(1))
-        if bw < 1 or bw > 64:
-            raise RuntimeError(
-                    "the bit width must be between 1 and 64, you "
-                    "passed {}".format(bw)
-            )
-        return StaticVBPFormat(ps, bw)
+        suffix = m.group(1)
+        if suffix in StaticVBPFormat.SUFFIXES:
+            return StaticVBPFormat(ps, suffix)
+        else:
+            bw = int(suffix)
+            if bw < 1 or bw > 64:
+                raise RuntimeError(
+                        "the bit width must be between 1 and 64, you "
+                        "passed {}".format(bw)
+                )
+            return StaticVBPFormat(ps, bw)
 
 class DynamicVBPFormat(MorphStoreStandAloneFormat):
     headers = ["core/morphing/dynamic_vbp.h"]
@@ -422,7 +431,16 @@ def getAllSimpleNames():
     """
     Returns a list of the simple names of all formats.
     """
+    # TODO Don't hardcode 128-bit (we use it here, since it allows the most
+    # formats.
     return [fmt.getSimpleName() for fmt in getAllFormats(pss.PS_VEC128)]
+
+def getAllSimpleNames_StaticVBP():
+    suffixless = StaticVBPFormat(pss.PS_SCALAR).getSimpleName()
+    return [
+        "{}_{}".format(suffixless, suffix)
+        for suffix in StaticVBPFormat.SUFFIXES
+    ]
     
 def byName(name, ps):
     """

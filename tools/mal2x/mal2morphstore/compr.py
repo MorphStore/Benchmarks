@@ -98,19 +98,23 @@ OBJECTIVES = [OBJ_MEM, OBJ_PERF]
 def _setStaticBitwidth(sFormat, dfColInfos):
     def setBw(fmt, bw):
         """
-        Explicitly sets the bit width of the given format, if necessary. If the
-        given format is not Static Bit-Packing, it is returned as it is. If the
-        given format is Static Bit-Packing, then the bit width is set to the
-        given bit width, but only if the bit width has not been set explicitly
-        before.
+        Explicitly sets the bit width of the given format, if necessary.
+        
+        If the given format is not Static Bit-Packing, it is returned as it is.
+        If the given format is Static Bit-Packing, then the bit width is set
+        only if the bit width has not been explicitly set to a number before.
+        Otherwise, the bit width is set depending on the placeholder.
         """
         if isinstance(fmt, formats.StaticVBPFormat):
-            if fmt._bw is None:
+            if fmt._bw is None or fmt._bw == formats.StaticVBPFormat.SUFFIX_BIT:
                 return fmt.changeBw(bw)
-            else:
-                return fmt
-        else:
-            return fmt
+            if fmt._bw == formats.StaticVBPFormat.SUFFIX_EVEN:
+                return fmt.changeBw(bw + bw % 2)
+            if fmt._bw == formats.StaticVBPFormat.SUFFIX_BYTE:
+                return fmt.changeBw(bw + 8 - bw % 8)
+            if fmt._bw == formats.StaticVBPFormat.SUFFIX_POWEROFTWO:
+                return fmt.changeBw(2 ** int(bw - 1).bit_length())
+        return fmt
     return sFormat.combine(dfColInfos[csvutils.ColInfoCols.maxBw], setBw)
 
 # All base and intermediate columns are uncompressed.
