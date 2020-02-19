@@ -294,7 +294,15 @@ if __name__ == "__main__":
                 "time purpose"
         )
     
+    # TODO Make sure that only the additional compression arguments used by the
+    # chosen compression strategy have been provided.
     # Validation of the combination of the compression arguments.
+    args.comprRndUnsortedFormat = formats.UncomprFormat() \
+        if args.comprRndUnsortedFormat is None \
+        else formats.byName(args.comprRndUnsortedFormat, args.processingStyle)
+    args.comprRndSortedFormat = args.comprRndUnsortedFormat \
+        if args.comprRndSortedFormat is None \
+        else formats.byName(args.comprRndSortedFormat, args.processingStyle)
     if args.comprStrategy == compr.CS_UNCOMPR:
         if (
             args.comprRndUnsortedFormat is not None or
@@ -305,12 +313,6 @@ if __name__ == "__main__":
         ):
             parser.error("Illegal combination of the compression arguments.")
     elif args.comprStrategy == compr.CS_RULEBASED:
-        args.comprRndUnsortedFormat = formats.UncomprFormat() \
-            if args.comprRndUnsortedFormat is None \
-            else formats.byName(args.comprRndUnsortedFormat, args.processingStyle)
-        args.comprRndSortedFormat = args.comprRndUnsortedFormat \
-            if args.comprRndSortedFormat is None \
-            else formats.byName(args.comprRndSortedFormat, args.processingStyle)
         args.comprSeqUnsortedFormat = args.comprRndSortedFormat \
             if args.comprSeqUnsortedFormat is None \
             else formats.byName(args.comprSeqUnsortedFormat, args.processingStyle)

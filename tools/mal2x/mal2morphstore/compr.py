@@ -676,14 +676,11 @@ def choose(
                 dfColInfosComprHasNoRndAcc = dfColInfosCompr[~sHasRndAcc]
                 sFormats = pd.Series()
                 if len(dfColInfosComprHasRndAcc):
-                    choice = [
-                        formats.UncomprFormat(),
-                        formats.StaticVBPFormat(processingStyle),
-                    ]
-                    choice = [al.changeMode(algo.MODE_FORMAT) for al in choice]
-                    sFormats = sFormats.append(chooseFunc(
-                            objective, dfColInfosComprHasRndAcc, choice
-                    ))
+                    sFormats = chooseRuleBased(
+                            dfColInfosComprHasRndAcc,
+                            fnRndAccUnsorted, fnRndAccSorted,
+                            None, None
+                    )
                 if len(dfColInfosComprHasNoRndAcc):
                     choice = [
                         formats.UncomprFormat(),
