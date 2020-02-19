@@ -377,6 +377,7 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath, repetitionCount):
         varColUsedBytes = "colUsedBytes"
         varColHasRndAccUnsorted = "colHasRndAccessUnsorted"
         varColHasRndAccSorted = "colHasRndAccessSorted"
+        varColCountSeqAcc = "colCountSeqAccess"
         varColIsForcedUncompr = "colIsForcedUncompr"
         print("{}// Constants for the monitoring column names.".format(indent))
         for varName, varVal in [
@@ -390,6 +391,7 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath, repetitionCount):
             (varColUsedBytes, "UsedBytes"),
             (varColHasRndAccUnsorted, "hasRndAccessUnsorted"),
             (varColHasRndAccSorted, "hasRndAccessSorted"),
+            (varColCountSeqAcc, "countSeqAccess"),
             (varColIsForcedUncompr, "isForcedUncompr"),
         ]:
             print('{}const std::string {} = "{}";'.format(
@@ -484,6 +486,9 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath, repetitionCount):
                                 2*indent, varColHasRndAccSorted,
                                 "true" if (el.__dict__[foo] in ar.varsRndAccessSorted) else "false",
                                 monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        )
+                        print('{}MONITORING_ADD_INT_FOR({}, {}, {}, {}, "{}", "{}");'.format(
+                                2*indent, varColCountSeqAcc, ar.countSeqAccessByCol[el.__dict__[foo]], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
                         print('{}MONITORING_ADD_BOOL_FOR({}, {}, {}, {}, "{}", "{}");'.format(
                                 2*indent, varColIsForcedUncompr,

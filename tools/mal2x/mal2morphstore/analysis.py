@@ -48,6 +48,7 @@ class AnalysisResult:
         maxBwByCol,
         varsRndAccessUnsorted,
         varsRndAccessSorted,
+        countSeqAccessByCol,
         varsSorted,
         varsForcedUncompr,
     ):
@@ -87,6 +88,10 @@ class AnalysisResult:
         # which are the input data column of some project-operator with a
         # sorted input positions column.
         self.varsRndAccessSorted = varsRndAccessSorted
+        
+        # A dictionary mapping a column name to the number of sequential read
+        # accesses to that column in the translated query program.
+        self.countSeqAccessByCol = countSeqAccessByCol
         
         # A list of the names of column-variables in the translated program
         # whose contents is known to be sorted at query translation-time.
@@ -131,6 +136,14 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
     varsRndAccessUnsorted = []
     varsRndAccessSorted = []
     
+    # In the beginning, we know only the base columns, and, so far, each of
+    # them has been read sequentially zero times.
+    countSeqAccessByCol = {
+        "{}.{}".format(tblName, colName): 0
+        for tblName in translationResult.colNamesByTblName
+        for colName in translationResult.colNamesByTblName[tblName]
+    }
+    
     # TODO This is specific to the Star Schema Benchmark (SSB). Do not hardcode
     #      this.
     # All base-columns known to be sorted.
@@ -146,6 +159,7 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
     
     varsForcedUncompr = []
     
+    # TODO Use the implementation in lcbase_py.whitebox.
     def effective_bitwidth(val):
         if val == 0:
             return 1
@@ -207,6 +221,7 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                     varName = getattr(el, key)
                     varsAssigned.append(varName)
                     varsNeverUsed.append(varName)
+                    countSeqAccessByCol[varName] = 0
                 elif key.startswith("in") and key.endswith("Col"):
                     varName = getattr(el, key)
                     foundUsage(varName)
@@ -431,6 +446,54 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                                 el.__class__.__name__
                         )
                 )
+                
+            # Tracking the number of sequential read accesses to each column.
+            if isinstance(el, ops.Project):
+                countSeqAccessByCol[el.inPosCol] += 1
+            elif (
+                isinstance(el, ops.Select) or
+                isinstance(el, ops.Between) or
+                isinstance(el, ops.GroupUnary) or
+                isinstance(el, ops.SumWholeCol)
+            ):
+                countSeqAccessByCol[el.inDataCol] += 1
+            elif (
+                isinstance(el, ops.Intersect) or
+                isinstance(el, ops.Merge)
+            ):
+                # TODO Update this once we use other implementations of these
+                # operators.
+                # In the current implementation, the input columns are not
+                # accessed sequentially.
+                pass
+            elif isinstance(el, ops.Join):
+                # We do not use this variant of the join-operator any more.
+                pass
+            elif (
+                isinstance(el, ops.Nto1Join) or
+                isinstance(el, ops.LeftSemiNto1Join) or
+                isinstance(el, ops.CalcBinary)
+            ):
+                # TODO This holds for a hash join with separate build and probe
+                # phase, but might not hold for other join implementations.
+                countSeqAccessByCol[el.inDataLCol] += 1
+                countSeqAccessByCol[el.inDataRCol] += 1
+            elif (
+                isinstance(el, ops.SumGrBased) or
+                isinstance(el, ops.GroupBinary)
+            ):
+                countSeqAccessByCol[el.inDataCol] += 1
+                countSeqAccessByCol[el.inGrCol] += 1
+            elif isinstance(el, ops.Morph):
+                countSeqAccessByCol[el.inCol] += 1
+            else:
+                raise RuntimeError(
+                        "the operator {} is not taken into account in "
+                        "tracking the number of sequential read accesses to "
+                        "columns".format(
+                                el.__class__.__name__
+                        )
+                )
                     
             # Tracking the sortedness of column-variables.
             if isinstance(el, ops.Project):
@@ -542,6 +605,7 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
         maxBwByCol,
         varsRndAccessUnsorted,
         varsRndAccessSorted,
+        countSeqAccessByCol,
         varsSorted,
         varsForcedUncompr,
     )

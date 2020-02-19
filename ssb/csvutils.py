@@ -72,6 +72,7 @@ class ColInfoCols:
     isResult        = "isResult"
     hasRndAccUnsorted = "hasRndAccUnsorted"
     hasRndAccSorted = "hasRndAccSorted"
+    countSeqAcc     = "countSeqAcc"
     isForcedUncompr = "isForcedUncompr"
 
 def getColInfos(colInfosFilePath):
@@ -80,13 +81,14 @@ def getColInfos(colInfosFilePath):
     
     df = dfInDedup[
         ["bwHist_{}".format(bw) for bw in range(1, cm.UNCOMPR_BW + 1)] +
-        ["valueCount", "Min", "Max", "DistinctCount"]
+        ["valueCount", "Min", "Max", "DistinctCount", "countSeqAccess"]
     ].copy()
     df.columns = ColInfoCols.bwHist + [
         ColInfoCols.countValues,
         ColInfoCols.min,
         ColInfoCols.max,
         ColInfoCols.countDistinct,
+        ColInfoCols.countSeqAcc,
     ]
     df[ColInfoCols.isSorted]        = dfInDedup["Sorted"]          == 1
     df[ColInfoCols.isResult]        = dfInDedup["isResult"]        == 1
