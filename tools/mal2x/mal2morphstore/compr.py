@@ -464,7 +464,7 @@ def chooseManual(processingStyle, configFilePath, dfColInfos):
                     converters={
                         "format": partial(formats.byName, ps=processingStyle)
                     }
-            ),
+            ).reindex(dfColInfos.index),
             dfColInfos
     )
     
@@ -633,8 +633,6 @@ def choose(
     
     if strategy == CS_UNCOMPR:
         sFormats = chooseUncompr(dfColInfos.index)
-    elif strategy == CS_MANUAL:
-        sFormats = chooseManual(processingStyle, configFilePath, dfColInfos)
     else:
         sMustBeUncompr = \
             dfColInfos[csvutils.ColInfoCols.isForcedUncompr] | \
@@ -656,6 +654,10 @@ def choose(
                     fnRndAccSorted,
                     fnSeqAccUnsorted,
                     fnSeqAccSorted,
+                )
+            elif strategy == CS_MANUAL:
+                sFormats = chooseManual(
+                        processingStyle, configFilePath, dfColInfosCompr
                 )
             elif strategy in [CS_COSTBASED, CS_REALBEST, CS_REALWORST]:
                 if strategy == CS_COSTBASED:
