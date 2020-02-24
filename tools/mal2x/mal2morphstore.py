@@ -281,6 +281,15 @@ if __name__ == "__main__":
             "split into two select-operators whose results are combined using "
             "the intersect-operator afterwards. Defaults to True."
     )
+    structArgGr.add_argument(
+        "--useIntersectKAry", dest="structUseIntersectKAry", metavar="BOOL",
+        choices=trueVals+falseVals, default=falseVals[0],
+        help="Whether to use MorphStore's k-ary-search-based "
+            "intersect-operator. If set to True, the k-ary-search-based "
+            "intersect-operator is used, which supports compressed inputs and "
+            "outputs. Otherwise, the normal/old intersect-operator is used, "
+            "which does not support compression. Defaults to False."
+    )
 
     args = parser.parse_args()
     
@@ -354,6 +363,7 @@ if __name__ == "__main__":
         args.versionSelect,
         args.processingStyle,
         parseBool(args.structUseBetween),
+        parseBool(args.structUseIntersectKAry),
     )
     
     # Compression configuration.

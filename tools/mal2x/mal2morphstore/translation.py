@@ -658,7 +658,9 @@ _pResultSetInner = re.compile(r", (X_\d+):(?:{}|bat\[.+?\])".format(
     "|".join(_MAL_INT_TYPES))
 )
 
-def translate(inMalFilePath, versionSelect, style, useBetween):
+def translate(
+        inMalFilePath, versionSelect, style, useBetween, useIntersectKAry
+):
     """
     Translates the MAL program in the specified file and returns an abstract
     representation of the translated C++ program as an instance of
@@ -815,9 +817,10 @@ def translate(inMalFilePath, versionSelect, style, useBetween):
                 if line[0] != "#":
                     _error(ts)
     
-    # Replace inner joins by semi-joins where it is possible.
+    # Replace certain operators by other variants.
     ar = analysis.analyze(TranslationResult(ts))
     for idx, el in enumerate(ts.prog):
+        # Replace inner joins by semi-joins where it is possible.
         if isinstance(el, ops.Join):
             # TODO From the structure of the program, we know that we can use
             #      a semi-join in the following two cases. However, using an
@@ -847,5 +850,11 @@ def translate(inMalFilePath, versionSelect, style, useBetween):
                 # We do not want this at the moment.
                 # TODO Support it in a nice way.
                 raise RuntimeError("the query contains an M:N-join")
+        # Replace normal/old intersect by k-ary-search-based intersect, if
+        # desired.
+        elif useIntersectKAry and isinstance(el, ops.Intersect):
+            ts.prog[idx] = ops.IntersectKAry(
+                    el.outPosCol, el.inPosLCol, el.inPosRCol
+            )
 
     return TranslationResult(ts)

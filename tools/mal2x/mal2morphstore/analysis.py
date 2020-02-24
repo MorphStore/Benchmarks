@@ -232,7 +232,11 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                     varsUnique.append(el.outDataCol)
             elif isinstance(el, ops.Select) or isinstance(el, ops.Between):
                 varsUnique.append(el.outPosCol)
-            elif isinstance(el, ops.Intersect) or isinstance(el, ops.Merge):
+            elif (
+                isinstance(el, ops.Intersect) or
+                isinstance(el, ops.IntersectKAry) or
+                isinstance(el, ops.Merge)
+            ):
                 if el.inPosLCol not in varsUnique:
                     raiseNonUnique(el, "inPosLCol")
                 if el.inPosRCol not in varsUnique:
@@ -290,7 +294,10 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                     maxCardByCol[el.outDataCol] = maxCardByCol[el.inPosCol]
                 elif isinstance(el, ops.Select) or isinstance(el, ops.Between):
                     maxCardByCol[el.outPosCol] = maxCardByCol[el.inDataCol]
-                elif isinstance(el, ops.Intersect):
+                elif (
+                    isinstance(el, ops.Intersect) or
+                    isinstance(el, ops.IntersectKAry)
+                ):
                     maxCardByCol[el.outPosCol] = min(
                         maxCardByCol[el.inPosLCol], maxCardByCol[el.inPosRCol]
                     )
@@ -336,7 +343,10 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                     maxBwByCol[el.outPosCol] = effective_bitwidth(
                         maxCardByCol[el.inDataCol] - 1
                     )
-                elif isinstance(el, ops.Intersect):
+                elif (
+                    isinstance(el, ops.Intersect) or
+                    isinstance(el, ops.IntersectKAry)
+                ):
                     maxBwByCol[el.outPosCol] = min(
                         maxBwByCol[el.inPosLCol], maxBwByCol[el.inPosRCol]
                     )
@@ -423,6 +433,10 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                 else:
                     if el.inDataCol not in varsRndAccessUnsorted:
                         varsRndAccessUnsorted.append(el.inDataCol)
+            elif isinstance(el, ops.IntersectKAry):
+                # The accessed positions are always unsorted due to the k-ary
+                # search.
+                varsRndAccessUnsorted.append(el.inPosRCol)
             elif (
                 isinstance(el, ops.Select) or
                 isinstance(el, ops.Between) or
@@ -466,6 +480,8 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                 # In the current implementation, the input columns are not
                 # accessed sequentially.
                 pass
+            elif isinstance(el, ops.IntersectKAry):
+                countSeqAccessByCol[el.inPosLCol] += 1
             elif isinstance(el, ops.Join):
                 # We do not use this variant of the join-operator any more.
                 pass
@@ -501,7 +517,13 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                     varsSorted.append(el.outDataCol)
             elif isinstance(el, ops.Select) or isinstance(el, ops.Between):
                 varsSorted.append(el.outPosCol)
-            elif isinstance(el, ops.Intersect) or isinstance(el, ops.Merge):
+            elif (
+                isinstance(el, ops.Intersect) or
+                isinstance(el, ops.IntersectKAry) or
+                isinstance(el, ops.Merge)
+            ):
+                # TODO IntersectKAry might be able to handle an unsorted left
+                #      input column. This is not reflected here, yet.
                 if el.inPosLCol not in varsSorted:
                     raiseUnsorted(el, "inPosLCol")
                 if el.inPosRCol not in varsSorted:
@@ -578,6 +600,7 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                 isinstance(el, ops.Project) or
                 isinstance(el, ops.Select) or
                 isinstance(el, ops.Between) or
+                isinstance(el, ops.IntersectKAry) or
                 isinstance(el, ops.Join) or
                 isinstance(el, ops.Nto1Join) or
                 isinstance(el, ops.LeftSemiNto1Join) or

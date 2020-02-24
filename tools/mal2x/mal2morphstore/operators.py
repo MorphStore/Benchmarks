@@ -184,6 +184,27 @@ class Intersect(Op):
             opName=self.opName, **self.__dict__, **_commonIdentifiers
         )
     
+class IntersectKAry(Op):
+    """A call to MorphStore's k-ary-search-based intersect operator."""
+    
+    opName = "my_intersect_wit_t"
+    headers = [
+        "core/operators/{{{}}}/intersect_compr.h".format(ps.INCLUDE_DIR_KEY)
+    ]
+    
+    def __init__(self, outPosCol, inPosLCol, inPosRCol):
+        self.outPosCol = outPosCol
+        self.inPosLCol = inPosLCol
+        self.inPosRCol = inPosRCol
+        self.outPosF = None
+        self.inPosLF = None
+        self.inPosRF = None
+        
+    def __str__(self):
+        return "auto {outPosCol} = {opName}<{ps}, {outPosF}, {inPosLF}, {inPosRF} >::apply({inPosLCol}, {inPosRCol});".format(
+            opName=self.opName, **self.__dict__, **_commonIdentifiers
+        )
+    
 class Merge(Op):
     """A call to MorphStore's merge operator."""
     

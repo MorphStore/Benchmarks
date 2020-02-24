@@ -29,7 +29,7 @@ function print_help () {
     echo "              [-crndu FORMAT] [-crnds FORMAT] [-csequ FORMAT] [-cseqs FORMAT]"
     echo "              [-ccbsl N] [-cubase BOOL] [-cuinterm BOOL] [-cconfig DIR]"
     echo "              [-um WAY_TO_USE_MONETDB] [-mem MEMORY_MANAGEMENT]"
-    echo "              [--useBetween BOOL]"
+    echo "              [--useBetween BOOL] [--useIntersectKAry BOOL]"
     echo ""
     echo "Star Schema Benchmark (SSB) in MorphStore."
     echo ""
@@ -389,6 +389,10 @@ function translate () {
     if [[ $structUseBetween ]]
     then
         structFlags="$structFlags --useBetween $structUseBetween"
+    fi
+    if [[ $structUseIntersectKAry ]]
+    then
+        structFlags="$structFlags --useIntersectKAry $structUseIntersectKAry"
     fi
 
     local statFlag="--statdir $pathDataStatsDict"
@@ -936,6 +940,7 @@ comprConfigDir=""
 useMonetDB=$umPipeline
 memManagement=$memSelf
 structUseBetween=""
+structUseIntersectKAry=""
 
 while [[ $# -gt 0 ]]
 do
@@ -1063,6 +1068,10 @@ do
             ;;
         --useBetween)
             structUseBetween=$2
+            shift
+            ;;
+        --useIntersectKAry)
+            structUseIntersectKAry=$2
             shift
             ;;
         *)
