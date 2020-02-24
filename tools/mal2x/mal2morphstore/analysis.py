@@ -51,6 +51,9 @@ class AnalysisResult:
         countSeqAccessByCol,
         varsSorted,
         varsForcedUncompr,
+        minDistanceToBaseByCol,
+        maxDistanceToBaseByCol,
+        producingOpIdxByCol,
     ):
         # A list of the names of column-variables in the translated program
         # which are used before they are assigned.
@@ -101,6 +104,21 @@ class AnalysisResult:
         # which must be uncompressed, since they are produced or consumed by an
         # operator which does not support compressed data.
         self.varsForcedUncompr = varsForcedUncompr
+        
+        # A dictionary mapping a column name to the minimum path length
+        # (counted in operators) from this column to any base column is was
+        # transitively calculated from.
+        self.minDistanceToBaseByCol = minDistanceToBaseByCol
+        
+        # A dictionary mapping a column name to the maximum path length
+        # (counted in operators) from this column to any base column is was
+        # transitively calculated from.
+        self.maxDistanceToBaseByCol = maxDistanceToBaseByCol
+        
+        # A dictionary mapping a column name to the number of the operator that
+        # produces it in the query (counting starts at 1, but for base columns,
+        # it is 0).
+        self.producingOpIdxByCol = producingOpIdxByCol
 
 def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
     """
@@ -135,14 +153,22 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
     
     varsRndAccessUnsorted = []
     varsRndAccessSorted = []
+
+    def zeroForBaseCols():
+        return {
+            "{}.{}".format(tblName, colName): 0
+            for tblName in translationResult.colNamesByTblName
+            for colName in translationResult.colNamesByTblName[tblName]
+        }
     
     # In the beginning, we know only the base columns, and, so far, each of
     # them has been read sequentially zero times.
-    countSeqAccessByCol = {
-        "{}.{}".format(tblName, colName): 0
-        for tblName in translationResult.colNamesByTblName
-        for colName in translationResult.colNamesByTblName[tblName]
-    }
+    countSeqAccessByCol = zeroForBaseCols()
+    
+    # For the base columns, all these distane measures are zero.
+    minDistanceToBaseByCol = zeroForBaseCols()
+    maxDistanceToBaseByCol = zeroForBaseCols()
+    producingOpIdxByCol = zeroForBaseCols()
     
     # TODO This is specific to the Star Schema Benchmark (SSB). Do not hardcode
     #      this.
@@ -213,8 +239,11 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                 )
         )
     
+    opIdx = 0
     for el in translationResult.baseMorphs + translationResult.prog + translationResult.resultMorphs:
         if isinstance(el, ops.Op):
+            opIdx += 1
+            
             # Tracking the usage of column-variables.
             for key in el.__dict__:
                 if key.startswith("out") and key.endswith("Col"):
@@ -616,6 +645,23 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
                                 el.__class__.__name__
                         )
                 )
+                
+            # Tracking distance measures.
+            inputMinDistancesToBase = []
+            inputMaxDistancesToBase = []
+            for key in el.__dict__:
+                if key.startswith("in") and key.endswith("Col"):
+                    colName = getattr(el, key)
+                    inputMinDistancesToBase.append(minDistanceToBaseByCol[colName])
+                    inputMaxDistancesToBase.append(maxDistanceToBaseByCol[colName])
+            outputMinDistanceToBase = min(inputMinDistancesToBase) + 1
+            outputMaxDistanceToBase = min(inputMaxDistancesToBase) + 1
+            for key in el.__dict__:
+                if key.startswith("out") and key.endswith("Col"):
+                    colName = getattr(el, key)
+                    minDistanceToBaseByCol[colName] = outputMinDistanceToBase
+                    maxDistanceToBaseByCol[colName] = outputMaxDistanceToBase
+                    producingOpIdxByCol[colName] = opIdx
     
     for varName in translationResult.resultCols:
         foundUsage(varName)
@@ -631,4 +677,7 @@ def analyze(translationResult, analyzeCardsAndBws=False, statDirPath=None):
         countSeqAccessByCol,
         varsSorted,
         varsForcedUncompr,
+        minDistanceToBaseByCol,
+        maxDistanceToBaseByCol,
+        producingOpIdxByCol,
     )

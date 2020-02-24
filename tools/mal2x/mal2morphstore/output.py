@@ -379,6 +379,9 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath, repetitionCount):
         varColHasRndAccSorted = "colHasRndAccessSorted"
         varColCountSeqAcc = "colCountSeqAccess"
         varColIsForcedUncompr = "colIsForcedUncompr"
+        varColMinDistanceToBase = "colMinDistanceToBase"
+        varColMaxDistanceToBase = "colMaxDistanceToBase"
+        varColProducingOpIdx = "colProducingOpIdx"
         print("{}// Constants for the monitoring column names.".format(indent))
         for varName, varVal in [
             # (C++ constant name, CSV column name)
@@ -393,6 +396,9 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath, repetitionCount):
             (varColHasRndAccSorted, "hasRndAccessSorted"),
             (varColCountSeqAcc, "countSeqAccess"),
             (varColIsForcedUncompr, "isForcedUncompr"),
+            (varColMinDistanceToBase, "minDistanceToBase"),
+            (varColMaxDistanceToBase, "maxDistanceToBase"),
+            (varColProducingOpIdx, "producingOpIdx"),
         ]:
             print('{}const std::string {} = "{}";'.format(
                     indent, varName, varVal
@@ -494,6 +500,15 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath, repetitionCount):
                                 2*indent, varColIsForcedUncompr,
                                 "true" if (el.__dict__[foo] in ar.varsForcedUncompr) else "false",
                                 monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        )
+                        print('{}MONITORING_ADD_INT_FOR({}, {}, {}, {}, "{}", "{}");'.format(
+                                2*indent, varColMinDistanceToBase, ar.minDistanceToBaseByCol[el.__dict__[foo]], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        )
+                        print('{}MONITORING_ADD_INT_FOR({}, {}, {}, {}, "{}", "{}");'.format(
+                                2*indent, varColMaxDistanceToBase, ar.maxDistanceToBaseByCol[el.__dict__[foo]], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
+                        )
+                        print('{}MONITORING_ADD_INT_FOR({}, {}, {}, {}, "{}", "{}");'.format(
+                                2*indent, varColProducingOpIdx, ar.producingOpIdxByCol[el.__dict__[foo]], monVarOpNameOp, opIdx, foo, el.__dict__[foo])
                         )
                         print("{}}}".format(indent))
                 

@@ -74,6 +74,9 @@ class ColInfoCols:
     hasRndAccSorted = "hasRndAccSorted"
     countSeqAcc     = "countSeqAcc"
     isForcedUncompr = "isForcedUncompr"
+    minDistanceToBase = "minDistanceToBase"
+    maxDistanceToBase = "maxDistanceToBase"
+    producingOpIdx = "producingOpIdx"
 
 def getColInfos(colInfosFilePath):
     dfIn = readMorphStoreCsv(colInfosFilePath)
@@ -81,7 +84,13 @@ def getColInfos(colInfosFilePath):
     
     df = dfInDedup[
         ["bwHist_{}".format(bw) for bw in range(1, cm.UNCOMPR_BW + 1)] +
-        ["valueCount", "Min", "Max", "DistinctCount", "countSeqAccess"]
+        [
+            "valueCount",
+            "Min", "Max",
+            "DistinctCount",
+            "countSeqAccess",
+            "minDistanceToBase", "maxDistanceToBase", "producingOpIdx",
+        ]
     ].copy()
     df.columns = ColInfoCols.bwHist + [
         ColInfoCols.countValues,
@@ -89,6 +98,9 @@ def getColInfos(colInfosFilePath):
         ColInfoCols.max,
         ColInfoCols.countDistinct,
         ColInfoCols.countSeqAcc,
+        ColInfoCols.minDistanceToBase,
+        ColInfoCols.maxDistanceToBase,
+        ColInfoCols.producingOpIdx,
     ]
     df[ColInfoCols.isSorted]        = dfInDedup["Sorted"]          == 1
     df[ColInfoCols.isResult]        = dfInDedup["isResult"]        == 1
