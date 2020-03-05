@@ -121,15 +121,18 @@ then
     psFlag=""
 elif [[ $maxPs = $psSSE ]]
 then
-    pss="$psScalar $psSSE"
+    # pss="$psScalar $psSSE"
+    pss="$psSSE"
     psFlag="-sse4"
 elif [[ $maxPs = $psAVX2 ]]
 then
-    pss="$psScalar $psSSE $psAVX2"
+    # pss="$psScalar $psSSE $psAVX2"
+    pss="$psAVX2"
     psFlag="-avxtwo"
 elif [[ $maxPs = $psAVX512 ]]
 then
-    pss="$psScalar $psSSE $psAVX2 $psAVX512"
+    # pss="$psScalar $psSSE $psAVX2 $psAVX512"
+    pss="$psAVX512"
     psFlag="-avx512"
 else
     printf "unknown processing style: $maxPs\n"
