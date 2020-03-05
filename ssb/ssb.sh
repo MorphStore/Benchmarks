@@ -293,12 +293,6 @@ function generate () {
 
     set -e
 
-    if [[ $useMonetDB = $umSaved ]]
-    then
-        printf "the generate step requires MonetDB, use '-um p' or '-um m'\n"
-        exit -1
-    fi
-
     print_headline2 "Generating SSB data"
     local oldPwd=$(pwd)
     cd $pathDBGen
@@ -310,14 +304,17 @@ function generate () {
     mkdir $pathData
     eval $dbdict $schemaFile $pathDBGen $pathData
 
-    print_headline2 "Loading data into MonetDB"
-    eval $monetdb create $dbName
-    # Deactivating multi-threading is important, since mal2x.py cannot
-    # translate multi-threaded MAL plans.
-    eval $monetdb set nthreads=1 $dbName
-    eval $monetdb release $dbName
-    eval $createload $benchmark $schemaFile $pathDataTblsDict \
-        | $mclient -d $dbName
+    if [[ $useMonetDB != $umSaved ]]
+    then
+        print_headline2 "Loading data into MonetDB"
+        eval $monetdb create $dbName
+        # Deactivating multi-threading is important, since mal2x.py cannot
+        # translate multi-threaded MAL plans.
+        eval $monetdb set nthreads=1 $dbName
+        eval $monetdb release $dbName
+        eval $createload $benchmark $schemaFile $pathDataTblsDict \
+            | $mclient -d $dbName
+    fi
 
     print_headline2 "Deleting .tbl-files"
     rm -f $pathDBGen/*.tbl
