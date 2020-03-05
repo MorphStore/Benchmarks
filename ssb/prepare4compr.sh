@@ -174,5 +174,6 @@ mkdir --parents ../Benchmarks/ssb/compr_profiles
 build/src/calibration/bw_prof $countReps > ../Benchmarks/ssb/compr_profiles/bw_prof_alone.csv
 build/src/calibration/bw_prof_casc $countReps > ../Benchmarks/ssb/compr_profiles/bw_prof_casc.csv
 build/src/calibration/const_prof $countReps > ../Benchmarks/ssb/compr_profiles/const_prof_casc.csv
+build/src/calibration/uncompr $countReps > ../Benchmarks/ssb/compr_profiles/uncompr.csv
 
 set +e
