@@ -437,7 +437,7 @@ class GroupUnary(Op):
 #    opName = "group"
     opName = "group_vec"
     headers = [
-#        "core/operators/{{{}}}/group_uncompr.h".format(ps.INCLUDE_DIR_KEY),
+#        "core/operators/{{{}}}/group_unary_uncompr.h".format(ps.INCLUDE_DIR_KEY),
         "core/operators/{{{}}}/group_compr.h".format(ps.INCLUDE_DIR_KEY),
         "tuple"
     ]
@@ -463,7 +463,7 @@ class GroupBinary(Op):
     
     opName = "group"
     headers = [
-        "core/operators/{{{}}}/group_uncompr.h".format(ps.INCLUDE_DIR_KEY),
+        "core/operators/{{{}}}/group_binary_uncompr.h".format(ps.INCLUDE_DIR_KEY),
         "tuple"
     ]
     
