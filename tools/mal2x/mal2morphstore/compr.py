@@ -406,9 +406,12 @@ def chooseCostBased(
     objective, dfColInfos, choice, processingStyle, profileDirPath
 ):
     # TODO Don't reconfigure every time.
-    costModel = _configureCostModel(processingStyle, profileDirPath)
+    algoCostModel = _configureCostModel(processingStyle, profileDirPath)
     if objective == OBJ_MEM:
-        func = partial(costModel.cost, dfDC=dfColInfos)
+        func = partial(algoCostModel.cost, dfDC=dfColInfos)
+    elif objective == OBJ_PERF:
+        costModel = CostModel(algoCostModel)
+        func = partial(costModel.cost, dfColInfos=dfColInfos)
     else:
         raise RuntimeError(
                 "unsupported objective for cost-based format selection: "
@@ -788,3 +791,17 @@ def configureProgram(
     # Move full-column morph-operators of base and result columns out of the
     # query program.
     _reorderMorphs(translationResult)
+    
+class CostModel:
+    def __init__(self, algoCostModel):
+        self.algoCostModel = algoCostModel
+        
+    def cost(self, fmt, dfColInfos):
+        fmtCompr   = fmt.changeMode(algo.MODE_COMPR)
+        fmtDecompr = fmt.changeMode(algo.MODE_DECOMPR)
+        sCostCompr   = self.algoCostModel.cost(fmtCompr  , dfColInfos)
+        sCostDecompr = self.algoCostModel.cost(fmtDecompr, dfColInfos)
+        # Base columns are never written (during the query execution).
+        sCountCompr = (~dfColInfos[csvutils.ColInfoCols.isBaseCol]).astype(int)
+        sCountDecompr = dfColInfos[csvutils.ColInfoCols.countSeqAcc]
+        return sCountCompr * sCostCompr + sCountDecompr * sCostDecompr
