@@ -269,8 +269,16 @@ def _configureCostModel(ps, profileDirPath):
     
     phyInfo = [
         (
-            formats.StaticVBPFormat(ps),
-            wb.adaptMax,
+            formats.StaticVBPFormat(ps, granularity),
+            partial(wb.adaptMax, granularity=granularity),
+            pss.PS_INFOS[ps].vectorSizeBit,
+            False,
+        )
+        for granularity in ["bit", "even", "byte", "pot"]
+    ] + [
+        (
+            formats.StaticVBPFormat(ps, None),
+            partial(wb.adaptMax, granularity="bit"),
             pss.PS_INFOS[ps].vectorSizeBit,
             False,
         ),
@@ -307,14 +315,18 @@ def _configureCostModel(ps, profileDirPath):
         # Black-box part
         # --------------
         
+        if isinstance(fmt, formats.StaticVBPFormat):
+            internalName = fmt.changeBw(None).getInternalName()
+        else:
+            internalName = fmt.getInternalName()
         dfBwProfsAlone_PsFmt = dfBwProfsAlone[
             (dfBwProfsAlone[GeneralCols.ve] == ps) &
-            (dfBwProfsAlone[GeneralCols.fmt] == fmt.getInternalName())
+            (dfBwProfsAlone[GeneralCols.fmt] == internalName)
         ]
         dfBwProfsAlone_PsFmt.index = dfBwProfsAlone_PsFmt[BwProfCols.bw]
         dfBwProfsCasc_PsFmt = dfBwProfsCasc[
             (dfBwProfsCasc[GeneralCols.ve] == ps) &
-            (dfBwProfsCasc[GeneralCols.fmt] == fmt.getInternalName())
+            (dfBwProfsCasc[GeneralCols.fmt] == internalName)
         ]
         dfBwProfsCasc_PsFmt.index = dfBwProfsCasc_PsFmt[BwProfCols.bw]
         
@@ -624,6 +636,8 @@ def choose(
     sizesFilePath=None,
     # parameters for the manual strategy
     configFilePath=None,
+    # other
+    allowHigherStaticBitWidth=False,
 ):
     """
     Chooses a (un)compressed format for each base column or intermediate result
@@ -689,8 +703,18 @@ def choose(
                 if len(dfColInfosComprHasNoRndAcc):
                     choice = [
                         formats.UncomprFormat(),
+                    ]
+                    if allowHigherStaticBitWidth:
+                        choice.extend([
+                            formats.StaticVBPFormat(processingStyle, "bit"),
+                            formats.StaticVBPFormat(processingStyle, "even"),
+                            formats.StaticVBPFormat(processingStyle, "byte"),
+                            formats.StaticVBPFormat(processingStyle, "pot"),
+                        ])
+                    else:
+                        choice.append(formats.StaticVBPFormat(processingStyle))
+                    choice.extend([
                         formats.DynamicVBPFormat(processingStyle),
-                        formats.StaticVBPFormat(processingStyle),
                         formats.DeltaCascFormat(
                                 formats.CASC_BLOCKSIZE_LOG,
                                 processingStyle,
@@ -701,7 +725,7 @@ def choose(
                                 processingStyle,
                                 formats.DynamicVBPFormat(processingStyle)
                         ),
-                    ]
+                    ])
                     if processingStyle == pss.PS_VEC128:
                         choice.extend([
                             formats.KWiseNSFormat(processingStyle),
