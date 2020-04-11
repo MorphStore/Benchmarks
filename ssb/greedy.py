@@ -94,12 +94,12 @@ def getBwChoice(minBw):
         minBw + (8 - minBw % 8) # the next multiple of a byte
     }
     # The next power of two.
-    for minBw in [2, 4, 8, 16, 32]:
-        if minBw <= minBw:
-            bws.add(minBw)
+    for potBw in [2, 4, 8, 16, 32]:
+        if minBw <= potBw:
+            bws.add(potBw)
             break
     # Return only bit widths less than 64 bits.
-    return [minBw for minBw in sorted(bws) if minBw < 64]
+    return [bw for bw in sorted(bws) if bw < 64]
 
 def getFmtChoice(hasRndAcc, maxBw):
     """
