@@ -302,7 +302,7 @@ function generate () {
 
     print_headline2 "Dictionary coding"
     mkdir $pathData
-    eval $dbdict $schemaFile $pathDBGen $pathData
+    eval $dbdict $schemaFullFile $schemaRequiredFile $pathDBGen $pathData
 
     if [[ $useMonetDB != $umSaved ]]
     then
@@ -312,7 +312,7 @@ function generate () {
         # translate multi-threaded MAL plans.
         eval $monetdb set nthreads=1 $dbName
         eval $monetdb release $dbName
-        eval $createload $benchmark $schemaFile $pathDataTblsDict \
+        eval $createload $benchmark $schemaRequiredFile $pathDataTblsDict \
             | $mclient -d $dbName
     fi
 
@@ -783,7 +783,8 @@ benchmark=ssb
 # ----------------------------------------------------------------------------
 
 # Related to this script.
-schemaFile=schema.json
+schemaFullFile=schema_full.json
+schemaRequiredFile=schema_required.json
 pathQueries=queries
 
 # Related to MonetDB.
