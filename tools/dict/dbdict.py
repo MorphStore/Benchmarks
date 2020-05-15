@@ -33,16 +33,17 @@ of such a CSV file. More precisely, each column is encoded individually, i.e.,
 with its own dictionary. Dictionary codes start with zero.
 
 For each input CSV file, the output consists of the following:
-- A CSV file of the same shape, with columns of dictionary codes from the
-  respective column's dictionary instead of the string-valued columns of the
-  input CSV file. These files are required for loading data into a DBMS such as
+- A CSV file projected to the required columns. All columns in this file
+  contain only integers, i.e., the values in non-integer columns of the input
+  CSV-file are replaced by dictionary codes from the respective column's
+  dictionary. These files are required for loading data into a DBMS such as
   MonetDB. They are stored in the sub-directory "tbls_dict".
-- For each string-valued column: A plain text file containing the dictionary of
+- For each required string-valued column: A plain text file containing the dictionary of
   this column. In this file, the i-th line contains the value whose dictionary
   code is i (line counting starts with zero). These files are required for
   replacing string constants in queries (see MorphStore's qdict.py tool). They
   are stored in the sub-directory "dicts".
-- For each column: A binary file containing some meta data and the column's
+- For each required column: A binary file containing some meta data and the column's
   data elements as an array of uncompressed 64-bit integers in little-endian
   byte ordering. This is exactly the file format of MorphStore's binary_io
   persistence class. These files are required for loading data into MorphStore.
@@ -62,6 +63,12 @@ For instance, the contents of the schema file could look like this:
     "table1": ["col11", "col12"],
     "table2": ["col21", "col22", "col23"]
 }
+
+Moreover, a second schema file must be provided, which specifies the required
+columns, i.e., the columns to actually take into account. This is motivated by
+the fact that benchmark queries might not access all columns of the schema. In
+the simplest case, this second schema file can be the same as the first. Then,
+all columns are considered.
   
 Known limitations:
 - Currently, any type other than unsigned integer will be treated as a string.
@@ -92,7 +99,8 @@ def _isInt(val):
             
 def _encodeTable(
     tblName,
-    colNames,
+    colNamesFull,
+    colNamesRequired,
     inTblFilePath,
     outTblFilePath,
     outDictDirPath,
@@ -100,11 +108,23 @@ def _encodeTable(
     outStatFilePath
 ):
     """
-    Applies order-preserving dictionary coding to all non-integer columns of
-    the given CSV file and creates all output files for this CSV file.
+    Applies order-preserving dictionary coding to all required non-integer
+    columns of the given CSV file and creates all output files for this CSV
+    file.
     """
     
     print("Processing table '{}'".format(tblName))
+    
+    countColsFull = len(colNamesFull)
+    countColsRequired = len(colNamesRequired)
+    print("\t{}/{} columns required.".format(countColsRequired, countColsFull))
+    
+    # Find out the positions of the columns to be taken into account.
+    colIdxsRequired = [
+        colIdx
+        for colIdx, colName in enumerate(colNamesFull)
+        if colName in colNamesRequired
+    ]
     
     with open(inTblFilePath, "r") as inTblFile:
         # ---------------------------------------------------------------------
@@ -114,24 +134,25 @@ def _encodeTable(
         # Check if the number of columns is ok.
         firstLine = inTblFile.readline().rstrip()
         firstLineEntries = firstLine.split(_COLSEP)[:-1]
-        countCols = len(firstLineEntries)
-        if countCols != len(colNames):
+        countColsFound = len(firstLineEntries)
+        if countColsFound != countColsFull:
             raise RuntimeError(
                 "the number of columns found in the CSV file is {}, but the "
                 "number of columns according to the schema file is {}".format(
-                    countCols, len(colNames)
+                    countColsFound, countColsFull
                 )
             )
         
         # Determine the columns requiring dictionary coding.
-        nonIntColIdxs = []
         # TODO This might produce false negatives, since only the first element
         #      of each column is considered.
-        for idx, val in enumerate(firstLineEntries):
-            if not _isInt(val):
-                nonIntColIdxs.append(idx)
-        print("\t{}/{} columns require dictionary coding: ".format(
-            len(nonIntColIdxs), countCols,
+        nonIntColIdxs = [
+            idx
+            for idx in colIdxsRequired
+            if not _isInt(firstLineEntries[idx])
+        ]
+        print("\t{}/{} required columns need dictionary coding.".format(
+            len(nonIntColIdxs), countColsRequired,
         ))
         
         # ---------------------------------------------------------------------
@@ -145,7 +166,7 @@ def _encodeTable(
         
         countRows = 0;
         
-        # Determine the distinct values as a set.
+        # Determine the number of rows and the distinct values as a set.
         distValsByColIdx = {idx: set() for idx in nonIntColIdxs}
         if len(nonIntColIdxs):
             for line in inTblFile:
@@ -153,12 +174,15 @@ def _encodeTable(
                 lineEntries = line.rstrip().split(_COLSEP)
                 for idx in nonIntColIdxs:
                     distValsByColIdx[idx].add(lineEntries[idx])
+        else:
+            for line in inTblFile:
+                countRows += 1
                     
         # Sort distinct values as a list and write dictionary files.
         for idx in nonIntColIdxs:
             distValsByColIdx[idx] = list(sorted(distValsByColIdx[idx]))
             outDictFilePath = os.path.join(
-                outDictDirPath, "{}.{}.dict".format(tblName, colNames[idx])
+                outDictDirPath, "{}.{}.dict".format(tblName, colNamesFull[idx])
             )
             with open(outDictFilePath, "w") as outDictFile:
                 for val in distValsByColIdx[idx]:
@@ -174,7 +198,7 @@ def _encodeTable(
             for idx in nonIntColIdxs
         }
         
-        print("done.")
+        print("done." if len(nonIntColIdxs) else "nothing to do.")
         
         # ---------------------------------------------------------------------
         # Second pass: Encode non-integer columns, create output files
@@ -186,19 +210,19 @@ def _encodeTable(
         inTblFile.seek(0, 0)
         
         # Open output files for all columns.
-        outColFiles = [
-            open(
+        outColFiles = {
+            idx: open(
                 os.path.join(
                     outColDirPath,
-                    "{}.{}.uncompr_f.bin".format(tblName, colNames[idx])
+                    "{}.{}.uncompr_f.bin".format(tblName, colNamesFull[idx])
                 ),
                 "wb"
             )
-            for idx in range(countCols)
-        ]
+            for idx in colIdxsRequired
+        }
         
         # Write metadata for all columns.
-        for idx in range(countCols):
+        for idx in colIdxsRequired:
             # TODO Does "Q" guarantee 64 bits on all platforms?
             # The number of data elements in the column (logical size).
             outColFiles[idx].write(struct.pack("<Q", countRows))
@@ -207,8 +231,7 @@ def _encodeTable(
         
         # TODO Implement this in a cleaner way.
         # ...
-        maxVals = [0] * countCols
-        countRows = 0
+        maxVals = {idx: 0 for idx in colIdxsRequired}
         
         # Encode non-integer columns, write output files.
         with open(outTblFilePath, "w") as outTblFile:
@@ -216,19 +239,21 @@ def _encodeTable(
                 lineEntries = line.split(_COLSEP)
                 for idx in nonIntColIdxs:
                     lineEntries[idx] = dictByColIdx[idx][lineEntries[idx]]
-                outTblFile.write(_COLSEP.join(lineEntries))
-                for idx in range(countCols):
+                outTblFile.write(_COLSEP.join(
+                    [lineEntries[idx] for idx in colIdxsRequired]
+                ))
+                outTblFile.write("\n")
+                for idx in colIdxsRequired:
                     outColFiles[idx].write(
                         struct.pack("<Q", int(lineEntries[idx]))
                     )
                     if int(lineEntries[idx]) > maxVals[idx]:
                         maxVals[idx] = int(lineEntries[idx])
-                countRows += 1
         
         with open(outStatFilePath, "w") as outStatFile:
             json.dump(
                 dict(
-                    {colNames[idx]: maxVals[idx] for idx in range(countCols)},
+                    {colNamesFull[idx]: maxVals[idx] for idx in colIdxsRequired},
                     _cardinality=countRows,
                 ),
                 outStatFile,
@@ -236,7 +261,7 @@ def _encodeTable(
             )
         
         # Close output files for all columns.
-        for outColFile in outColFiles:
+        for idx, outColFile in outColFiles.items():
             outColFile.close()
             
         print("done.")
@@ -268,8 +293,15 @@ if __name__ == "__main__":
     )
     # Required positional arguments.
     parser.add_argument(
-        "schemaFilePath", metavar="schemaFile",
-        help="The JSON file containing the schema information."
+        "schemaFullFilePath", metavar="schemaFullFile",
+        help="The JSON file containing the schema information (all columns)."
+        # TODO Validate existence.
+    )
+    parser.add_argument(
+        "schemaRequiredFilePath", metavar="schemaRequiredFile",
+        help="The JSON file containing the schema information (required "
+            "columns only). Use the same file as for schemaFullFile to take "
+            "all columns into account."
         # TODO Validate existence.
     )
     parser.add_argument(
@@ -300,8 +332,10 @@ if __name__ == "__main__":
     _makeDirIf(outColDirPath)
     _makeDirIf(outStatDirPath)
 
-    with open(args.schemaFilePath, "r") as schemaFile:
-        schema = json.load(schemaFile)
+    with open(args.schemaFullFilePath, "r") as schemaFile:
+        schemaFull = json.load(schemaFile)
+    with open(args.schemaRequiredFilePath, "r") as schemaFile:
+        schemaRequired = json.load(schemaFile)
     
     fileNames = os.listdir(args.inTblDirPath)
     for inTblFileName in fileNames:
@@ -310,7 +344,8 @@ if __name__ == "__main__":
         if ext == ".tbl" and os.path.isfile(inTblFilePath):
             _encodeTable(
                 tblName,
-                schema[tblName],
+                schemaFull[tblName],
+                schemaRequired[tblName],
                 inTblFilePath,
                 os.path.join(outTblDirPath, inTblFileName),
                 outDictDirPath,
