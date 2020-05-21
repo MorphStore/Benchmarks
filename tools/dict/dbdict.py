@@ -234,6 +234,7 @@ def _encodeTable(
         maxVals = {idx: 0 for idx in colIdxsRequired}
         
         # Encode non-integer columns, write output files.
+        st = struct.Struct("<Q")
         with open(outTblFilePath, "w") as outTblFile:
             for line in inTblFile:
                 lineEntries = line.split(_COLSEP)
@@ -244,11 +245,10 @@ def _encodeTable(
                 ))
                 outTblFile.write("\n")
                 for idx in colIdxsRequired:
-                    outColFiles[idx].write(
-                        struct.pack("<Q", int(lineEntries[idx]))
-                    )
-                    if int(lineEntries[idx]) > maxVals[idx]:
-                        maxVals[idx] = int(lineEntries[idx])
+                    entryAsInt = int(lineEntries[idx])
+                    outColFiles[idx].write(st.pack(entryAsInt))
+                    if entryAsInt > maxVals[idx]:
+                        maxVals[idx] = entryAsInt
         
         with open(outStatFilePath, "w") as outStatFile:
             json.dump(
