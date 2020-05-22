@@ -25,8 +25,9 @@ loading data from CSV files into these tables. The generated statements are
 printed to stdout.
 
 Important: The data is assumed to contain only integer columns. Such data can
-be obtained with MorphStore's dbdict.py. All columns of the database will be
-defined as type INT.
+be obtained with MorphStore's dbdict.py. The integer type of each column will
+be defined as specified by argument intType (either the same type for all
+columns or the narrowest possible type for each individual column, see below).
 
 The schema information must be provided as a JSON file fulfilling the following
 criteria:
@@ -57,6 +58,27 @@ import json
 import os
 
 
+INTTYPE_TINY = "TINYINT"
+INTTYPE_SMALL = "SMALLINT"
+INTTYPE_INT = "INT"
+INTTYPE_BIG = "BIGINT"
+INTTYPE_TIGHT = "tight"
+INTTYPES= [INTTYPE_TINY, INTTYPE_SMALL, INTTYPE_INT, INTTYPE_BIG, INTTYPE_TIGHT]
+
+def bitwidth(n):
+    return 1 if n == 0 else int(n).bit_length()
+
+def getIntType(bw):
+    # We use "<" not "<=", since all these SQL integer types are signed.
+    if bw < 8:
+        return INTTYPE_TINY
+    if bw < 16:
+        return INTTYPE_SMALL
+    if bw < 32:
+        return INTTYPE_INT
+    return INTTYPE_BIG
+
+
 if __name__ == "__main__":
     # -------------------------------------------------------------------------
     # Argument parsing
@@ -84,6 +106,21 @@ if __name__ == "__main__":
             "directory is not required to exist when executing this program, "
             "since it will only be inserted into the generated SQL statements."
     )
+    parser.add_argument(
+        "intType", metavar="intType", choices=INTTYPES,
+        help="The integer type to use for all columns. Choose one of {}. "
+            "If you specify '{}', then each column is assigned the narrowest "
+            "type guaranteeing a lossless representation.".format(
+                INTTYPES, INTTYPE_TIGHT
+            )
+    )
+    parser.add_argument(
+        "statsDirPath", metavar="statsDir",
+        help="The path to the directory containing the statistics on the base "
+            "data. Required of you specified '{}' as the integer type.".format(
+                INTTYPE_TIGHT
+            )
+    )
     args = parser.parse_args()
 
     # -------------------------------------------------------------------------
@@ -98,10 +135,23 @@ if __name__ == "__main__":
         print()
         
         for tblName, colNames in schema.items():
+            if args.intType == INTTYPE_TIGHT:
+                statsFilePath = os.path.join(
+                    args.statsDirPath,
+                    "{}.json".format(tblName)
+                )
+                with open(statsFilePath) as statsFile:
+                    stats = json.load(statsFile)
+            
+            countCols = len(colNames)
             print("CREATE TABLE {} (".format(tblName))
-            print("\t" + ",\n\t".join(
-                ["{} INT".format(colName) for colName in colNames]
-            ))
+            for colIdx, colName in enumerate(colNames):
+                colIntType = getIntType(bitwidth(stats[colName])) \
+                    if args.intType == INTTYPE_TIGHT \
+                    else args.intType
+                print("\t{} {}{}".format(
+                    colName, colIntType, "," if colIdx < countCols - 1 else ""
+                ))
             print(");")
             # MonetDB expects an absolute path here.
             dataFilePath = os.path.abspath(os.path.join(

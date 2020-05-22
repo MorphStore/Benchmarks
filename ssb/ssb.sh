@@ -28,7 +28,7 @@ function print_help () {
     echo "              [-v vectorVersion] [-c COMPRESSION_STRATEGY] [-cobj OBJECTIVE] "
     echo "              [-crndu FORMAT] [-crnds FORMAT] [-csequ FORMAT] [-cseqs FORMAT]"
     echo "              [-ccbsl N] [-cubase BOOL] [-cuinterm BOOL] [-cconfig DIR]"
-    echo "              [-um WAY_TO_USE_MONETDB] [-mem MEMORY_MANAGEMENT]"
+    echo "              [-um WAY_TO_USE_MONETDB] [-mit MONETDB_INT_TYPE] [-mem MEMORY_MANAGEMENT]"
     echo "              [--useBetween BOOL] [--useIntersectKAry BOOL]"
     echo ""
     echo "Star Schema Benchmark (SSB) in MorphStore."
@@ -167,6 +167,14 @@ function print_help () {
     echo "      required outputs of MonetDB from files that were previously "
     echo "      created using the 'materialize'-option above."
     echo ""
+    echo "Integer types in MonetDB"
+    echo "  TINYINT, SMALLINT,  Use the specified SQL integer type for all"
+    echo "  INT, BIGINT         columns of the schema. Note that TINYINT and"
+    echo "                      SMALLINT are not suitable for that purpose."
+    echo "  tight               Use the narrowest possible of the integer"
+    echo "                      types mentioned above for each column"
+    echo "                      individually."
+    echo ""
     echo "Memory Management"
     echo "  n, noSelfManaging"
     echo "      Use standard C malloc."
@@ -208,6 +216,9 @@ function print_help () {
     echo "                          alluncompr."
     echo "  -um WAY_TO_USE_MONETDB, --useMonetDB WAY_TO_USE_MONETDB"
     echo "                          The way to use MonetDB."
+    echo "  -mit MONETDB_INT_TYPE, --intType MONETDB_INT_TYPE"
+    echo "                          The integer type to use in MonetDB."
+    echo "                          Defaults to BIGINT."
     echo "  -mem MEMORY_MANAGEMENT  The way MorphStore shall manage memory."
     echo ""
     echo "Examples:"
@@ -312,7 +323,7 @@ function generate () {
         # translate multi-threaded MAL plans.
         eval $monetdb set nthreads=1 $dbName
         eval $monetdb release $dbName
-        eval $createload $benchmark $schemaRequiredFile $pathDataTblsDict \
+        eval $createload $benchmark $schemaRequiredFile $pathDataTblsDict $intType $pathDataStatsDict \
             | $mclient -d $dbName
     fi
 
@@ -936,6 +947,7 @@ comprUncomprBase=""
 comprUncomprInterm=""
 comprConfigDir=""
 useMonetDB=$umPipeline
+intType=BIGINT
 memManagement=$memSelf
 structUseBetween=""
 structUseIntersectKAry=""
@@ -1054,6 +1066,10 @@ do
                 exit -1
             fi
             ;;
+        -mit|--intType)
+            intType=$2
+            shift
+            ;;
         -mem|--memManagement)
             if [[ ${memMap[$2]+_} ]]
             then
@@ -1140,7 +1156,7 @@ pathMal=mal_sf$scaleFactor
 pathRefRes=refres_sf$scaleFactor
 
 # The name of the database in MonetDB.
-dbName="$benchmark"_sf$scaleFactor
+dbName=${benchmark}_sf${scaleFactor}_${intType}
 
 
 # *****************************************************************************

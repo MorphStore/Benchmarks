@@ -18,7 +18,7 @@
 #*********************************************************************************************
 
 function print_help () {
-    echo "Usage: monetdb_ssb.sh [-h] [-sf N] [-r N]"
+    echo "Usage: monetdb_ssb.sh [-h] [-sf N] [-r N] [-t INT_TYPE]"
     echo ""
     echo "Time measurements of the Star Schema Benchmark (SSB) in MonetDB."
     echo ""
@@ -43,6 +43,11 @@ function print_help () {
     echo "  -sf N, --scaleFactor N  The SSB scale factor. Defaults to 1."
     echo "  -r N, --repetitions N   The number of times to execute each "
     echo "                          query. Defaults to 1."
+    echo "  -t INT_TYPE, --intType INT_TYPE"
+    echo "                          The integer type to use. Note that the"
+    echo "                          SSB database must have been created using"
+    echo "                          this integer type with ssb.sh. Defaults to"
+    echo "                          $intType."
     echo ""
     echo "Examples:"
     echo "  monetdb_ssb.sh"
@@ -58,6 +63,7 @@ function print_help () {
 # Defaults.
 scaleFactor=1
 repetitions=1
+intType="BIGINT"
 
 while [[ $# -gt 0 ]]
 do
@@ -73,6 +79,10 @@ do
             ;;
         -r|--repetitions)
             repetitions=$2
+            shift
+            ;;
+        -t|--intType)
+            intType=$2
             shift
             ;;
         *)
@@ -109,7 +119,7 @@ pathDataDicts=$pathData/dicts
 benchmark=ssb
 
 # The name of the database in MonetDB.
-dbName=${benchmark}_sf$scaleFactor
+dbName=${benchmark}_sf${scaleFactor}_${intType}
 
 printf "Starting MonetDB daemon... " >&2
 eval $monetdbd start $pathMonetDBFarm
