@@ -319,9 +319,6 @@ function generate () {
     then
         print_headline2 "Loading data into MonetDB"
         eval $monetdb create $dbName
-        # Deactivating multi-threading is important, since mal2x.py cannot
-        # translate multi-threaded MAL plans.
-        eval $monetdb set nthreads=1 $dbName
         eval $monetdb release $dbName
         eval $createload $benchmark $schemaRequiredFile $pathDataTblsDict $intType $pathDataStatsDict \
             | $mclient -d $dbName
@@ -340,6 +337,15 @@ function translate () {
     print_headline1 "Translating queries"
 
     set -e
+
+    if [[ $useMonetDB = $umPipeline || $useMonetDB = $umMaterialize ]]
+    then
+        # We need to switch off multi-threading, mitosis, and dataflow before
+        # the translation, because mal2morphstore cannot handle the resulting
+        # MAL plans otherwise.
+        eval $monetdb set nthreads=1 $dbName
+        eval $monetdb set optpipe=sequential_pipe $dbName
+    fi
 
     case $useMonetDB in
         $umMaterialize)
@@ -1218,9 +1224,10 @@ fi
 
 if [[ $useMonetDB != $umSaved ]]
 then
-    # TODO Starting the MonetDB daemon is not required if the user only wants to
-    #      build MorphStore.
-    printf "Starting MonetDB daemon... "
+    # TODO This is not required if the user only wants to build MorphStore.
+    # We stop a possibly still running MonetDB daemon to have a vanilla start.
+    printf "Stopping and restarting MonetDB daemon... "
+    eval $monetdbd stop $pathMonetDBFarm 2> /dev/null
     eval $monetdbd start $pathMonetDBFarm
     printf "done.\n"
 fi

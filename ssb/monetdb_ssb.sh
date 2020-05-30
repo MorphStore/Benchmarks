@@ -129,6 +129,10 @@ printf "done.\n" >&2
 eval $monetdb set nthreads=1 $dbName
 # Set MonetDB to read-only execution, just like MorphStore.
 eval $monetdb set readonly=yes $dbName
+# Tell MonetDB to use its default optimization pipeline. We need to do this
+# because for the query translation in ssb.sh, we explicitly use the sequential
+# pipeline.
+eval $monetdb set optpipe=default_pipe $dbName
 
 printf "query\trepetition\truntime [ms]\n"
 
