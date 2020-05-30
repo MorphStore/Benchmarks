@@ -315,6 +315,9 @@ function generate () {
     mkdir $pathData
     eval $dbdict $schemaFullFile $schemaRequiredFile $pathDBGen $pathData
 
+    print_headline2 "Deleting original .tbl-files"
+    rm -f $pathDBGen/*.tbl
+
     if [[ $useMonetDB != $umSaved ]]
     then
         print_headline2 "Loading data into MonetDB"
@@ -324,8 +327,7 @@ function generate () {
             | $mclient -d $dbName
     fi
 
-    print_headline2 "Deleting .tbl-files"
-    rm -f $pathDBGen/*.tbl
+    print_headline2 "Deleting dictionary-encoded .tbl-files"
     rm -rf $pathDataTblsDict
 
     set +e
