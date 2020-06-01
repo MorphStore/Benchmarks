@@ -508,13 +508,14 @@ function translateToDot () {
     do
         printf "$benchmark q$query: "
         filename=$pathSrc/q$query
+        # TODO $dotvisualize needs the query number as "x y", not "x.y".
         case $useMonetDB in
             $umPipeline)
                 printf "SET SCHEMA $benchmark;\nEXPLAIN " \
                     | cat - $pathQueries/q$query.sql \
                     | $qdict $pathDataDicts \
                     | $mclient -d $dbName -f raw \
-                    | $dotvisualize $major $minor\
+                    | $dotvisualize $query \
                     > $pathSrc/q$query.dot
                 dot -Tsvg -o $filename.svg $filename.dot
                 sed -i '/^<title/ d' $filename.svg
@@ -526,14 +527,14 @@ function translateToDot () {
                     | $mclient -d $dbName -f raw \
                     > $pathMal/q$query.mal
                 cat $pathMal/q$query.mal \
-                    | $dotvisualize $major $minor\
+                    | $dotvisualize $query \
                     > $pathSrc/q$query.dot
                 dot -Tsvg -o $filename.svg $filename.dot
                 sed -i '/^<title/ d' $filename.svg
                 ;;
             $umSaved)
                 cat $pathMal/q$query.mal \
-                    | $dotvisualize $major $minor \
+                    | $dotvisualize $query \
                     > $pathSrc/q$query.dot
                 dot -Tsvg -o $filename.svg $filename.dot
                 sed -i '/^<title/ d' $filename.svg
@@ -725,8 +726,8 @@ function run () {
                 #      sorting.
                 case $useMonetDB in
                     $umPipeline)
-                        local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
-                        local resFileMonetDB=$pathRes/q$major."$minor"_MonetDB.csv
+                        local resFileMorphSt=$pathRes/q${query}_MorphStore.csv
+                        local resFileMonetDB=$pathRes/q${query}_MonetDB.csv
                         printf "SET SCHEMA $benchmark;\n" \
                             | cat - $pathQueries/q$query.sql \
                             | $qdict $pathDataDicts \
@@ -739,8 +740,8 @@ function run () {
                         cmp --silent $resFileMonetDB $resFileMorphSt
                         ;;
                     $umMaterialize)
-                        local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
-                        local resFileMonetDB=$pathRes/q$major."$minor"_MonetDB.csv
+                        local resFileMorphSt=$pathRes/q${query}_MorphStore.csv
+                        local resFileMonetDB=$pathRes/q${query}_MonetDB.csv
                         printf "SET SCHEMA $benchmark;\n" \
                             | cat - $pathQueries/q$query.sql \
                             | $qdict $pathDataDicts \
@@ -754,7 +755,7 @@ function run () {
                         cmp --silent $resFileMonetDB $resFileMorphSt
                         ;;
                     $umSaved)
-                        local resFileMorphSt=$pathRes/q$major."$minor"_MorphStore.csv
+                        local resFileMorphSt=$pathRes/q${query}_MorphStore.csv
                         eval $pathExe/$targetName $pathDataColsDict 2> /dev/null \
                             | sort \
                             > $resFileMorphSt
