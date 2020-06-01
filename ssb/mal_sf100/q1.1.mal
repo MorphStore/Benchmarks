@@ -1,0 +1,51 @@
+% .explain # table_name
+% mal # name
+% clob # type
+% 264 # length
+function user.s4_1():void;
+    X_5:void := querylog.define("explain select sum(lo_extendedprice * lo_discount) as revenue\nfrom lineorder, date\nwhere lo_orderdate = d_datekey\n and d_year = 1993\n and lo_discount between 1 and 3\n and lo_quantity < 25;":str, "sequential_pipe":str, 63:int);
+    X_8:int := sql.mvc();
+    X_22:bat[:lng] := sql.bind(X_8:int, "ssb":str, "lineorder":str, "lo_quantity":str, 0:int);
+    X_36:bat[:lng] := sql.bind(X_8:int, "ssb":str, "lineorder":str, "lo_discount":str, 0:int);
+    C_9:bat[:oid] := sql.tid(X_8:int, "ssb":str, "lineorder":str);
+    C_47:bat[:oid] := algebra.select(X_36:bat[:lng], C_9:bat[:oid], 1:lng, 3:lng, true:bit, true:bit, false:bit);
+    C_53:bat[:oid] := algebra.thetaselect(X_22:bat[:lng], C_47:bat[:oid], 25:lng, "<":str);
+    X_12:bat[:lng] := sql.bind(X_8:int, "ssb":str, "lineorder":str, "lo_orderdate":str, 0:int);
+    X_55:bat[:lng] := algebra.projection(C_53:bat[:oid], X_12:bat[:lng]);
+    X_68:bat[:lng] := sql.bind(X_8:int, "ssb":str, "date":str, "d_year":str, 0:int);
+    C_59:bat[:oid] := sql.tid(X_8:int, "ssb":str, "date":str);
+    C_77:bat[:oid] := algebra.thetaselect(X_68:bat[:lng], C_59:bat[:oid], 1993:lng, "==":str);
+    X_61:bat[:lng] := sql.bind(X_8:int, "ssb":str, "date":str, "d_datekey":str, 0:int);
+    X_79:bat[:lng] := algebra.projection(C_77:bat[:oid], X_61:bat[:lng]);
+    (X_81:bat[:oid], X_82:bat[:oid]) := algebra.join(X_55:bat[:lng], X_79:bat[:lng], nil:BAT, nil:BAT, false:bit, nil:lng);
+    X_29:bat[:lng] := sql.bind(X_8:int, "ssb":str, "lineorder":str, "lo_extendedprice":str, 0:int);
+    X_89:bat[:lng] := algebra.projectionpath(X_81:bat[:oid], C_53:bat[:oid], X_29:bat[:lng]);
+    X_90:bat[:lng] := algebra.projectionpath(X_81:bat[:oid], C_53:bat[:oid], X_36:bat[:lng]);
+    X_93:bat[:hge] := batcalc.*(X_89:bat[:lng], X_90:bat[:lng]);
+    X_96:hge := aggr.sum(X_93:bat[:hge]);
+    sql.resultSet("ssb.L4":str, "revenue":str, "hugeint":str, 128:int, 0:int, 7:int, X_96:hge);
+end user.s4_1;
+#inline               actions= 0 time=1 usec 
+#remap                actions= 1 time=154 usec 
+#costmodel            actions= 1 time=1 usec 
+#coercion             actions= 0 time=1 usec 
+#evaluate             actions= 8 time=22 usec 
+#emptybind            actions= 6 time=5 usec 
+#pushselect           actions= 8 time=8 usec 
+#aliases              actions=20 time=4 usec 
+#mergetable           actions= 0 time=42 usec 
+#deadcode             actions=18 time=5 usec 
+#aliases              actions= 0 time=0 usec 
+#constants            actions= 8 time=6 usec 
+#commonTerms          actions= 0 time=2 usec 
+#projectionpath       actions= 2 time=4 usec 
+#deadcode             actions= 2 time=3 usec 
+#reorder              actions= 1 time=8 usec 
+#matpack              actions= 0 time=0 usec 
+#multiplex            actions= 0 time=0 usec 
+#profiler             actions=1 time=1 usec 
+#candidates           actions=1 time=0 usec 
+#deadcode             actions= 0 time=2 usec 
+#wlc                  actions= 0 time=1 usec 
+#garbagecollector     actions= 1 time=45 usec 
+#total                actions=26 time=374 usec 
