@@ -80,7 +80,7 @@ def saveRuntimes(runtimes):
         f.write("colName\tformat\trepetition\truntime\n")
         for colName, fmt, repetition, runtime in runtimes:
             f.write("{}\t{}\t{}\t{}\n".format(
-                    colName, getAltSimpleName(fmt), repIdx, runtime)
+                    colName, getAltSimpleName(fmt), repetition, runtime)
             )
             
 def getBwChoice(minBw):
