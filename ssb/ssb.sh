@@ -616,7 +616,10 @@ function build () {
     fi
 
     # TODO Do not hard-code the arguments for build.sh.
-    ./build.sh -hi -j8 $monitoringFlag $extensionFlags -bSSB $scaleFactor $mem $vbpFlag
+    # TODO We could always use as many jobs (-j) as there are queries to build.
+    # Or we could use the minimum of the number of queries and the number of
+    # available cores.
+    ./build.sh -hi -j13 $monitoringFlag $extensionFlags -bSSB $scaleFactor $mem $vbpFlag
     cd $oldPwd
 
     set +e
