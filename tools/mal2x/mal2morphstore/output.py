@@ -572,7 +572,11 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath, repetitionCount):
                     if key.endswith("Col"):
                         varNames.add(getattr(el, key))
         for varName in varNames:
-            for fmt in allFormats:
+            for fmt in (
+                [formats.UncomprFormat()]
+                if varName in tr.resultCols
+                else allFormats
+            ):
                 print(
                     '{}MONITORING_CREATE_MONITOR(MONITORING_MAKE_MONITOR("{}", "{}", "{}"), MONITORING_KEY_IDENTS({}, {}, {}));'
                     .format(
@@ -592,7 +596,11 @@ def _printProg(indent, tr, purpose, ar, ps, colInfosFilePath, repetitionCount):
 #                '{}std::cerr << "\\tmorphing column {} to all formats..." << '
 #                'std::endl;'.format(indent, varName)
 #            )
-            for fmt in allFormats:
+            for fmt in (
+                [formats.UncomprFormat()]
+                if varName in tr.resultCols
+                else allFormats
+            ):
                 msFormatNameWithBw = _setBitwidthIf(fmt, varName).getInternalName()
                 msFormatNameWithoutBw = fmt.getInternalName()
                 newVarName = "{}__m".format(varName.replace(".", "_"))
