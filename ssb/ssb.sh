@@ -586,6 +586,9 @@ function build () {
     if [[ $scaleFactor -eq 1 || $scaleFactor -eq 10 ]]
     then
         local vbpFlag="--vbpLimitRoutinesForSSBSF1"
+    elif [[ $scaleFactor -eq 100 ]]
+    then
+        local vbpFlag="--vbpLimitRoutinesForSSBSF100"
     else
         local vbpFlag=""
     fi
