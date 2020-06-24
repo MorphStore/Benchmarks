@@ -439,7 +439,7 @@ def getAllSimpleNames_StaticVBP():
     suffixless = StaticVBPFormat(pss.PS_SCALAR).getSimpleName()
     return [
         "{}_{}".format(suffixless, suffix)
-        for suffix in StaticVBPFormat.SUFFIXES
+        for suffix in StaticVBPFormat.SUFFIXES + [32]
     ]
     
 def byName(name, ps):
