@@ -819,6 +819,9 @@ def generate(
                     print("{}using {} = {};".format(
                             indent, ps.PS_VAR, processingStyle
                     ))
+                    if processingStyle == ps.PS_SVE:
+                        # TODO Generate C++ code to initialize use of SVE here.
+                        print("{}// Init SVE".format(indent))
                     print()
                 elif ph == "dataload":
                     _printDataLoad(indent, translationResult, ar)

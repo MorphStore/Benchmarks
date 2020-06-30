@@ -38,6 +38,7 @@ PS_VEC128 = "sse<v128<uint64_t>>"
 PS_VEC256 = "avx2<v256<uint64_t>>"
 PS_VEC512 = "avx512<v512<uint64_t>>"
 PS_VEC128_NEON = "neon<v128<uint64_t>>"
+PS_SVE = "sve<extv<uint64_t>>"
 
 class ProcessingStyleInfo:
     def __init__(self, vectorSizeBit, elementSizeBit):
@@ -53,6 +54,11 @@ PS_INFOS = {
     PS_VEC256: ProcessingStyleInfo(256, 64),
     PS_VEC512: ProcessingStyleInfo(512, 64),
     PS_VEC128_NEON: ProcessingStyleInfo(128, 64),
+    # The vector size is only required for compression aspects (e.g. formats'
+    # parameters, see formats.py and compr.py), so as long as we use SVE only
+    # for uncompressed data, we can simply set it to zero here.
+    # TODO Support compression and SVE.
+    PS_SVE: ProcessingStyleInfo(0, 64),
 }
 
 # Maps the name of a processing style to the name of the subdirectory of 
@@ -64,6 +70,7 @@ INCLUDE_DIR_HANDCODED = {
     PS_VEC128_NEON: "vectorized",
     PS_VEC256: "vectorized",
     PS_VEC512: "vectorized",
+    PS_SVE: "vectorized",
 }
 
 INCLUDE_DIR_LIB = {
@@ -72,6 +79,7 @@ INCLUDE_DIR_LIB = {
     PS_VEC128_NEON: "general_vectorized",
     PS_VEC256: "general_vectorized",
     PS_VEC512: "general_vectorized",
+    PS_SVE: "general_vectorized",
 }
 
 # The name of the variable (in the generated query program) which stands for
