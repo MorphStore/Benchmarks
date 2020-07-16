@@ -622,7 +622,7 @@ function build () {
     # TODO We could always use as many jobs (-j) as there are queries to build.
     # Or we could use the minimum of the number of queries and the number of
     # available cores.
-    ./build.sh -hi -j13 $monitoringFlag $extensionFlags -bSSB $scaleFactor $mem $vbpFlag
+    ./build.sh -hi -j13 $monitoringFlag $extensionFlags -bSSB $scaleFactor $mem $vbpFlag --projectAssumePrepared
     cd $oldPwd
 
     set +e
