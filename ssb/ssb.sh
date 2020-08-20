@@ -30,6 +30,9 @@ function print_help () {
     echo "              [-ccbsl N] [-cubase BOOL] [-cuinterm BOOL] [-cconfig DIR]"
     echo "              [-um WAY_TO_USE_MONETDB] [-mit MONETDB_INT_TYPE] [-mem MEMORY_MANAGEMENT]"
     echo "              [--useBetween BOOL] [--useIntersectKAry BOOL]"
+    echo "              [--pathArtifacts DIR] [--pathData DIR] [--pathTime DIR] "
+    echo "              [--pathDataCh DIR] [--pathSize DIR] [--pathRes DIR] "
+    echo "              [--pathMal DIR] [--pathRefRes DIR] "
     echo ""
     echo "Star Schema Benchmark (SSB) in MorphStore."
     echo ""
@@ -798,7 +801,7 @@ function run () {
 
 
 # *****************************************************************************
-# Some configuration
+# Configuration not depending on arguments
 # *****************************************************************************
 
 # The Name of the Benchmark.
@@ -942,7 +945,10 @@ declare -A memMap=(
 # Argument parsing
 # *****************************************************************************
 
+# -----------------------------------------------------------------------------
 # Defaults.
+# -----------------------------------------------------------------------------
+
 startStep=$stepClean
 endStep=$stepRun
 scaleFactor=1
@@ -966,6 +972,18 @@ intType=BIGINT
 memManagement=$memSelf
 structUseBetween=""
 structUseIntersectKAry=""
+pathArtifacts="."
+pathData=""
+pathTime=""
+pathDataCh=""
+pathSize=""
+pathRes=""
+pathMal=""
+pathRefRes=""
+
+# -----------------------------------------------------------------------------
+# Parsing.
+# -----------------------------------------------------------------------------
 
 while [[ $# -gt 0 ]]
 do
@@ -1103,6 +1121,38 @@ do
             structUseIntersectKAry=$2
             shift
             ;;
+        --pathArtifacts)
+            pathArtifacts=$2
+            shift
+            ;;
+        --pathData)
+            pathData=$2
+            shift
+            ;;
+        --pathTime)
+            pathTime=$2
+            shift
+            ;;
+        --pathDataCh)
+            pathDataCh=$2
+            shift
+            ;;
+        --pathSize)
+            pathSize=$2
+            shift
+            ;;
+        --pathRes)
+            pathRes=$2
+            shift
+            ;;
+        --pathMal)
+            pathMal=$2
+            shift
+            ;;
+        --pathRefRes)
+            pathRefRes=$2
+            shift
+            ;;
         *)
             printf "unknown option: $key\n"
             exit -1
@@ -1110,6 +1160,10 @@ do
     esac
     shift
 done
+
+# -----------------------------------------------------------------------------
+# Validation.
+# -----------------------------------------------------------------------------
 
 if [[ $startStep -gt $endStep ]]
 then
@@ -1140,35 +1194,71 @@ then
     exit -1
 fi
 
-# Directories used for the data.
+# *****************************************************************************
+# Configuration depending on arguments.
+# *****************************************************************************
+
+# -----------------------------------------------------------------------------
+# Directories for the generated source code and executables.
+# -----------------------------------------------------------------------------
+
+pathSrc=$pathMorphStore/Engine/src/"$benchmark"_sf$scaleFactor
+pathExe=$pathMorphStore/Engine/build/src/"$benchmark"_sf$scaleFactor
+
+# -----------------------------------------------------------------------------
+# Directories for the artifacts created (in)directly by this script.
+# -----------------------------------------------------------------------------
+
+# Directories for the data.
+if [[ ! $pathData ]]
+then
+    pathData=$pathArtifacts/data_sf$scaleFactor
+fi
 # Keep the names of the sub-directories consistent with dbdict.py.
-pathData=data_sf$scaleFactor
 pathDataTblsDict=$pathData/tbls_dict
 pathDataDicts=$pathData/dicts
 pathDataColsDict=$pathData/cols_dict
 pathDataStatsDict=$pathData/stats_dict
 
-# Directories for the generated source and executable files.
-pathSrc=$pathMorphStore/Engine/src/"$benchmark"_sf$scaleFactor
-pathExe=$pathMorphStore/Engine/build/src/"$benchmark"_sf$scaleFactor
-
 # Directory for the measured runtimes.
-pathTime=time_sf$scaleFactor
+if [[ ! $pathTime ]]
+then
+    pathTime=$pathArtifacts/time_sf$scaleFactor
+fi
 
 # Directory for the data characteristics.
-pathDataCh=dc_sf$scaleFactor
+if [[ ! $pathDataCh ]]
+then
+    pathDataCh=$pathArtifacts/dc_sf$scaleFactor
+fi
 
 # Directory for the sizes.
-pathSize=size_sf$scaleFactor
+if [[ ! $pathSize ]]
+then
+    pathSize=$pathArtifacts/size_sf$scaleFactor
+fi
 
 # Directory for the query results.
-pathRes=res_sf$scaleFactor
+if [[ ! $pathRes ]]
+then
+    pathRes=$pathArtifacts/res_sf$scaleFactor
+fi
 
 # Directory for the MAL plans from MonetDB.
-pathMal=mal_sf$scaleFactor
+if [[ ! $pathMal ]]
+then
+    pathMal=$pathArtifacts/mal_sf$scaleFactor
+fi
 
 # Directory for the reference query results from MonetDB.
-pathRefRes=refres_sf$scaleFactor
+if [[ ! $pathRefRes ]]
+then
+    pathRefRes=$pathArtifacts/refres_sf$scaleFactor
+fi
+
+# -----------------------------------------------------------------------------
+# Other
+# -----------------------------------------------------------------------------
 
 # The name of the database in MonetDB.
 dbName=${benchmark}_sf${scaleFactor}_${intType}
