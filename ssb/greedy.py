@@ -194,6 +194,10 @@ if __name__ == "__main__":
             "-r", "--repetitions", metavar="N", type=int,
             default=1,
     )
+    parser.add_argument(
+            "--pathDataCh", metavar="DIR",
+            default=None
+    )
     gr = parser.add_mutually_exclusive_group(required=True)
     gr.add_argument(
             "--findBest", action="store_true",
@@ -209,6 +213,7 @@ if __name__ == "__main__":
     distance = args.distance
     combDir = args.outputDir
     countReps = args.repetitions
+    pathDataCh = "dc_sf{}".format(scaleFactor) if args.pathDataCh is None else args.pathDataCh
     optimizeFactor = 1 if args.findBest else -1
     
     # -------------------------------------------------------------------------
@@ -219,7 +224,7 @@ if __name__ == "__main__":
     
     # Load the data characteristics.
     dfColInfos = csvutils.getColInfos(os.path.join(
-            "dc_sf{}".format(scaleFactor), "q{}.csv".format(query)
+            pathDataCh, "q{}.csv".format(query)
     ));
     dfColInfos = dfColInfos.sort_values(distance)
 
