@@ -18,7 +18,7 @@
 #*********************************************************************************************
 
 function print_help () {
-    echo "Usage: monetdb_ssb.sh [-h] [-sf N] [-r N] [-t INT_TYPE]"
+    echo "Usage: monetdb_ssb.sh [-h] [-sf N] [-q {N.N}] [-r N] [-t INT_TYPE]"
     echo "                      [--pathMonetDB] [--pathMonetDBFarm]"
     echo "                      [--pathMorphStore] [--pathData]"
     echo ""
@@ -43,6 +43,11 @@ function print_help () {
     echo "Optional arguments:"
     echo "  -h, --help              Show this help message and exit."
     echo "  -sf N, --scaleFactor N  The SSB scale factor. Defaults to 1."
+    echo "  -q {N.N}, --query {N.N}, --queries {N.N}"
+    echo "                          The numbers of the queries to execute. "
+    echo "                          Multiple queries can be specified by "
+    echo "                          passing a space-separated list enclosed "
+    echo "                          in quotation marks. Defaults to all queries."
     echo "  -r N, --repetitions N   The number of times to execute each "
     echo "                          query. Defaults to 1."
     echo "  -t INT_TYPE, --intType INT_TYPE"
@@ -64,6 +69,7 @@ function print_help () {
 
 # Defaults.
 scaleFactor=1
+queries="1.1 1.2 1.3 2.1 2.2 2.3 3.1 3.2 3.3 3.4 4.1 4.2 4.3"
 repetitions=1
 intType="BIGINT"
 pathMonetDB=""
@@ -81,6 +87,10 @@ do
             ;;
         -sf|--scaleFactor)
             scaleFactor=$2
+            shift
+            ;;
+        -q|--query|--queries)
+            queries=$2
             shift
             ;;
         -r|--repetitions)
@@ -170,7 +180,7 @@ eval $monetdb set optpipe=default_pipe $dbName
 
 printf "query\trepetition\truntime [ms]\n"
 
-for query in 1.1 1.2 1.3 2.1 2.2 2.3 3.1 3.2 3.3 3.4 4.1 4.2 4.3
+for query in $queries
 do
     for rep in $(seq $repetitions)
     do
