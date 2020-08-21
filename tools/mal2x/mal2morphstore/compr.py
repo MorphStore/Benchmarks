@@ -255,6 +255,11 @@ def _configureCostModel(ps, profileDirPath):
     
     # Runtimes.
     dfUncomprProfs_Ps = dfUncomprProfs[dfUncomprProfs[GeneralCols.ve] == ps]
+    if not len(dfUncomprProfs_Ps):
+        raise RuntimeError(
+                "there seem to be no calibration measurements for "
+                "uncompressed data for processing style '{}'".format(ps)
+        )
     costModel.diProfs[cm.CONTEXT_STAND_ALONE][fmt.changeMode(algo.MODE_COMPR)] = \
             dfUncomprProfs_Ps["runtime reg2ram [µs]"].values[0]
     costModel.diProfs[cm.CONTEXT_STAND_ALONE][fmt.changeMode(algo.MODE_DECOMPR)] = \
