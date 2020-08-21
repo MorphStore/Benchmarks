@@ -19,6 +19,8 @@
 
 function print_help () {
     echo "Usage: monetdb_ssb.sh [-h] [-sf N] [-r N] [-t INT_TYPE]"
+    echo "                      [--pathMonetDB] [--pathMonetDBFarm]"
+    echo "                      [--pathMorphStore] [--pathData]"
     echo ""
     echo "Time measurements of the Star Schema Benchmark (SSB) in MonetDB."
     echo ""
@@ -64,6 +66,10 @@ function print_help () {
 scaleFactor=1
 repetitions=1
 intType="BIGINT"
+pathMonetDB=""
+pathMonetDBFarm=""
+pathMorphStore=""
+pathData=""
 
 while [[ $# -gt 0 ]]
 do
@@ -85,6 +91,22 @@ do
             intType=$2
             shift
             ;;
+        --pathMonetDB)
+            pathMonetDB=$2
+            shift
+            ;;
+        --pathMonetDBFarm)
+            pathMonetDBFarm=$2
+            shift
+            ;;
+        --pathMorphStore)
+            pathMorphStore=$2
+            shift
+            ;;
+        --pathData)
+            pathData=$2
+            shift
+            ;;
         *)
             printf "unknown option: $key\n"
             exit -1
@@ -99,20 +121,32 @@ done
 pathQueries=queries
 
 # Related to MonetDB.
-pathMonetDB=../../monetdb
+if [[ ! $pathMonetDB ]]
+then
+    pathMonetDB=../../monetdb
+fi
 monetdbd=$pathMonetDB/bin/monetdbd
 monetdb=$pathMonetDB/bin/monetdb
 mclient=$pathMonetDB/bin/mclient
-pathMonetDBFarm=../../monetdbfarm
+if [[ ! $pathMonetDBFarm ]]
+then
+    pathMonetDBFarm=../../monetdbfarm
+fi
 
 # Related to MorphStore.
-pathMorphStore=../..
+if [[ ! $pathMorphStore ]]
+then
+    pathMorphStore=../..
+fi
 pathTools=$pathMorphStore/Benchmarks/tools
 qdict=$pathTools/dict/qdict.py
 
 # Directories used for the data.
 # Keep the names of the sub-directories consistent with dbdict.py.
-pathData=data_sf$scaleFactor
+if [[ ! $pathData ]]
+then
+    pathData=data_sf$scaleFactor
+fi
 pathDataDicts=$pathData/dicts
 
 # The Name of the Benchmark.
