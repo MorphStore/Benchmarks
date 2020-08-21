@@ -32,7 +32,7 @@ function print_help () {
     echo "              [--useBetween BOOL] [--useIntersectKAry BOOL]"
     echo "              [--pathArtifacts DIR] [--pathData DIR] [--pathTime DIR] "
     echo "              [--pathDataCh DIR] [--pathSize DIR] [--pathRes DIR] "
-    echo "              [--pathMal DIR] [--pathRefRes DIR] "
+    echo "              [--pathMal DIR] [--pathRefRes DIR] [--pathComprProfiles]"
     echo ""
     echo "Star Schema Benchmark (SSB) in MorphStore."
     echo ""
@@ -373,7 +373,7 @@ function translate () {
     local comprFlags="-c $comprStrategy -cobj $comprObjective"
     if [[ $comprStrategy = "costbased" ]]
     then
-        comprFlags="$comprFlags --cprofdir compr_profiles"
+        comprFlags="$comprFlags --cprofdir $pathComprProfiles"
     fi
     if [[ $comprRndUnsorted ]]
     then
@@ -980,6 +980,7 @@ pathSize=""
 pathRes=""
 pathMal=""
 pathRefRes=""
+pathComprProfiles=""
 
 # -----------------------------------------------------------------------------
 # Parsing.
@@ -1153,6 +1154,10 @@ do
             pathRefRes=$2
             shift
             ;;
+        --pathComprProfiles)
+            pathComprProfiles=$2
+            shift
+            ;;
         *)
             printf "unknown option: $key\n"
             exit -1
@@ -1254,6 +1259,12 @@ fi
 if [[ ! $pathRefRes ]]
 then
     pathRefRes=$pathArtifacts/refres_sf$scaleFactor
+fi
+
+# Directory for the compression profiles.
+if [[ ! $pathComprProfiles ]]
+then
+    pathComprProfiles=$pathArtifacts/compr_profiles
 fi
 
 # -----------------------------------------------------------------------------
