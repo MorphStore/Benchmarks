@@ -131,12 +131,12 @@ def evaluateFmtComb(fmtComb):
     the query.
     """
     saveFmtComb(fmtComb)
-    args = "./ssb.sh -mem n -um s -sf {} -ps {} -p t -c manual -cconfig {} -q {}".format(
-            scaleFactor, ps, combDir, query
+    args = "./ssb.sh -mem n -um s -sf {} -ps {} -p t -c manual -cconfig {} -q {} --pathArtifacts {}".format(
+            scaleFactor, ps, combDir, query, pathArtifacts
     ).split(" ")
     # Build the executable.
     ret = subprocess.call(
-            args + "-s t -e b".split(" "),
+            args + "-s t -e b --pathMal {}".format(pathMal).split(" "),
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     if ret:
@@ -146,14 +146,15 @@ def evaluateFmtComb(fmtComb):
     for repIdx in range(countReps):
         # Execute the query once.
         ret = subprocess.call(
-                args + "-s r".split(" "),
+                # TODO The reference results should not be necessary here.
+                args + "-s r --pathRefRes {}".format(pathRefRes).split(" "),
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
         if ret:
             raise RuntimeError("query execution failed")
         # Extract the time measurement from the results file.
         dfTime = csvutils.readMorphStoreCsv(os.path.join(
-                "time_sf{}".format(scaleFactor), "q{}.csv".format(query)
+                pathArtifacts, "time_sf{}".format(scaleFactor), "q{}.csv".format(query)
         ))
         runtimes.append(dfTime[dfTime["opIdx"] == 0]["runtime"].values[0])
     return runtimes
@@ -195,7 +196,15 @@ if __name__ == "__main__":
             default=1,
     )
     parser.add_argument(
-            "--pathDataCh", metavar="DIR",
+            "--pathArtifacts", metavar="DIR",
+            default="."
+    )
+    parser.add_argument(
+            "--pathMal", metavar="DIR",
+            default=None
+    )
+    parser.add_argument(
+            "--pathRefRes", metavar="DIR",
             default=None
     )
     gr = parser.add_mutually_exclusive_group(required=True)
@@ -213,7 +222,9 @@ if __name__ == "__main__":
     distance = args.distance
     combDir = args.outputDir
     countReps = args.repetitions
-    pathDataCh = "dc_sf{}".format(scaleFactor) if args.pathDataCh is None else args.pathDataCh
+    pathArtifacts = args.pathArtifacts
+    pathMal = os.path.join(pathArtifacts, "mal_sf{}".format(scaleFactor)) if args.pathMal is None else args.pathMal
+    pathRefRes = os.path.join(pathArtifacts, "refres_sf{}".format(scaleFactor)) if args.pathRefRes is None else args.pathRefRes
     optimizeFactor = 1 if args.findBest else -1
     
     # -------------------------------------------------------------------------
@@ -224,7 +235,7 @@ if __name__ == "__main__":
     
     # Load the data characteristics.
     dfColInfos = csvutils.getColInfos(os.path.join(
-            pathDataCh, "q{}.csv".format(query)
+            os.path.join(pathArtifacts, "dc_sf{}".format(scaleFactor)), "q{}.csv".format(query)
     ));
     dfColInfos = dfColInfos.sort_values(distance)
 
