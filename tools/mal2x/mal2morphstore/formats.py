@@ -238,6 +238,44 @@ class KWiseNSFormat(MorphStoreStandAloneFormat):
             
     def changeMode(self, mode):
         return KWiseNSFormat(self._ps, mode)
+
+class GroupSimpleFormat(MorphStoreStandAloneFormat):
+    headers = ["core/morphing/group_simple.h"]
+
+    def __init__(self, ps, mode=None):
+        super().__init__("group_simple_f", mode)
+        self._ps = ps
+        self._groupSizeLog = pss.PS_INFOS[ps].vectorElementCount
+        self._baseType = "uint64_t"
+        self._alignmentBytes = pss.PS_INFOS[ps].vectorSizeByte
+        
+    def __hash__(self):
+        # TODO non-dummy implementation
+        return 0
+        
+    def __eq__(self, other):
+        if isinstance(other, GroupSimpleFormat):
+            return (
+                    other._groupSizeLog == self._groupSizeLog and
+                    other._baseType == self._baseType and
+                    other._alignmentBytes == self._alignmentBytes and
+                    other._mode == self._mode
+            )
+        elif isinstance(other, algo.Algo):
+            return False
+        else:
+            return NotImplemented
+    
+    def getInternalName(self):
+        return "{}<{}, {}, {}>".format(
+                self._name,
+                self._groupSizeLog,
+                self._baseType,
+                self._alignmentBytes
+        )
+            
+    def changeMode(self, mode):
+        return GroupSimpleFormat(self._ps, mode)
     
 # -----------------------------------------------------------------------------
 # Logical-level
@@ -418,6 +456,7 @@ def getAllFormats(ps):
     ]
     dynamicNSFormats = [
         DynamicVBPFormat(ps),
+        GroupSimpleFormat(ps),
     ]
     if ps == pss.PS_VEC128:
         dynamicNSFormats.append(KWiseNSFormat(ps))
