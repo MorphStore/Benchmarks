@@ -13,3 +13,4 @@ res_sf*
 size_sf*
 time_sf*
 .ipynb_checkpoints
+__pycache__
