@@ -129,8 +129,10 @@ class SizesCols:
     formatWithoutBw = "formatWithoutBw"
     sizeUsedByte = "sizeUsedByte"
 
-def getSizes(sizesFilePath):
+def getSizes(sizesFilePath, wantedCols=None):
     df = readMorphStoreCsv(sizesFilePath)
+    if wantedCols is not None:
+        df = df[df["colName"].isin(wantedCols)]
     df.index = df["colName"]
     return df[[
         SizesCols.formatWithBw,

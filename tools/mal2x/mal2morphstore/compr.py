@@ -464,7 +464,7 @@ def chooseRealBased(
     objective, dfColInfos, choice, sizesFilePath, minimize=True
 ):
     if objective == OBJ_MEM:
-        func = partial(_measure, csvutils.getSizes(sizesFilePath))
+        func = partial(_measure, csvutils.getSizes(sizesFilePath, dfColInfos.index))
     else:
         raise RuntimeError(
                 "unsupported objective for real best/worst format selection: "
