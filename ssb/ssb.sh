@@ -426,7 +426,7 @@ function translate () {
         local ciFlag="--cifile $pathDataCh/q$query.csv"
         if [[ $comprStrategy = "realbest" || $comprStrategy = "realworst" ]]
         then
-            local sizesFileFlag="--csizesfile ${pathSize}_$processingStyle/q$query.csv"
+            local sizesFileFlag="--csizesfile $pathSize/q$query.csv"
         else
             local sizesFileFlag=""
         fi
