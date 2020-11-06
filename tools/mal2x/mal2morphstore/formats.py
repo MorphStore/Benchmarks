@@ -456,7 +456,7 @@ def getAllFormats(ps):
     ]
     dynamicNSFormats = [
         DynamicVBPFormat(ps),
-#        GroupSimpleFormat(ps),
+        GroupSimpleFormat(ps),
     ]
     if ps == pss.PS_VEC128:
         dynamicNSFormats.append(KWiseNSFormat(ps))
