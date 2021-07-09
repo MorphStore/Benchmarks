@@ -62,6 +62,7 @@ class QueryGraph:
             "my_project_wit_t": "&#960;",
             "select":"&#963;",
             "intersect_sorted":"&#8745;",
+            "my_intersect_wit_t":"&#8745;",
             "merge_sorted":"&#8746;",
             "nested_loop_join":"&#10781;",
             "equi_join":"&#10781;",#<sup>Hash</sup>",
@@ -70,7 +71,8 @@ class QueryGraph:
             "agg_sum":"&#931;",
             #SumGrBased is missing
             "group":"&#947;",
-            "group_vec": "&#947;"
+            "group_vec": "&#947;",
+            "between" : "<= X >="
         }
         self.__operators = list()
         self.__columns = set()

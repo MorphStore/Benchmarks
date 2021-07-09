@@ -63,6 +63,7 @@ import mal2dot.visualize as vis
 import argparse
 import os
 import sys
+import re
 
 
 # *****************************************************************************
@@ -107,10 +108,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "queryMajor", type=int, metavar="QUERY_MAJOR", help="Query major value."
-    )
-    parser.add_argument(
-        "queryMinor", type=int, metavar="QUERY_MINOR", help="Query minor value."
+        "query", type=str, metavar="QUERY", help="Query Major.Minor Value"
     )
 
     args = parser.parse_args()
@@ -118,13 +116,17 @@ if __name__ == "__main__":
     if args.inMalFilePath == FROM_STDIN:
         # 0 is the file descriptor of stdin, can be used with open().
         args.inMalFilePath = 0
+    
+    match = re.search( r"(\d).(\d)", args.query )
+    major = match.group(1)
+    minor = match.group(2)
 
     # -------------------------------------------------------------------------
     # Program translation and output
     # -------------------------------------------------------------------------
     result = \
         vis.dotAnalyze(
-            mal2morphstore.translation.translate(args.inMalFilePath, "", ""),
-            "q{major}_{minor}".format(major=args.queryMajor, minor=args.queryMinor)
+            mal2morphstore.translation.translate(args.inMalFilePath, "", "", True, True),
+            "q{ma}_{mi}".format(ma=major, mi=minor)
         )
     print(result)
